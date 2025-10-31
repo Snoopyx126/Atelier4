@@ -20,12 +20,10 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <img 
-              src={logo} 
-              alt="עין אל ציון Logo" 
-              className="h-16 w-16 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            />
+            <span className="font-playfair text-2xl italic tracking-tight text-black">
+  L’Atelier des Arts
+</span>
+
           </div>
 
           {/* Desktop Navigation */}
@@ -34,32 +32,32 @@ const Navigation = () => {
               onClick={() => scrollToSection("home")}
               className="text-foreground hover:text-accent transition-colors duration-300"
             >
-              בית
+              Acceuil
             </button>
             <button
               onClick={() => scrollToSection("collection")}
               className="text-foreground hover:text-accent transition-colors duration-300"
             >
-              קולקציה
+              Collection
             </button>
             <button
               onClick={() => scrollToSection("about")}
               className="text-foreground hover:text-accent transition-colors duration-300"
             >
-              אודות
+              A propos
             </button>
             <button
               onClick={() => scrollToSection("contact")}
               className="text-foreground hover:text-accent transition-colors duration-300"
             >
-              צור קשר
+              Contactez-nous
             </button>
             <Button 
-              variant="hero" 
+              variant="light" 
               size="lg"
               onClick={() => scrollToSection("contact")}
             >
-              קביעת פגישת ייעוץ
+             Planifier une consultation
             </Button>
           </div>
 
@@ -83,33 +81,33 @@ const Navigation = () => {
                 onClick={() => scrollToSection("home")}
                 className="text-right text-foreground hover:text-accent transition-colors py-2"
               >
-                בית
+               Acceuil
               </button>
               <button
                 onClick={() => scrollToSection("collection")}
                 className="text-right text-foreground hover:text-accent transition-colors py-2"
               >
-                קולקציה
+                Collection
               </button>
               <button
                 onClick={() => scrollToSection("about")}
                 className="text-right text-foreground hover:text-accent transition-colors py-2"
               >
-                אודות
+                A propos
               </button>
               <button
                 onClick={() => scrollToSection("contact")}
                 className="text-right text-foreground hover:text-accent transition-colors py-2"
               >
-                צור קשר
+                Contactez-nous
               </button>
               <Button 
-                variant="hero" 
+                variant="light" 
                 size="lg" 
                 className="w-full"
                 onClick={() => scrollToSection("contact")}
               >
-                קביעת פגישת ייעוץ
+                Planifier une consultation
               </Button>
             </div>
           </div>

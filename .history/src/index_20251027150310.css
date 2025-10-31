@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  /* === Thème général noir & blanc (ancien thème doré remplacé) === */
+/* === Thème général noir & blanc (ancien thème doré remplacé) === */
+:root {
+  /* Couleurs principales */
+  --background: #ffffff;
+  --foreground: #000000;
+
+  /* Dégradés (ancien or → blanc) */
+  --gradient-primary: linear-gradient(135deg, #ffffff 0%, #f4f4f4 100%);
+  --gradient-gold: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+  --gradient-overlay: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.05) 100%);
+
+  /* Ombres légères */
+  --shadow-luxury: 0 10px 20px rgba(0, 0, 0, 0.1);
+  --shadow-gold-glow: 0 5px 10px rgba(0, 0, 0, 0.05);
+
+  /* Transitions */
+  --transition-smooth: all 0.3s ease-in-out;
+  --transition-spring: all 0.5s ease-out;
+
+  /* Bordures et surfaces */
+  --border: #ddd;
+  --card: #f7f7f7;
+  --card-foreground: #000;
+}
+
+/* === Base === */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  transition: var(--transition-smooth);
+}
+
+/* === Titres === */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground);
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.6em;
+}
+
+/* === Paragraphes et texte === */
+p {
+  color: var(--foreground);
+  font-size: 1rem;
+  margin-bottom: 1.2em;
+}
+
+/* === Liens === */
+a {
+  color: var(--foreground);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition-smooth);
+}
+
+a:hover {
+  border-bottom: 1px solid var(--foreground);
+}
+
+/* === Sections === */
+section {
+  padding: 80px 0;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* === Cartes / blocs === */
+.card {
+  background: var(--card);
+  color: var(--card-foreground);
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-luxury);
+  transition: var(--transition-smooth);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* === Boutons === */
+button,
+.btn {
+  background-color: #ffffff;     /* fond blanc */
+  color: #000000;               /* texte noir */
+  border: 1px solid #000000;    /* contour noir */
+  border-radius: 6px;
+  padding: 12px 30px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+button:hover,
+.btn:hover {
+  background-color: #000000;     /* fond noir */
+  color: #ffffff;               /* texte blanc au survol */
+  transform: translateY(-2px);
+}
+
+/* === Navigation / Header === */
+header {
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 999;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid #ddd;
+  backdrop-filter: blur(10px);
+  transition: var(--transition-smooth);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #000;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 40px;
+}
+
+.nav-links a {
+  color: #000;
+  font-weight: 400;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition: var(--transition-smooth);
+}
+
+.nav-links a:hover {
+  color: #555;
+  border-bottom: 1px solid #000;
+}
+
+.nav-cta {
+  background-color: #fff;
+  border: 1px solid #000;
+  color: #000;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: var(--transition-smooth);
+}
+
+.nav-cta:hover {
+  background-color: #000;
+  color: #fff;
+}
+
+/* === Pied de page === */
+footer {
+  background: #f9f9f9;
+  color: #000;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 0.9rem;
+  border-top: 1px solid #ddd;
+}
+
+/* === Images et médias === */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* === Ajustement du padding pour le header fixe === */
+body {
+  padding-top: 80px;
+}
+}

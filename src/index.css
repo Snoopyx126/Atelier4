@@ -2,102 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* --------------------------------------
+   DESIGN SYSTEM — L'Atelier des Arts
+   Palette Noir & Blanc équilibrée
+--------------------------------------- */
 
 @layer base {
   :root {
-    --background: 40 20% 97%;
-    --foreground: 195 35% 15%;
+    --background: 0 0% 98%; /* Blanc cassé */
+    --foreground: 0 0% 10%; /* Noir doux */
 
-    --card: 40 25% 99%;
-    --card-foreground: 195 35% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
 
-    --popover: 40 25% 99%;
-    --popover-foreground: 195 35% 15%;
+    --primary: 0 0% 0%; /* Noir profond */
+    --primary-foreground: 0 0% 100%; /* Blanc pur */
 
-    --primary: 195 45% 20%;
-    --primary-foreground: 40 35% 90%;
+    --secondary: 0 0% 95%; /* Gris clair pour les blocs */
+    --secondary-foreground: 0 0% 10%;
 
-    --secondary: 195 30% 92%;
-    --secondary-foreground: 195 45% 20%;
+    --accent: 0 0% 25%; /* Gris anthracite */
+    --accent-foreground: 0 0% 100%;
 
-    --muted: 195 15% 88%;
-    --muted-foreground: 195 10% 45%;
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 35%;
 
-    --accent: 38 45% 55%;
-    --accent-foreground: 195 45% 15%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 195 20% 88%;
-    --input: 195 20% 88%;
-    --ring: 38 45% 55%;
+    --border: 0 0% 85%;
+    --input: 0 0% 80%;
+    --ring: 0 0% 0%;
 
     --radius: 0.75rem;
-
-    /* Custom brand colors */
-    --brand-teal: 195 45% 20%;
-    --brand-gold: 38 45% 55%;
-    --brand-gold-light: 40 50% 70%;
-    --brand-navy: 195 50% 12%;
-    --brand-cream: 40 30% 96%;
-    --brand-pearl: 40 25% 99%;
-    --brand-champagne: 42 30% 94%;
-    
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(195 45% 20%) 0%, hsl(195 50% 12%) 100%);
-    --gradient-gold: linear-gradient(135deg, hsl(38 45% 55%) 0%, hsl(40 50% 70%) 100%);
-    --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(195 45% 20% / 0.8) 100%);
-    
-    /* Shadows */
-    --shadow-luxury: 0 20px 60px -15px hsl(195 45% 20% / 0.3);
-    --shadow-gold-glow: 0 8px 32px -8px hsl(38 45% 55% / 0.5);
-    
-    /* Transitions */
-    --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-spring: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .dark {
-    --background: 195 45% 12%;
-    --foreground: 40 35% 95%;
-
-    --card: 195 40% 15%;
-    --card-foreground: 40 35% 95%;
-
-    --popover: 195 40% 15%;
-    --popover-foreground: 40 35% 95%;
-
-    --primary: 38 45% 55%;
-    --primary-foreground: 195 45% 12%;
-
-    --secondary: 195 35% 20%;
-    --secondary-foreground: 40 35% 95%;
-
-    --muted: 195 25% 25%;
-    --muted-foreground: 195 10% 65%;
-
-    --accent: 38 45% 55%;
-    --accent-foreground: 195 45% 12%;
-
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 195 30% 25%;
-    --input: 195 30% 25%;
-    --ring: 38 45% 55%;
+    --background: 0 0% 5%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 95%;
+    --accent: 0 0% 50%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 0 0% 60%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+/* --------------------------------------
+   COMPONENTS — Style minimaliste et pro
+--------------------------------------- */
+
+@layer components {
+  /* ✅ Bouton principal : fond noir, texte blanc visible */
+  .btn-primary {
+    @apply bg-black text-white font-medium tracking-wide px-6 py-2 rounded-md shadow-md hover:bg-neutral-800 transition-all duration-300;
+  }
+
+  /* ✅ Bouton secondaire : contour noir, lisible sur fond clair */
+  .btn-outline {
+    @apply border border-black text-black font-medium px-6 py-2 rounded-md hover:bg-black hover:text-white transition-all duration-300;
+  }
+
+  /* ✅ Bouton inversé : utile sur fond image (Hero) */
+  .btn-light {
+    @apply bg-white text-black font-medium px-6 py-2 rounded-md shadow-sm hover:bg-neutral-200 transition-all duration-300;
+  }
+
+  /* ✅ Liens navigation sobres */
+  .nav-link {
+    @apply text-foreground hover:text-neutral-500 transition-colors duration-300;
+  }
+
+  /* ✅ Titres */
+  .section-title {
+    @apply font-playfair text-4xl md:text-5xl text-black mb-8;
+  }
+
+  /* ✅ Slogan Hero */
+  .subtitle {
+    @apply font-playfair italic text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-black leading-snug tracking-tight;
+  }
+
+  /* ✅ Texte secondaire */
+  .text-muted {
+    @apply text-neutral-600;
+  }
+
+  /* ✅ Cartes / blocs */
+  .card {
+    @apply bg-white text-foreground border border-neutral-200 rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md;
   }
 }

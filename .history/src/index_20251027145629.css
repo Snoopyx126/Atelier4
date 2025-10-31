@@ -1,0 +1,121 @@
+:root {
+  /* === Palette principale noir & blanc === */
+  --background: #000;
+  --foreground: #fff;
+
+  --primary: #000;
+  --secondary: #111;
+  --accent: #fff;
+
+  /* === Dégradés sobres === */
+  --gradient-primary: linear-gradient(135deg, #000 0%, #111 100%);
+  --gradient-overlay: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.85) 100%);
+
+  /* === Ombres subtiles === */
+  --shadow-luxury: 0 10px 20px rgba(0, 0, 0, 0.3);
+  --shadow-soft: 0 4px 10px rgba(255, 255, 255, 0.05);
+
+  /* === Transitions douces === */
+  --transition-smooth: all 0.3s ease-in-out;
+  --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* === Mode sombre global === */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  transition: var(--transition-smooth);
+}
+
+/* === Liens === */
+a {
+  color: var(--foreground);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition-smooth);
+}
+
+a:hover {
+  color: #ddd;
+  border-bottom: 1px solid #fff;
+}
+
+/* === Boutons === */
+button,
+.btn {
+  background-color: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--foreground);
+  border-radius: 4px; /* coins plus carrés */
+  padding: 10px 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+button:hover,
+.btn:hover {
+  background-color: var(--foreground);
+  color: var(--background);
+  box-shadow: var(--shadow-luxury);
+}
+
+/* === Titres === */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground);
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* === Sections === */
+section {
+  padding: 80px 0;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* === Cartes, blocs ou composants === */
+.card {
+  background: var(--secondary);
+  color: var(--foreground);
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  box-shadow: var(--shadow-soft);
+  transition: var(--transition-smooth);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-luxury);
+}
+
+/* === Pied de page === */
+footer {
+  background: #000;
+  color: #aaa;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* === Optionnel : effet de survol sur les boutons de collection === */
+.cta-button {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 12px 28px;
+  font-size: 0.95rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  transition: var(--transition-smooth);
+}
+
+.cta-button:hover {
+  background: #fff;
+  color: #000;
+}

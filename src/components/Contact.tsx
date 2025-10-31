@@ -20,12 +20,12 @@ const Contact = () => {
     
     // Basic validation
     if (!formData.name || !formData.email || !formData.message) {
-      toast.error("אנא מלאו את כל השדות הנדרשים");
+      toast.error("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
     // Here you would typically send the form data to your backend
-    toast.success("תודה! ניצור איתכם קשר בקרוב לתיאום פגישת הייעוץ.");
+    toast.success("Merci ! Nous vous contacterons prochainement pour planifier une consultation.");
     
     // Reset form
     setFormData({
@@ -48,12 +48,10 @@ const Contact = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 sm:mb-16 animate-fade-in-up">
           <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight">
-            התחילו את המסע שלכם
+            Donnez vie à votre regard
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
-            מוכנים ליצור את הזוג המושלם שלכם? קבעו פגישת ייעוץ עם מומחי המשקפיים שלנו
-            ובואו נביא את החזון שלכם לחיים.
-          </p>
+          Rencontrez nos experts et imaginez une monture façonnée pour refléter votre style et votre personnalité. </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 max-w-6xl mx-auto">
@@ -63,7 +61,7 @@ const Contact = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2 text-right">
-                    שם מלא *
+                    Nom *
                   </label>
                   <Input
                     id="name"
@@ -71,7 +69,7 @@ const Contact = () => {
                     type="text"
                     value={formData.name}
                     onChange={handleChange}
-                    placeholder="השם המלא שלך"
+                    placeholder="Votre nom complet"
                     required
                     className="w-full text-right"
                     dir="rtl"
@@ -80,7 +78,7 @@ const Contact = () => {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2 text-right">
-                    דוא"ל *
+                  E-mail *
                   </label>
                   <Input
                     id="email"
@@ -96,7 +94,7 @@ const Contact = () => {
 
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2 text-right">
-                    טלפון
+                    Téléphone
                   </label>
                   <Input
                     id="phone"
@@ -112,14 +110,14 @@ const Contact = () => {
 
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2 text-right">
-                    הודעה *
+                    Message *
                   </label>
                   <Textarea
                     id="message"
                     name="message"
                     value={formData.message}
                     onChange={handleChange}
-                    placeholder="ספרו לנו על העדפות הסגנון שלכם ומה אתם מחפשים..."
+                    placeholder="Parlez-nous de vos préférences de style et de ce que vous recherchez..."
                     required
                     className="w-full min-h-[150px] text-right"
                     dir="rtl"
@@ -128,11 +126,11 @@ const Contact = () => {
 
                 <Button 
                   type="submit" 
-                  variant="luxury" 
+                  variant="primary" 
                   size="lg" 
                   className="w-full text-base sm:text-lg min-h-[48px] touch-manipulation"
                 >
-                  קביעת פגישת ייעוץ
+                  Planifier une consultation
                 </Button>
               </form>
             </CardContent>
@@ -142,13 +140,12 @@ const Contact = () => {
           <div className="space-y-6 sm:space-y-8 animate-fade-in-up" style={{ animationDelay: "200ms" }}>
             <div className="text-right">
               <h3 className="font-playfair text-2xl sm:text-3xl font-semibold text-foreground mb-4 sm:mb-8">
-                צרו קשר
+                Contactez-nous
               </h3>
               <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-6 sm:mb-8">
-                מומחי המשקפיים שלנו כאן כדי לעזור לכם למצוא או ליצור את המסגרות המושלמות.
-                בין אם אתם מחפשים משהו נועז ובולט או עדין ומתוחכם,
-                אנו נדריך אתכם בכל שלב של תהליך ההתאמה האישית.
-              </p>
+              Nos experts en lunettes sont là pour vous aider à trouver ou à créer la monture idéale.
+Que vous recherchiez une monture audacieuse et percutante ou subtile et sophistiquée,
+nous vous accompagnerons à chaque étape du processus de personnalisation. </p>
             </div>
 
             <div className="space-y-5 sm:space-y-6">
@@ -162,7 +159,7 @@ const Contact = () => {
                     href="mailto:Opticaltzion@gmail.com" 
                     className="text-sm sm:text-base text-muted-foreground hover:text-accent transition-colors break-all"
                   >
-                    Opticaltzion@gmail.com
+                    Atelierdesarts.12@gmail.com
                   </a>
                 </div>
               </div>
@@ -174,12 +171,12 @@ const Contact = () => {
                 <div>
                   <h4 className="font-semibold text-foreground mb-1 text-sm sm:text-base">ווטסאפ</h4>
                   <a 
-                    href="https://wa.me/33782548362" 
+                    href="https://wa.me/+33698409687" 
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm sm:text-base text-muted-foreground hover:text-accent transition-colors inline-flex items-center gap-2 min-h-[44px]"
                   >
-                    ‭+33 7 82 54 83 62‬
+                    +33 6 98 40 96 87
                   </a>
                 </div>
               </div>
@@ -191,7 +188,8 @@ const Contact = () => {
                 <div>
                   <h4 className="font-semibold text-foreground mb-1 text-sm sm:text-base">מיקום</h4>
                   <p className="text-sm sm:text-base text-muted-foreground">
-                    תל אביב, ישראל
+                    178 avenue daumesnil
+                    75012 Paris
                   </p>
                 </div>
               </div>
@@ -199,9 +197,11 @@ const Contact = () => {
 
             <div className="mt-8 p-6 rounded-lg bg-secondary/50 border border-border text-right">
               <p className="text-sm text-muted-foreground">
-                <strong className="text-foreground">שעות פגישות ייעוץ:</strong><br />
-                ראשון - חמישי: 10:00 - 18:00<br/>
-                שבת: לפי תיאום מראש בלבד
+                <strong className="text-foreground">Horaire d'ouverture:</strong><br />
+                Lundi-Jeudi: 10:00 - 19:30<br/>
+                Vendredi: 10:00 - 15:00<br/>
+                Samedi-Dimanche: Fermeture<br/>
+                   
               </p>
             </div>
           </div>
