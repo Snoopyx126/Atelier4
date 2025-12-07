@@ -10,8 +10,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2, Trash2 } from "lucide-react"; // ✅ Import Trash2
+import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2 } from "lucide-react"; // Assurez-vous d'avoir lucide-react installé
 
+// Interface
 interface Montage {
   _id: string;
   clientName: string;
@@ -20,6 +21,7 @@ interface Montage {
   dateReception: string;
 }
 
+// Priorité de tri
 const statusPriority: Record<string, number> = {
   'En attente': 1,
   'Reçu': 2,
@@ -69,25 +71,6 @@ const AdminDashboard = () => {
       }
   };
 
-  // ✅ Fonction de suppression
-  const handleDelete = async (id: string) => {
-      if (!confirm("Êtes-vous sûr de vouloir supprimer définitivement ce dossier ?")) return;
-
-      const oldMontages = [...montages];
-      setMontages(prev => prev.filter(m => m._id !== id)); // Suppression visuelle immédiate
-
-      try {
-          const res = await fetch(`https://atelier4.vercel.app/api/montages/${id}`, {
-              method: 'DELETE'
-          });
-          if (!res.ok) throw new Error();
-          toast.success("Dossier supprimé avec succès.");
-      } catch (e) {
-          toast.error("Erreur lors de la suppression.");
-          setMontages(oldMontages); // On remet si erreur
-      }
-  };
-
   const getStatusColor = (statut: string) => {
     switch(statut) {
         case 'En attente': return 'text-red-700 bg-red-50 border-red-200';
@@ -99,6 +82,12 @@ const AdminDashboard = () => {
     }
   };
 
+  // --- STATISTIQUES ---
+  const pendingCount = montages.filter(m => m.statut === 'En attente').length;
+  const inProgressCount = montages.filter(m => m.statut === 'En cours' || m.statut === 'Reçu').length;
+  const uniqueClients = new Set(montages.map(m => m.clientName)).size;
+
+  // --- GROUPEMENT PAR MAGASIN ---
   const groupedByShop = montages.reduce((groups, montage) => {
     const shop = montage.clientName || "Client Inconnu";
     if (!groups[shop]) groups[shop] = [];
@@ -106,18 +95,15 @@ const AdminDashboard = () => {
     return groups;
   }, {} as Record<string, Montage[]>);
 
-  // KPIs
-  const pendingCount = montages.filter(m => m.statut === 'En attente').length;
-  const inProgressCount = montages.filter(m => m.statut === 'En cours' || m.statut === 'Reçu').length;
-  const uniqueClients = new Set(montages.map(m => m.clientName)).size;
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement de l'atelier...</div>;
 
   return (
     <div className="min-h-screen bg-gray-100/50 flex flex-col">
       <Navigation />
       
       <div className="flex-grow pt-24 pb-10 px-6 container mx-auto max-w-7xl">
+        
+        {/* Header Dashboard */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Tableau de Bord</h1>
@@ -128,7 +114,7 @@ const AdminDashboard = () => {
             </Button>
         </div>
 
-        {/* KPIs */}
+        {/* CARTES KPI (Indicateurs Clés) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="shadow-sm border-l-4 border-l-red-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -137,6 +123,7 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-gray-900">{pendingCount}</div>
+                    <p className="text-xs text-gray-500">Dossiers en attente de réception</p>
                 </CardContent>
             </Card>
             <Card className="shadow-sm border-l-4 border-l-blue-500">
@@ -146,19 +133,22 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-gray-900">{inProgressCount}</div>
+                    <p className="text-xs text-gray-500">Montages en cours ou reçus</p>
                 </CardContent>
             </Card>
             <Card className="shadow-sm border-l-4 border-l-green-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-600">Clients Actifs</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-600">Partenaires Actifs</CardTitle>
                     <Users className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-gray-900">{uniqueClients}</div>
+                    <p className="text-xs text-gray-500">Magasins avec commandes</p>
                 </CardContent>
             </Card>
         </div>
 
+        {/* TABS PRINCIPAUX */}
         <Tabs defaultValue="atelier" className="space-y-6">
             <TabsList className="bg-white p-1 shadow-sm border rounded-lg h-auto grid grid-cols-2 md:inline-flex w-full md:w-auto">
                 <TabsTrigger value="atelier" className="py-2 px-4 data-[state=active]:bg-gray-100 data-[state=active]:text-black">
@@ -171,6 +161,7 @@ const AdminDashboard = () => {
                 </TabsTrigger>
             </TabsList>
 
+            {/* CONTENU : GESTION ATELIER */}
             <TabsContent value="atelier">
                 <Card className="shadow-md border-0">
                     <CardHeader className="bg-white border-b">
@@ -200,12 +191,13 @@ const AdminDashboard = () => {
                                                     </div>
                                                     {urgentCount > 0 && (
                                                         <Badge variant="destructive" className="ml-auto rounded-full px-3 py-1 text-xs animate-pulse shadow-sm">
-                                                            {urgentCount} action(s)
+                                                            {urgentCount} action(s) requise(s)
                                                         </Badge>
                                                     )}
                                                 </div>
                                             </AccordionTrigger>
                                             <AccordionContent className="pt-2 pb-6 space-y-3">
+                                                {/* Tri des items par priorité */}
                                                 {items.sort((a, b) => (statusPriority[String(a.statut)] || 99) - (statusPriority[String(b.statut)] || 99)).map((m) => (
                                                     <div key={m._id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md hover:border-gray-200">
                                                         
@@ -219,8 +211,7 @@ const AdminDashboard = () => {
                                                             </p>
                                                         </div>
 
-                                                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                                                            {/* Sélecteur de statut */}
+                                                        <div className="w-full sm:w-auto">
                                                             <Select 
                                                                 defaultValue={m.statut} 
                                                                 onValueChange={(val) => handleStatusChange(m._id, val)}
@@ -229,24 +220,13 @@ const AdminDashboard = () => {
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="En attente">🔴 En attente</SelectItem>
+                                                                    <SelectItem value="En attente">🔴 En attente (Réception)</SelectItem>
                                                                     <SelectItem value="Reçu">🔵 Reçu / Validé</SelectItem>
-                                                                    <SelectItem value="En cours">🟠 En cours</SelectItem>
+                                                                    <SelectItem value="En cours">🟠 En cours de montage</SelectItem>
                                                                     <SelectItem value="Terminé">🟢 Terminé</SelectItem>
                                                                     <SelectItem value="Expédié">🟣 Expédié</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
-
-                                                            {/* ✅ BOUTON SUPPRIMER */}
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                                                onClick={() => handleDelete(m._id)}
-                                                                title="Supprimer le dossier"
-                                                            >
-                                                                <Trash2 className="w-5 h-5" />
-                                                            </Button>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -260,9 +240,12 @@ const AdminDashboard = () => {
                 </Card>
             </TabsContent>
 
+            {/* CONTENU : LISTE CLIENTS */}
             <TabsContent value="clients">
                 <Card>
-                    <CardHeader><CardTitle>Opticiens Partenaires</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Opticiens Partenaires</CardTitle>
+                    </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
                             {Object.keys(groupedByShop).map((shop, idx) => (
@@ -271,7 +254,10 @@ const AdminDashboard = () => {
                                         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">
                                             {shop.charAt(0)}
                                         </div>
-                                        <p className="font-medium text-gray-900">{shop}</p>
+                                        <div>
+                                            <p className="font-medium text-gray-900">{shop}</p>
+                                            <p className="text-sm text-gray-500">Partenaire actif</p>
+                                        </div>
                                     </div>
                                     <Badge variant="outline" className="text-gray-600">{groupedByShop[shop].length} commandes</Badge>
                                 </div>
