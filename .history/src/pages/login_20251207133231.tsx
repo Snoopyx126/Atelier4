@@ -1,4 +1,4 @@
-// src/pages/login.tsx
+// src/pages/Login.tsx
 
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
@@ -48,15 +48,14 @@ const Login = () => {
         throw new Error(data.message || "Échec de la connexion.");
       }
 
-      // On enregistre les infos venant de MongoDB dans la mémoire du navigateur
-      localStorage.setItem("user", JSON.stringify(data.user)); 
       
-      // ✅ C'EST ICI QUE TOUT SE JOUE : LA REDIRECTION INTELLIGENTE
+      
+      // ✅ REDIRECTION INTELLIGENTE
       if (data.user.role === 'admin') {
-          // Si MongoDB dit que c'est un admin -> Page Admin
+          // Si c'est un admin, on l'envoie direct sur son tableau de bord
           navigate("/admin");
       } else {
-          // Sinon -> Espace Client classique
+          // Sinon, on l'envoie sur l'espace client classique
           navigate("/dashboardpro");
       }
 
