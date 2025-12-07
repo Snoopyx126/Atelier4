@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1765056292823,
+    "email": "ethellaoptic@gmail.com",
+    "password": "$2b$10$WYXpLvYwS7hyOh28w32Fnu0zJ46Z8o8DBilcoBRNzZult5LFO/C6W",
+    "nomSociete": "ethella optic",
+    "siret": "98172171500010",
+    "isVerified": true,
+    "documentPath": null,
+    "documentName": null
+  },
+  {
+    "id": 1765057627820,
+    "email": "rubens.leturque@gmail.com",
+    "password": "$2b$10$eGlmzuhVbwDWR0WmehJ3ZeSG3qxlPdWa/IWlsBlVgH2cMvxnCk90e",
+    "nomSociete": "ethellaoptic",
+    "siret": "98172171500010",
+    "isVerified": true,
+    "documentPath": null,
+    "documentName": null
+  }
+]
