@@ -17,6 +17,7 @@ import { parseOMA, CARTIER_OMA } from "@/lib/omaParser";
 const getLensShape = (type: string) => {
   const shape = new THREE.Shape();
 
+  // --- Formes Géométriques Standards ---
   if (type === 'rond') {
     shape.absarc(0, 0, 2.2, 0, Math.PI * 2, false); 
   } 
@@ -47,43 +48,46 @@ const getLensShape = (type: string) => {
     shape.bezierCurveTo(1.8, -2.0, 0.5, -2.5, -0.5, -2.2); 
     shape.bezierCurveTo(-2.2, -1.8, -2.5, 0.5, -2.0, 1.5); 
   }
+  
+  // --- ✅ FORME OMA (CARTIER) ---
   else if (type === 'cartier') {
+    // On appelle notre parseur avec les données OMA
     const omaShape = parseOMA(CARTIER_OMA);
     if (omaShape) return omaShape;
+    
+    // Fallback (cercle) si erreur de parsing
     shape.absarc(0, 0, 2.2, 0, Math.PI * 2, false);
   }
 
   return shape;
 };
 
-// --- 2. COMPOSANT 3D (Reflets Atténués) ---
+// --- 2. COMPOSANT 3D ---
 const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
   
   const geometrySettings = useMemo(() => {
     const shape = getLensShape(shapeType);
     return {
-      depth: 0.05, 
+      depth: 0.05, // Épaisseur fine réaliste
       bevelEnabled: true, 
       bevelThickness: diamondCut ? 0.3 : 0.05, 
       bevelSize: diamondCut ? 0.3 : 0.05,      
-      bevelSegments: diamondCut ? 1 : 32, 
+      bevelSegments: diamondCut ? 1 : 32, // 1 = Facettes nettes, 32 = Lisse
       curveSegments: 64 
     };
   }, [shapeType, diamondCut]);
 
   const shapeObject = useMemo(() => getLensShape(shapeType), [shapeType]);
 
-  // ✅ RÉGLAGES ANTI-REFLETS ICI
   const glassMaterialProps = {
-    transmission: 0.99, // Très transparent
-    thickness: 0.5,     
-    roughness: 0.2,     // ✅ AUGMENTÉ : Rend le verre moins "miroir" (plus flou)
-    envMapIntensity: 0.3, // ✅ BAISSÉ : Réduit la force des reflets de la ville
-    clearcoat: 0,       // ✅ DÉSACTIVÉ : Enlève la couche de vernis brillant
-    metalness: 0,       // Pas de métal
+    transmission: 0.98, 
+    thickness: 1.0,     
+    roughness: 0.05,    
+    clearcoat: 1,       
+    clearcoatRoughness: 0,
     color: color,
     attenuationTint: color,
-    attenuationDistance: 1,
+    attenuationDistance: 0.8,
     ior: 1.5 
   };
 
@@ -92,7 +96,6 @@ const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
       <Float speed={2} rotationIntensity={0.2} floatIntensity={0.2} floatingRange={[-0.1, 0.1]}>
         <mesh position={[0, 0, 0]}>
           <extrudeGeometry args={[shapeObject, geometrySettings]} />
-          {/* On applique le matériau matifié */}
           <meshPhysicalMaterial {...glassMaterialProps} side={THREE.DoubleSide} />
         </mesh>
 
@@ -108,10 +111,12 @@ const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
             <Text
               position={[0, 0, diamondCut ? 0.25 : 0.1]} 
               fontSize={0.30} 
-              color="white" // Texte blanc mat
+              color="white"
               anchorX="center"
               anchorY="middle"
-              fillOpacity={0.8} // Légèrement transparent pour faire "sablé"
+              outlineWidth={0.01}
+              outlineColor={color} 
+              // Police par défaut pour éviter les crashs
             >
               {engraving}
             </Text>
@@ -136,16 +141,16 @@ const Configurateur = () => {
       <div className="flex-grow flex flex-col lg:flex-row h-[calc(100vh-80px)] pt-20">
         
         {/* ZONE 3D */}
-        <div className="w-full lg:w-2/3 h-[50vh] lg:h-full bg-gradient-to-br from-gray-100 to-gray-300 relative">
+        <div className="w-full lg:w-2/3 h-[50vh] lg:h-full bg-gradient-to-br from-gray-200 to-gray-400 relative">
             
+            {/* Caméra reculée (Z=14) pour voir le verre en entier */}
             <Canvas shadows camera={{ position: [0, 0, 14], fov: 25 }}>
                 <Suspense fallback={null}>
-                    {/* Environment Studio soft pour éviter les reflets durs */}
-                    <Stage environment="studio" intensity={0.4} adjustCamera={false}>
+                    <Stage environment="city" intensity={0.6} adjustCamera={false}>
                         <Lens3D shapeType={shape} color={tint} diamondCut={diamondCut} engraving={engraving} />
                     </Stage>
                     <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI} />
-                    {/* Pas d'Environment preset ici pour éviter les reflets de ville */}
+                    <Environment preset="warehouse" /> 
                 </Suspense>
             </Canvas>
 
@@ -170,14 +175,18 @@ const Configurateur = () => {
                     <TabsTrigger value="gravure"><Type className="w-4 h-4" /></TabsTrigger>
                 </TabsList>
 
+                {/* 1. FORME */}
                 <TabsContent value="forme" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Forme du calibre</h3>
+                    
                     <div className="grid grid-cols-2 gap-3">
                         <Button className={shape === 'rond' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('rond')}>Ronde</Button>
                         <Button className={shape === 'carre' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('carre')}>Carrée</Button>
                         <Button className={shape === 'hexagonal' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('hexagonal')}>Hexagonale</Button>
                         <Button className={shape === 'aviator' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('aviator')}>Aviateur</Button>
                     </div>
+
+                    {/* ✅ SECTION OMA / TECHNIQUE */}
                     <div className="mt-4 pt-4 border-t">
                         <p className="text-xs font-bold text-gray-400 mb-2">FORMES TECHNIQUES (OMA)</p>
                         <Button 
@@ -189,6 +198,7 @@ const Configurateur = () => {
                     </div>
                 </TabsContent>
 
+                {/* 2. COULEUR */}
                 <TabsContent value="couleur" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Teinte & Dégradé</h3>
                     <div className="grid grid-cols-5 gap-3">
@@ -207,6 +217,7 @@ const Configurateur = () => {
                     </div>
                 </TabsContent>
 
+                {/* 3. FINITION */}
                 <TabsContent value="finition" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Façonnage des bords</h3>
                     <div className="grid grid-cols-1 gap-3">
@@ -229,6 +240,7 @@ const Configurateur = () => {
                     </div>
                 </TabsContent>
 
+                {/* 4. GRAVURE */}
                 <TabsContent value="gravure" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Gravure Laser</h3>
                     <div className="space-y-3">
