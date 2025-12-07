@@ -1,35 +1,18 @@
-// api/index.js (Nouveau point d'entrée pour Vercel)
-
-const express = require("express");
-const cors = require("cors"); // Import de CORS
-const { Resend } = require("resend");
-const dotenv = require("dotenv");
-const multer = require("multer");
-const fs = require("fs"); 
-const path = require("path"); 
-const bcrypt = require('bcrypt'); 
+import express from "express";
+import cors from "cors";
+import { Resend } from "resend";
+import dotenv from "dotenv";
+import multer from "multer";
+import fs from "fs"; 
+import path from "path"; 
+import bcrypt from 'bcrypt'; // ✅ Import de bcrypt pour hacher les mots de passe
 
 dotenv.config();
-const app = express(); // Initialisation d'Express
-
-// --- Configuration Vercel et CORS ---
-// L'URL de votre Front-End déployé
-const FRONTEND_URL = 'https://atelier4.vercel.app'; 
-
-// CRITIQUE : Configuration CORS (Doit être en premier avant les routes)
-app.use(cors({
-  origin: FRONTEND_URL, 
-  credentials: true // Important si vous utilisez des cookies
-}));
-
-// Middleware essentiel pour parser les corps de requêtes JSON (login)
+const app = express();
+app.use(cors({ origin: "*" }));
 app.use(express.json());
-// ------------------------------------
 
 // --- Configuration Fichiers Locaux ---
-// ATTENTION : Vercel est un environnement Serverless. 
-// Les fichiers uploadés et users.json ne sont PAS persistants entre les requêtes.
-// Pour un usage PROD, vous devriez utiliser une BDD externe (MongoDB, PostgreSQL) et un service de stockage de fichiers (S3, Cloudinary).
 const USERS_FILE = path.join(process.cwd(), 'users.json');
 const SALT_ROUNDS = 10; 
 
@@ -51,16 +34,13 @@ const saveUsers = (users) => {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
 };
 
-// --- Configuration Multer (Stockage Local Temporaire) ---
-const uploadDir = path.join(process.cwd(), 'uploads'); 
-
-// Création du dossier 'uploads' au démarrage (nécessaire pour Vercel, mais le contenu est perdu)
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
+// --- Configuration Multer (Stockage Local) ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads'); 
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
     cb(null, uploadDir); 
   },
   filename: (req, file, cb) => {
@@ -73,6 +53,8 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 } 
 });
 
+console.log("🔑 Clé Resend chargée :", process.env.RESEND_API_KEY ? "✅ OK" : "❌ Manquante");
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ----------------------------------------------------------------
@@ -81,8 +63,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 app.post("/inscription", upload.single('pieceJointe'), async (req, res) => {
     const { nomSociete, email, siret, password } = req.body;
     const uploadedFile = req.file; 
-    // IMPORTANT : Sur Vercel, ce fichier sera PERDU après l'exécution de cette fonction.
-    let uploadedFilePath = uploadedFile ? uploadedFile.path : null; 
+    let uploadedFilePath = uploadedFile ? uploadedFile.path : null;
 
     if (!nomSociete || !email || !siret || !password || !uploadedFile) {
         if (uploadedFilePath) fs.unlinkSync(uploadedFilePath);
@@ -96,6 +77,7 @@ app.post("/inscription", upload.single('pieceJointe'), async (req, res) => {
             return res.status(409).json({ success: false, message: "Cet email est déjà enregistré." });
         }
         
+        // Hachage du mot de passe
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
         // Enregistrement de la demande en attente
@@ -105,14 +87,15 @@ app.post("/inscription", upload.single('pieceJointe'), async (req, res) => {
             password: hashedPassword,
             nomSociete,
             siret,
-            isVerified: false, 
-            // documentPath et documentName ne sont plus pertinents en Serverless
+            isVerified: false, // CLÉ CRITIQUE : Compte non validé
+            documentPath: uploadedFilePath, // Stockage du chemin du fichier local
+            documentName: uploadedFile.originalname,
         };
 
         users.push(newUser);
         saveUsers(users);
         
-        // Envoi d'email avec pièce jointe (lecture du fichier temporaire)
+        // Envoi d'email avec pièce jointe (Kbis)
         const fileContent = fs.readFileSync(uploadedFilePath); 
         
         await resend.emails.send({
@@ -123,8 +106,7 @@ app.post("/inscription", upload.single('pieceJointe'), async (req, res) => {
             attachments: [{ filename: uploadedFile.originalname, content: fileContent }],
         });
 
-        // Nettoyage immédiat du fichier temporaire
-        if (uploadedFilePath && fs.existsSync(uploadedFilePath)) fs.unlinkSync(uploadedFilePath);
+        // Le fichier n'est PAS supprimé ici, il est conservé dans 'uploads' pour vérification.
 
         res.status(200).json({ success: true, message: "Demande enregistrée et email de notification envoyé." });
     } catch (error) {
@@ -151,12 +133,14 @@ app.post("/login", async (req, res) => {
         return res.status(401).json({ success: false, message: "Identifiants invalides." });
     }
 
+    // Vérification du mot de passe haché
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
         return res.status(401).json({ success: false, message: "Identifiants invalides." });
     }
 
+    // Vérification de l'état de validation du compte
     if (!user.isVerified) {
         return res.status(403).json({ success: false, message: "Compte en attente de validation par l'administrateur." });
     }
@@ -168,10 +152,39 @@ app.post("/login", async (req, res) => {
 // ----------------------------------------------------------------
 // 3. Point de terminaison de Validation Manuelle du Compte (Admin)
 // ----------------------------------------------------------------
+// Permet de valider un compte après vérification manuelle du Kbis.
 app.post("/validate-account", (req, res) => {
-    // Ce point d'accès n'est pas fonctionnel sur Vercel Serverless
-    // car il s'appuie sur la présence locale du fichier Kbis/users.json
-    return res.status(501).json({ success: false, message: "Cette fonctionnalité (gestion locale des fichiers) n'est pas supportée par Vercel." });
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ success: false, message: "Email manquant." });
+    }
+
+    let users = getUsers();
+    const userIndex = users.findIndex(user => user.email === email);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ success: false, message: "Utilisateur non trouvé." });
+    }
+
+    if (users[userIndex].isVerified) {
+        return res.status(200).json({ success: true, message: "Compte déjà vérifié." });
+    }
+
+    // Basculer l'état sur VÉRIFIÉ
+    users[userIndex].isVerified = true;
+    
+    // Nettoyage : Supprimer le fichier Kbis local une fois que vous l'avez vérifié
+    const documentPath = users[userIndex].documentPath;
+    if (documentPath && fs.existsSync(documentPath)) {
+        fs.unlinkSync(documentPath);
+        users[userIndex].documentPath = null;
+        users[userIndex].documentName = null;
+    }
+
+    saveUsers(users);
+
+    res.status(200).json({ success: true, message: `Compte ${email} validé avec succès. Le document a été supprimé.` });
 });
 
 
@@ -180,7 +193,7 @@ app.post("/validate-account", (req, res) => {
 // ----------------------------------------------------------------
 app.post("/send-email", async (req, res) => {
   const { name, email, message } = req.body;
-  
+  // ... (le code de votre send-email actuel) ...
   try {
     const data = await resend.emails.send({
       from: "onboarding@resend.dev", 
@@ -202,5 +215,15 @@ app.post("/send-email", async (req, res) => {
 });
 
 
-// CRITIQUE : Export de l'application Express pour Vercel (Doit être la dernière ligne)
+const PORT = 3001;
+app.listen(PORT, () => console.log(`🚀 Serveur sur http://localhost:${PORT}`));
+
+const FRONTEND_URL = 'https://atelier4.vercel.app'; 
+
+app.use(cors({
+  origin: FRONTEND_URL, 
+  credentials: true // Si vous utilisez des cookies/sessions
+}));
+
+// Assurez-vous d'exporter l'application pour Vercel
 module.exports = app;
