@@ -10,17 +10,21 @@ import { Slider } from "@/components/ui/slider";
 import { Palette, Gem, Type, Shapes, RotateCw, Move, Check } from "lucide-react";
 import * as THREE from 'three';
 
-// --- 1. DESSIN DES FORMES ---
+// --- 1. DESSIN DES FORMES (Proportions réalistes) ---
 const getLensShape = (type: string) => {
   const shape = new THREE.Shape();
 
+  // Échelle : 1 unité = ~1 cm. Un verre fait environ 5-6 cm de large.
+  // On dessine autour de l'origine (0,0)
+
   if (type === 'rond') {
-    shape.absarc(0, 0, 2.2, 0, Math.PI * 2, false); 
+    shape.absarc(0, 0, 2.2, 0, Math.PI * 2, false); // Rayon 2.2
   } 
   else if (type === 'carre') {
+    // Carré arrondi (plus esthétique qu'un carré brut)
     const w = 2.2; 
     const h = 2.0;
-    const r = 0.5;
+    const r = 0.5; // Rayon des coins
     shape.moveTo(-w + r, -h);
     shape.lineTo(w - r, -h);
     shape.quadraticCurveTo(w, -h, w, -h + r);
@@ -43,53 +47,59 @@ const getLensShape = (type: string) => {
     shape.closePath();
   }
   else if (type === 'aviator') {
+    // Forme Aviateur Classique (Goutte d'eau)
     shape.moveTo(-2.0, 1.5); 
-    shape.lineTo(1.0, 1.5);  
-    shape.bezierCurveTo(2.2, 1.5, 2.5, 0.5, 2.2, -0.5); 
-    shape.bezierCurveTo(1.8, -2.0, 0.5, -2.5, -0.5, -2.2); 
-    shape.bezierCurveTo(-2.2, -1.8, -2.5, 0.5, -2.0, 1.5); 
+    shape.lineTo(1.0, 1.5);  // Barre supérieure droite
+    shape.bezierCurveTo(2.2, 1.5, 2.5, 0.5, 2.2, -0.5); // Arrondi droit descendant
+    shape.bezierCurveTo(1.8, -2.0, 0.5, -2.5, -0.5, -2.2); // Bas de la goutte
+    shape.bezierCurveTo(-2.2, -1.8, -2.5, 0.5, -2.0, 1.5); // Remontée gauche
   }
 
   return shape;
 };
 
-// --- 2. COMPOSANT 3D ---
+// --- 2. COMPOSANT 3D : LE VERRE FIN ---
 const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
   
   const geometrySettings = useMemo(() => {
     const shape = getLensShape(shapeType);
     return {
-      depth: 0.15, 
+      // ✅ C'est ici que la magie opère pour la finesse
+      depth: 0.15, // Épaisseur très fine (comme un vrai verre)
       bevelEnabled: true, 
-      bevelThickness: diamondCut ? 0.3 : 0.05, 
-      bevelSize: diamondCut ? 0.3 : 0.05,      
-      bevelSegments: diamondCut ? 2 : 16,      
-      curveSegments: 64 
+      bevelThickness: diamondCut ? 0.3 : 0.05, // Biseau fort si Diamond Cut, sinon subtil
+      bevelSize: diamondCut ? 0.3 : 0.05,      // Taille du biseau
+      bevelSegments: diamondCut ? 2 : 16,      // 2 segments = facettes (diamant), 16 = lisse
+      curveSegments: 64 // Lissage des courbes
     };
   }, [shapeType, diamondCut]);
 
   const shapeObject = useMemo(() => getLensShape(shapeType), [shapeType]);
 
+  // Matériau Verre Physique
   const glassMaterialProps = {
-    transmission: 0.98, 
-    thickness: 1.0,     
-    roughness: 0.05,    
-    clearcoat: 1,       
+    transmission: 0.98, // Très transparent
+    thickness: 1.0,     // Réfraction optique
+    roughness: 0.05,    // Très lisse
+    clearcoat: 1,       // Vernis brillant
     clearcoatRoughness: 0,
     color: color,
     attenuationTint: color,
     attenuationDistance: 0.8,
-    ior: 1.5 
+    ior: 1.5 // Indice de réfraction du verre
   };
 
   return (
     <Center>
       <Float speed={2} rotationIntensity={0.2} floatIntensity={0.2} floatingRange={[-0.1, 0.1]}>
+        
+        {/* LE VERRE */}
         <mesh position={[0, 0, 0]}>
           <extrudeGeometry args={[shapeObject, geometrySettings]} />
           <meshPhysicalMaterial {...glassMaterialProps} side={THREE.DoubleSide} />
         </mesh>
 
+        {/* GRAVURE (Ajustée à la nouvelle épaisseur) */}
         {engraving && (
           <PivotControls 
             anchor={[0, 0, 0]} 
@@ -100,19 +110,21 @@ const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
             disableRotations
           >
             <Text
+              // Position Z calculée : Épaisseur (0.15) + Biseau (variable) + Marge (0.01)
               position={[0, 0, diamondCut ? 0.46 : 0.21]} 
-              fontSize={0.35} 
+              fontSize={0.35} // Texte un peu plus petit et élégant
               color="white"
               anchorX="center"
               anchorY="middle"
               outlineWidth={0.01}
-              outlineColor={color} 
+              outlineColor={color} // Petit contour subtil couleur verre
               font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2" 
             >
               {engraving}
             </Text>
           </PivotControls>
         )}
+
       </Float>
     </Center>
   );
@@ -134,8 +146,10 @@ const Configurateur = () => {
         {/* ZONE 3D */}
         <div className="w-full lg:w-2/3 h-[50vh] lg:h-full bg-gradient-to-br from-gray-200 to-gray-400 relative">
             
+            {/* Caméra plus proche (zoomée) car le verre est plus réaliste */}
             <Canvas shadows camera={{ position: [0, 0, 8], fov: 30 }}>
                 <Suspense fallback={null}>
+                    {/* Environnement lumineux studio pour faire briller le verre */}
                     <Stage environment="city" intensity={0.7} adjustCamera={false}>
                         <Lens3D shapeType={shape} color={tint} diamondCut={diamondCut} engraving={engraving} />
                     </Stage>
@@ -169,11 +183,10 @@ const Configurateur = () => {
                 <TabsContent value="forme" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Forme du calibre</h3>
                     <div className="grid grid-cols-2 gap-3">
-                        {/* ✅ CORRECTION : Utilisation de 'primary' au lieu de 'default' */}
-                        <Button variant={shape === 'rond' ? 'primary' : 'outline'} onClick={() => setShape('rond')}>Ronde (Pantos)</Button>
-                        <Button variant={shape === 'carre' ? 'primary' : 'outline'} onClick={() => setShape('carre')}>Carrée Soft</Button>
-                        <Button variant={shape === 'hexagonal' ? 'primary' : 'outline'} onClick={() => setShape('hexagonal')}>Hexagonale</Button>
-                        <Button variant={shape === 'aviator' ? 'primary' : 'outline'} onClick={() => setShape('aviator')}>Aviateur</Button>
+                        <Button variant={shape === 'rond' ? 'default' : 'outline'} onClick={() => setShape('rond')}>Ronde (Pantos)</Button>
+                        <Button variant={shape === 'carre' ? 'default' : 'outline'} onClick={() => setShape('carre')}>Carrée Soft</Button>
+                        <Button variant={shape === 'hexagonal' ? 'default' : 'outline'} onClick={() => setShape('hexagonal')}>Hexagonale</Button>
+                        <Button variant={shape === 'aviator' ? 'default' : 'outline'} onClick={() => setShape('aviator')}>Aviateur</Button>
                     </div>
                 </TabsContent>
 
@@ -241,7 +254,6 @@ const Configurateur = () => {
             </Tabs>
 
             <div className="mt-10 border-t pt-6">
-                {/* ✅ CORRECTION : Utilisation de 'primary' ou d'une classe CSS */}
                 <Button className="w-full bg-black text-white h-12 text-lg hover:bg-gray-800 shadow-lg">
                     Valider ce design
                 </Button>
