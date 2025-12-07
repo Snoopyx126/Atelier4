@@ -32,8 +32,7 @@ const EspacePro = () => {
     try {
       const API_BASE_URL = "https://atelier4.vercel.app/api"; 
 
-      // ✅ CORRECTION ICI : On tape sur /login et non /espacepro
-      const response = await fetch(`${API_BASE_URL}/login`, {
+      const response = await fetch(`${API_BASE_URL}/espacepro`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -50,7 +49,7 @@ const EspacePro = () => {
       // Stockage
       localStorage.setItem("user", JSON.stringify(data.user)); 
       
-      // ✅ REDIRECTION INTELLIGENTE
+      // ✅ REDIRECTION INTELLIGENTE (ADMIN vs USER)
       if (data.user.role === 'admin') {
           navigate("/admin");
       } else {

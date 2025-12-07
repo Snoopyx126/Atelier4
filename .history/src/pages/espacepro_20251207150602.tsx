@@ -1,5 +1,3 @@
-// src/pages/login.tsx
-
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom"; 
 
-const Login = () => {
+const EspacePro = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,6 +32,7 @@ const Login = () => {
     try {
       const API_BASE_URL = "https://atelier4.vercel.app/api"; 
 
+      // ✅ CORRECTION ICI : On tape sur /login et non /espacepro
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: {
@@ -48,15 +47,13 @@ const Login = () => {
         throw new Error(data.message || "Échec de la connexion.");
       }
 
-      // On enregistre les infos venant de MongoDB dans la mémoire du navigateur
+      // Stockage
       localStorage.setItem("user", JSON.stringify(data.user)); 
       
-      // ✅ C'EST ICI QUE TOUT SE JOUE : LA REDIRECTION INTELLIGENTE
+      // ✅ REDIRECTION INTELLIGENTE
       if (data.user.role === 'admin') {
-          // Si MongoDB dit que c'est un admin -> Page Admin
           navigate("/admin");
       } else {
-          // Sinon -> Espace Client classique
           navigate("/dashboardpro");
       }
 
@@ -130,4 +127,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default EspacePro;
