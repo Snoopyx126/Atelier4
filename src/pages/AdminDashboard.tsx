@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2, Trash2, Mail, FileText, Calendar, PlusCircle } from "lucide-react";
+import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2, Trash2, Mail, FileText, Calendar, PlusCircle, Pencil } from "lucide-react";
 
 // Interfaces
 interface Montage {
@@ -50,8 +50,10 @@ const AdminDashboard = () => {
   const [clients, setClients] = useState<Client[]>([]); 
   const [loading, setLoading] = useState(true);
 
-  // États pour le formulaire d'ajout
+  // États pour le formulaire (Ajout / Modif)
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null); // ✅ ID en cours d'édition (null = création)
+  
   const [newClient, setNewClient] = useState("");
   const [newRef, setNewRef] = useState("");
   const [newFrame, setNewFrame] = useState("");
@@ -66,7 +68,6 @@ const AdminDashboard = () => {
     try {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
-        
         Promise.all([fetchMontages(), fetchClients()]).finally(() => setLoading(false));
     } catch (e) { navigate("/"); }
   }, [navigate]);
@@ -87,18 +88,44 @@ const AdminDashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // AJOUTER UN MONTAGE (ADMIN)
-  const handleAddMontage = async (e: React.FormEvent) => {
+  // ✅ OUVRIR POUR CRÉATION
+  const openCreateDialog = () => {
+      setEditingId(null); // Mode Création
+      setNewClient(""); setNewRef(""); setNewFrame(""); setNewDesc(""); 
+      setNewCategory("Cerclé"); setNewOptions([]);
+      setIsDialogOpen(true);
+  };
+
+  // ✅ OUVRIR POUR MODIFICATION
+  const openEditDialog = (m: Montage) => {
+      setEditingId(m._id); // Mode Edition
+      setNewClient(m.userId); // On remet l'ID du client
+      setNewRef(m.reference || "");
+      setNewFrame(m.frame || "");
+      setNewDesc(m.description || "");
+      setNewCategory(m.category || "Cerclé");
+      setNewOptions(m.options || []);
+      setIsDialogOpen(true);
+  };
+
+  // ✅ SAUVEGARDER (CRÉATION OU MODIF)
+  const handleSaveMontage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newClient || !newRef || !newFrame) {
-        toast.error("Veuillez remplir les champs obligatoires (Client, Ref, Monture).");
+        toast.error("Veuillez remplir les champs obligatoires.");
         return;
     }
 
     setIsSubmitting(true);
     try {
-        const res = await fetch("https://atelier4.vercel.app/api/montages", {
-            method: "POST",
+        const url = editingId 
+            ? `https://atelier4.vercel.app/api/montages/${editingId}` // URL Modif
+            : "https://atelier4.vercel.app/api/montages";             // URL Création
+        
+        const method = editingId ? "PUT" : "POST";
+
+        const res = await fetch(url, {
+            method: method,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 userId: newClient, 
@@ -112,15 +139,13 @@ const AdminDashboard = () => {
         const data = await res.json();
         
         if (data.success) {
-            toast.success("Dossier créé avec succès !");
+            toast.success(editingId ? "Dossier modifié !" : "Dossier créé !");
             setIsDialogOpen(false); 
-            setNewClient(""); setNewRef(""); setNewFrame(""); setNewDesc(""); 
-            setNewCategory("Cerclé"); setNewOptions([]);
             fetchMontages(); 
         } else {
             throw new Error(data.message);
         }
-    } catch (error) { toast.error("Erreur lors de la création."); } 
+    } catch (error) { toast.error("Erreur lors de l'enregistrement."); } 
     finally { setIsSubmitting(false); }
   };
 
@@ -197,21 +222,21 @@ const AdminDashboard = () => {
             </div>
             
             <div className="flex gap-3">
+                {/* DIALOG CREATION / EDITION */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-black hover:bg-gray-800 text-white gap-2">
-                            <PlusCircle className="w-4 h-4" /> Créer un dossier
-                        </Button>
-                    </DialogTrigger>
+                    {/* Bouton d'ouverture déclenché manuellement via setIsDialogOpen */}
+                    <Button onClick={openCreateDialog} className="bg-black hover:bg-gray-800 text-white gap-2">
+                        <PlusCircle className="w-4 h-4" /> Créer un dossier
+                    </Button>
+                    
                     <DialogContent className="max-w-lg bg-white">
                         <DialogHeader>
-                            <DialogTitle>Ajouter un nouveau dossier</DialogTitle>
+                            <DialogTitle>{editingId ? "Modifier le dossier" : "Ajouter un nouveau dossier"}</DialogTitle>
                         </DialogHeader>
-                        <form onSubmit={handleAddMontage} className="space-y-4 pt-4">
+                        <form onSubmit={handleSaveMontage} className="space-y-4 pt-4">
                             <div className="space-y-2">
                                 <Label>Client (Opticien)</Label>
                                 <Select onValueChange={setNewClient} value={newClient}>
-                                    {/* ✅ Ajout de bg-white */}
                                     <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner un client..." /></SelectTrigger>
                                     <SelectContent className="bg-white">
                                         {clients.map(c => (
@@ -233,7 +258,6 @@ const AdminDashboard = () => {
                             <div className="space-y-2">
                                 <Label>Type de Montage</Label>
                                 <Select onValueChange={setNewCategory} value={newCategory}>
-                                    {/* ✅ Ajout de bg-white */}
                                     <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                                     <SelectContent className="bg-white">
                                         <SelectItem value="Cerclé">Cerclé</SelectItem>
@@ -257,7 +281,7 @@ const AdminDashboard = () => {
                                 <Input placeholder="Instruction spéciale..." value={newDesc} onChange={e => setNewDesc(e.target.value)} />
                             </div>
                             <Button type="submit" className="w-full" disabled={isSubmitting}>
-                                {isSubmitting ? "Création..." : "Valider le dossier"}
+                                {isSubmitting ? "Enregistrement..." : (editingId ? "Modifier" : "Créer le dossier")}
                             </Button>
                         </form>
                     </DialogContent>
@@ -371,7 +395,6 @@ const AdminDashboard = () => {
                                                                 <SelectTrigger className={`w-full sm:w-[180px] h-10 font-medium border-2 ${getStatusColor(m.statut)}`}>
                                                                     <SelectValue />
                                                                 </SelectTrigger>
-                                                                {/* ✅ Ajout de bg-white pour le menu déroulant Statut */}
                                                                 <SelectContent className="bg-white">
                                                                     <SelectItem value="En attente">🔴 En attente</SelectItem>
                                                                     <SelectItem value="Reçu">🔵 Reçu</SelectItem>
@@ -380,6 +403,18 @@ const AdminDashboard = () => {
                                                                     <SelectItem value="Expédié">🟣 Expédié</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
+                                                            
+                                                            {/* ✅ BOUTON MODIFIER */}
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                                                                onClick={() => openEditDialog(m)}
+                                                                title="Modifier le dossier"
+                                                            >
+                                                                <Pencil className="w-5 h-5" />
+                                                            </Button>
+
                                                             <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(m._id)}>
                                                                 <Trash2 className="w-5 h-5" />
                                                             </Button>
