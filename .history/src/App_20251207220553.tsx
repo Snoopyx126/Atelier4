@@ -13,7 +13,7 @@ import Profil from "./pages/profil";
 import CommentCaMarche from "./pages/commentcamarche";
 import AdminDashboard from "./pages/AdminDashboard";
 import MesCommandes from "./pages/MesCommandes";
-import Configurateur from "./pages/configurateur"; // ✅ Import
+import Configurateur from "./pages/Configurateur"; // ✅ Import
 
 const queryClient = new QueryClient();
 

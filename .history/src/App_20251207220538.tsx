@@ -13,7 +13,7 @@ import Profil from "./pages/profil";
 import CommentCaMarche from "./pages/commentcamarche";
 import AdminDashboard from "./pages/AdminDashboard";
 import MesCommandes from "./pages/MesCommandes";
-import Configurateur from "./pages/configurateur"; // ✅ Import
+import Configurateur from "./pages/Configurateur"; // ✅ Import
 
 const queryClient = new QueryClient();
 
@@ -38,7 +38,6 @@ const App = () => {
               <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/mes-commandes" element={<MesCommandes />} />
-              <Route path="/configurateur" element={<Configurateur />} /> {/* ✅ Nouvelle route */}
             </Routes>
           </BrowserRouter>
           {/* ❌ L'appel d'Index a été supprimé ici car il était en double et hors du routeur. */}
