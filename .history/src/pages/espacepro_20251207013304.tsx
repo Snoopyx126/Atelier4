@@ -34,7 +34,7 @@ const Login = () => {
 
     try {
       // ✅ Appel à l'endpoint de connexion local
-      const response = await fetch("https://atelier4.vercel.app/api/login", {
+      const response = await fetch("atelier4-25oci3uf8-snoopyx126s-projects.vercel.app/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,7 +49,7 @@ const Login = () => {
       }
 
       // 4. Succès de la connexion
-      alert(`Bienvenue ${data.user.nomSociete} !`);
+     
       
       // Stocker l'état de l'utilisateur (Assurez-vous que data.user contient 'siret')
       localStorage.setItem("user", JSON.stringify(data.user)); 
@@ -85,12 +85,13 @@ const Login = () => {
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-6"> 
                 
+                {/* Email (inchangé) */}
                 <div>
                   <Label htmlFor="email">Email Professionnel</Label>
-                  <Input id="email" type="text" required onChange={handleChange} /> 
+                  <Input id="email" type="email" required onChange={handleChange} />
                 </div>
 
-                
+                {/* Mot de passe */}
                 <div>
                   <Label htmlFor="password">Mot de passe</Label>
                   <Input id="password" type="password" required onChange={handleChange} />

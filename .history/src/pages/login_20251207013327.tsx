@@ -34,7 +34,7 @@ const Login = () => {
 
     try {
       // ✅ Appel à l'endpoint de connexion local
-      const response = await fetch("https://atelier4.vercel.app/api/login", {
+      const response = await fetch("atelier4-25oci3uf8-snoopyx126s-projects.vercel.app/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -70,7 +70,7 @@ const Inscription = () => {
     // 3. Appel de l'API Backend local
     try {
       // ✅ URL CORRIGÉE
-      const response = await fetch("https://atelier4.vercel.app/api/inscription", { 
+      const response = await fetch("atelier4-25oci3uf8-snoopyx126s-projects.vercel.app/inscription", { 
         method: "POST",
         body: dataToSend, 
       });
