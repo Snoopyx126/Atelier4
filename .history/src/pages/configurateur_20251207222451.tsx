@@ -10,16 +10,16 @@ import { Slider } from "@/components/ui/slider";
 import { Palette, Gem, Type, Shapes, RotateCw, Move, Check } from "lucide-react";
 import * as THREE from 'three';
 
-// --- 1. DESSIN DES FORMES (Taille réduite pour le réalisme) ---
+// --- 1. DESSIN DES FORMES (Affinées) ---
 const getLensShape = (type: string) => {
   const shape = new THREE.Shape();
 
-  // J'ai réduit les valeurs (ex: 2.2 -> 1.8) pour que la forme de base soit moins massive
+  // Échelle ajustée pour correspondre à un calibre standard (~55mm)
   if (type === 'rond') {
-    shape.absarc(0, 0, 1.8, 0, Math.PI * 2, false); 
+    shape.absarc(0, 0, 2.4, 0, Math.PI * 2, false);
   } 
   else if (type === 'carre') {
-    const w = 1.8; const h = 1.6; const r = 0.6;
+    const w = 2.4; const h = 2.1; const r = 0.8;
     shape.moveTo(-w + r, -h);
     shape.lineTo(w - r, -h);
     shape.quadraticCurveTo(w, -h, w, -h + r);
@@ -31,7 +31,7 @@ const getLensShape = (type: string) => {
     shape.quadraticCurveTo(-w, -h, -w + r, -h);
   } 
   else if (type === 'hexagonal') {
-    const s = 1.9;
+    const s = 2.5;
     for (let i = 0; i < 6; i++) {
       const angle = (i * Math.PI) / 3;
       shape[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(angle) * s, Math.sin(angle) * s);
@@ -39,12 +39,11 @@ const getLensShape = (type: string) => {
     shape.closePath();
   }
   else if (type === 'aviator') {
-    // Forme Aviateur légèrement réduite
-    shape.moveTo(-1.8, 1.2); 
-    shape.lineTo(1.0, 1.2);  
-    shape.bezierCurveTo(2.0, 1.2, 2.3, 0.4, 2.0, -0.5); 
-    shape.bezierCurveTo(1.6, -1.8, 0.4, -2.2, -0.6, -2.0); 
-    shape.bezierCurveTo(-2.0, -1.6, -2.3, 0.4, -1.8, 1.2); 
+    shape.moveTo(-2.2, 1.4); 
+    shape.lineTo(1.2, 1.4);  
+    shape.bezierCurveTo(2.4, 1.4, 2.7, 0.4, 2.4, -0.6); 
+    shape.bezierCurveTo(2.0, -2.2, 0.6, -2.7, -0.6, -2.4); 
+    shape.bezierCurveTo(-2.4, -2.0, -2.7, 0.4, -2.2, 1.4); 
   }
 
   return shape;
@@ -56,11 +55,13 @@ const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
   const geometrySettings = useMemo(() => {
     const shape = getLensShape(shapeType);
     return {
-      depth: 0.05, // Épaisseur fine
+      // ✅ ÉPAISSEUR RÉDUITE (0.05 = ~2mm à l'échelle)
+      depth: 0.05, 
       bevelEnabled: true, 
-      bevelThickness: diamondCut ? 0.3 : 0.05, 
-      bevelSize: diamondCut ? 0.3 : 0.05,      
-      bevelSegments: diamondCut ? 1 : 32, 
+      // Si Diamond Cut : Biseau très large et peu de segments pour faire des facettes
+      bevelThickness: diamondCut ? 0.4 : 0.05, 
+      bevelSize: diamondCut ? 0.4 : 0.05,      
+      bevelSegments: diamondCut ? 1 : 32, // 1 segment = facette nette (Diamant), 32 = lisse (Standard)
       curveSegments: 64 
     };
   }, [shapeType, diamondCut]);
@@ -68,9 +69,9 @@ const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
   const shapeObject = useMemo(() => getLensShape(shapeType), [shapeType]);
 
   const glassMaterialProps = {
-    transmission: 0.99, 
-    thickness: 0.5,     
-    roughness: 0,       
+    transmission: 0.99, // Transparence quasi totale
+    thickness: 0.5,     // Réfraction fine
+    roughness: 0,       // Miroir parfait
     clearcoat: 1,       
     clearcoatRoughness: 0,
     color: color,
@@ -92,18 +93,20 @@ const Lens3D = ({ shapeType, color, diamondCut, engraving }: any) => {
             anchor={[0, 0, 0]} 
             depthTest={false} 
             activeAxes={[true, true, false]} 
-            scale={0.5} 
+            scale={0.75} 
             lineWidth={2}
             disableRotations
           >
             <Text
-              position={[0, 0, diamondCut ? 0.20 : 0.08]} 
-              fontSize={0.25} // Texte plus petit pour aller avec la nouvelle taille
+              position={[0, 0, diamondCut ? 0.25 : 0.08]} // Position ajustée à la finesse
+              fontSize={0.3} 
               color="white"
               anchorX="center"
               anchorY="middle"
-              outlineWidth={0.01}
+              outlineWidth={0.015}
               outlineColor={color}
+              // ❌ J'ai retiré la prop 'font' qui causait le crash. 
+              // Cela utilisera la police par défaut du système, ce qui est sûr.
             >
               {engraving}
             </Text>
@@ -128,10 +131,9 @@ const Configurateur = () => {
       <div className="flex-grow flex flex-col lg:flex-row h-[calc(100vh-80px)] pt-20">
         
         {/* ZONE 3D */}
-        <div className="w-full lg:w-2/3 h-[50vh] lg:h-full bg-gradient-to-br from-gray-200 to-gray-400 relative">
+        <div className="w-full lg:w-2/3 h-[50vh] lg:h-full bg-gradient-to-br from-gray-100 to-gray-300 relative">
             
-            {/* ✅ CAMÉRA RECULÉE (Z=14) pour "dézoomer" l'objet */}
-            <Canvas shadows camera={{ position: [0, 0, 14], fov: 25 }}>
+            <Canvas shadows camera={{ position: [0, 0, 9], fov: 25 }}>
                 <Suspense fallback={null}>
                     <Stage environment="city" intensity={0.5} adjustCamera={false}>
                         <Lens3D shapeType={shape} color={tint} diamondCut={diamondCut} engraving={engraving} />
@@ -166,8 +168,8 @@ const Configurateur = () => {
                 <TabsContent value="forme" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Forme du calibre</h3>
                     <div className="grid grid-cols-2 gap-3">
-                        <Button variant={shape === 'rond' ? 'primary' : 'outline'} onClick={() => setShape('rond')}>Ronde (Pantos)</Button>
-                        <Button variant={shape === 'carre' ? 'primary' : 'outline'} onClick={() => setShape('carre')}>Carrée Soft</Button>
+                        <Button variant={shape === 'rond' ? 'primary' : 'outline'} onClick={() => setShape('rond')}>Ronde</Button>
+                        <Button variant={shape === 'carre' ? 'primary' : 'outline'} onClick={() => setShape('carre')}>Carrée</Button>
                         <Button variant={shape === 'hexagonal' ? 'primary' : 'outline'} onClick={() => setShape('hexagonal')}>Hexagonale</Button>
                         <Button variant={shape === 'aviator' ? 'primary' : 'outline'} onClick={() => setShape('aviator')}>Aviateur</Button>
                     </div>
