@@ -78,58 +78,59 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
         return date.getMonth() === currentMonth && date.getFullYear() === currentYear && m.statut === 'Terminé';
     });
     
-    // Fonction de calcul des coûts DÉTAILLÉS
-    const getMontagePriceDetails = (m: Montage) => {
+    const calculateTotal = (m: Montage) => {
         let totalBase = 0;
-        let details: string[] = [];
         
         // 1. Montage Base
-        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
-        totalBase += montagePrice;
-        details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
-        
+        totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
         // 2. Diamond Cut
-        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
-        if (dcPrice > 0) {
-            totalBase += dcPrice;
-            details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`);
-        }
-
+        totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
         // 3. Gravure
-        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
-        if (engravingPrice > 0) {
-            totalBase += engravingPrice;
-            details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`);
-        }
-
+        totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
         // 4. Options Verre
-        if (m.glassType) {
-            m.glassType.forEach(type => {
-                const price = GLASS_COSTS[type] || 0;
-                if (price > 0) {
-                    totalBase += price;
-                    details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`);
-                }
-            });
-        }
-        
+        if (m.glassType) { m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); }
         // 5. Changement de Forme
-        if (m.shapeChange) {
-            totalBase += SHAPE_CHANGE_COST;
-            details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`);
-        }
+        if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
         
         // 6. Calcul de l'Urgence (EN POURCENTAGE DU TOTAL BASE)
         const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
         const urgencySurcharge = totalBase * urgencyRate;
         const finalTotal = totalBase + urgencySurcharge;
 
-        if (urgencySurcharge > 0) {
-             details.push(`Urgence (${(urgencyRate * 100).toFixed(0)}% Surcharge: +${urgencySurcharge.toFixed(2)}€)`);
+        return { total: finalTotal, surcharge: urgencySurcharge };
+    };
+    
+    // Fonction de rendu des détails pour la facture
+    const getMontagePriceDetails = (m: Montage) => {
+        const { total, surcharge } = calculateTotal(m);
+        let details: string[] = [];
+
+        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
+        details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
+
+        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
+        if (dcPrice > 0) details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`);
+
+        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
+        if (engravingPrice > 0) details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`);
+
+        if (m.glassType) {
+            m.glassType.forEach(type => {
+                const price = GLASS_COSTS[type] || 0;
+                if (price > 0) details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`);
+            });
+        }
+        
+        if (m.shapeChange) details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`);
+
+        if (surcharge > 0) {
+             const rate = URGENCY_RATES[m.urgency || 'Standard'] * 100;
+             details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`);
         }
 
-        return { total: finalTotal, details, surcharge: urgencySurcharge };
+        return { total, details };
     };
+
 
     const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0);
     const tva = totalHT * FACTURE_INFO.tvaRate;
@@ -263,7 +264,6 @@ const AdminDashboard = () => {
     try {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
-        // Tentative de récupération des données au montage
         Promise.all([fetchMontages(), fetchClients()]).finally(() => setLoading(false));
     } catch (e) { navigate("/"); }
   }, [navigate]);
@@ -274,9 +274,9 @@ const AdminDashboard = () => {
         const data = await res.json();
         if (data.success) { 
             setMontages(data.montages); 
-            console.log("✅ MONTAGES CHARGÉS:", data.montages.length); 
+            console.log("✅ MONTAGES CHARGÉS:", data.montages.length); // DEBUG
         } else {
-            console.error("❌ Échec de la récupération des montages:", data.message); 
+            console.error("❌ Échec de la récupération des montages:", data.message); // DEBUG
         }
     } catch (e) { console.error("❌ Erreur de connexion API montages:", e); }
   };
@@ -287,65 +287,18 @@ const AdminDashboard = () => {
         const data = await res.json();
         if (data.success) { 
             setClients(data.users); 
-            console.log("✅ CLIENTS CHARGÉS:", data.users.length); 
+            console.log("✅ CLIENTS CHARGÉS:", data.users.length); // DEBUG
         } else {
-            console.error("❌ Échec de la récupération des clients:", data.message); 
+            console.error("❌ Échec de la récupération des clients:", data.message); // DEBUG
         }
     } catch (e) { console.error("❌ Erreur de connexion API clients:", e); }
   };
 
 
-  const openCreateDialog = () => {
-      setEditingId(null);
-      setNewClient(""); setNewRef(""); setNewFrame(""); setNewDesc(""); 
-      setNewCategory("Cerclé"); 
-      setNewGlassType([]); setNewUrgency("Standard"); setNewDiamondCutType("Standard"); setNewEngravingCount(0);
-      setNewShapeChange(false);
-      setIsDialogOpen(true);
-  };
-
-  const openEditDialog = (m: Montage) => {
-      setEditingId(m._id);
-      setNewClient(m.userId);
-      setNewRef(m.reference || "");
-      setNewFrame(m.frame || "");
-      setNewDesc(m.description || "");
-      setNewCategory(m.category || "Cerclé");
-      setNewGlassType(m.glassType || []); 
-      setNewUrgency(m.urgency || "Standard"); 
-      setNewDiamondCutType(m.diamondCutType || "Standard"); 
-      setNewEngravingCount(m.engravingCount || 0);
-      setNewShapeChange(m.shapeChange || false);
-      setIsDialogOpen(true);
-  };
-
-  const handleSaveMontage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClient || !newRef || !newFrame) { toast.error("Champs obligatoires."); return; }
-    setIsSubmitting(true);
-    try {
-        const url = editingId ? `https://atelier4.vercel.app/api/montages/${editingId}` : "https://atelier4.vercel.app/api/montages";
-        const method = editingId ? "PUT" : "POST";
-        const res = await fetch(url, {
-            method: method,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                userId: newClient, reference: newRef, frame: newFrame, category: newCategory, description: newDesc,
-                glassType: newGlassType, urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount,
-                shapeChange: newShapeChange
-            })
-        });
-        const data = await res.json();
-        if (data.success) { toast.success(editingId ? "Dossier modifié !" : "Dossier créé !"); setIsDialogOpen(false); fetchMontages(); } 
-        else { throw new Error(data.message); }
-    } catch (error) { toast.error("Erreur d'enregistrement."); } 
-    finally { setIsSubmitting(false); }
-  };
-
-  const handleGlassTypeChange = (type: string, checked: boolean) => {
-    setNewGlassType(prev => checked ? [...prev, type] : prev.filter(t => t !== type));
-  };
-
+  const openCreateDialog = () => { /* ... */ };
+  const openEditDialog = (m: Montage) => { /* ... */ };
+  const handleSaveMontage = async (e: React.FormEvent) => { /* ... */ };
+  const handleGlassTypeChange = (type: string, checked: boolean) => { /* ... */ };
   const handleStatusChange = async (id: string, newStatus: string) => { /* ... */ };
   const handleDelete = async (id: string) => { /* ... */ };
   const getStatusColor = (statut: string) => { /* ... */ };
@@ -437,8 +390,7 @@ const AdminDashboard = () => {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Diamond Cut</Label>
-                                    {/* ✅ FIX: Utilisation correcte de newDiamondCutType */}
-                                    <Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}>
+                                    <Select onValueChange={setNewDiamondCutType} value={newDiamondCutCutType}>
                                         <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                                         <SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(opt => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
                                     </Select>
@@ -495,6 +447,7 @@ const AdminDashboard = () => {
                 <Card className="shadow-md border-0">
                     <CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader>
                     <CardContent className="p-6 bg-gray-50/50 min-h-[400px]">
+                        {/* ✅ AFFICHAGE DES MONTAGES */}
                         {Object.keys(groupedByShop).length === 0 ? (<div className="text-center py-20 text-gray-400">Aucun montage trouvé.</div>) : (
                             <Accordion type="single" collapsible className="space-y-4">
                                 {Object.entries(groupedByShop).sort().map(([shopName, items]) => {
