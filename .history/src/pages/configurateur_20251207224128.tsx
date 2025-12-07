@@ -9,66 +9,99 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Palette, Gem, Type, Shapes, RotateCw, Move, Check, Sparkles } from "lucide-react";
 import * as THREE from 'three';
-
-// ✅ IMPORT DES 4 FORMES
-import { parseOMA, OMA_OVALE, OMA_55, OMA_OCTO, OMA_PETIT_C } from "@/lib/omaParser";
+import { parseOMA, CARTIER_OMA } from "@/lib/omaParser";
 
 // --- 1. DESSIN DES FORMES ---
 const getLensShape = (type: string) => {
   const shape = new THREE.Shape();
 
-  // ✅ FORME 1 : OVALE
-  if (type === 'ovale') {
-    const omaShape = parseOMA(OMA_OVALE);
-    if (omaShape) return omaShape;
+  if (type === 'rond') {
+    shape.absarc(0, 0, 1.8, 0, Math.PI * 2, false); 
+  } 
+  else if (type === 'carre') {
+    const w = 1.8; const h = 1.6; const r = 0.6;
+    shape.moveTo(-w + r, -h);
+    shape.lineTo(w - r, -h);
+    shape.quadraticCurveTo(w, -h, w, -h + r);
+    shape.lineTo(w, h - r);
+    shape.quadraticCurveTo(w, h, w - r, h);
+    shape.lineTo(-w + r, h);
+    shape.quadraticCurveTo(-w, h, -w, h - r);
+    shape.lineTo(-w, -h + r);
+    shape.quadraticCurveTo(-w, -h, -w + r, -h);
+  } 
+  else if (type === 'hexagonal') {
+    const s = 1.9;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      shape[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(angle) * s, Math.sin(angle) * s);
+    }
+    shape.closePath();
   }
-  // ✅ FORME 2 : 55
-  else if (type === '55') {
-    const omaShape = parseOMA(OMA_55);
-    if (omaShape) return omaShape;
+  else if (type === 'aviator') {
+    shape.moveTo(-1.8, 1.2); 
+    shape.lineTo(1.0, 1.2);  
+    shape.bezierCurveTo(2.0, 1.2, 2.3, 0.4, 2.0, -0.5); 
+    shape.bezierCurveTo(1.6, -1.8, 0.4, -2.2, -0.6, -2.0); 
+    shape.bezierCurveTo(-2.0, -1.6, -2.3, 0.4, -1.8, 1.2); 
   }
-  // ✅ FORME 3 : OCTOGONALE
-  else if (type === 'octo') {
-    const omaShape = parseOMA(OMA_OCTO);
+  else if (type === 'cartier') {
+    const omaShape = parseOMA(CARTIER_OMA);
     if (omaShape) return omaShape;
-  }
-  // ✅ FORME 4 : PETIT C
-  else if (type === 'petitc') {
-    const omaShape = parseOMA(OMA_PETIT_C);
-    if (omaShape) return omaShape;
+    shape.absarc(0, 0, 1.8, 0, Math.PI * 2, false);
   }
 
-  // Fallback (cercle) si erreur
-  shape.absarc(0, 0, 2.2, 0, Math.PI * 2, false); 
   return shape;
 };
 
 // --- 2. COMPOSANT 3D ---
 const Lens3D = ({ shapeType, color, diamondMode, engraving }: any) => {
   
+  // Configuration des Biseaux selon le mode Diamond Cut
   const geometrySettings = useMemo(() => {
+    const shape = getLensShape(shapeType);
+    
+    // Par défaut (Standard)
+    let bThickness = 0.05;
+    let bSize = 0.05;
+    let bSegments = 32; // Très lisse
+
+    // Mode "Classic" (Facettes douces)
+    if (diamondMode === 'classic') {
+        bThickness = 0.3;
+        bSize = 0.3;
+        bSegments = 3; // Quelques facettes
+    }
+    // Mode "Crystal" (Facettes nettes style bijou)
+    else if (diamondMode === 'crystal') {
+        bThickness = 0.4;
+        bSize = 0.4;
+        bSegments = 1; // 1 seul segment = Arête très vive
+    }
+
     return {
       depth: 0.05, 
       bevelEnabled: true, 
-      bevelThickness: diamondMode !== 'standard' ? 0.4 : 0.05, 
-      bevelSize: diamondMode !== 'standard' ? 0.4 : 0.05,      
-      bevelSegments: diamondMode === 'crystal' ? 1 : (diamondMode === 'classic' ? 3 : 32),
+      bevelThickness: bThickness, 
+      bevelSize: bSize,      
+      bevelSegments: bSegments,
       curveSegments: 64 
     };
   }, [shapeType, diamondMode]);
 
   const shapeObject = useMemo(() => getLensShape(shapeType), [shapeType]);
 
+  // ✅ MATÉRIAU "ANTI-REFLET"
   const glassMaterialProps = {
     transmission: 0.99, 
     thickness: 0.1,     
-    roughness: 0.3,       
-    envMapIntensity: 0.1, 
-    clearcoat: 0,         
+    roughness: 0.3,       // Un peu de grain pour casser le miroir
+    envMapIntensity: 0.1, // Quasiment aucune réflexion de l'environnement (0.1)
+    clearcoat: 0,         // Pas de vernis brillant
     color: color,
     attenuationTint: color,
-    attenuationDistance: 2, 
-    ior: 1.1              
+    attenuationDistance: 2, // Couleur plus diffuse
+    ior: 1.1              // Indice de réfraction faible (moins de distorsion)
   };
 
   return (
@@ -109,8 +142,9 @@ const Lens3D = ({ shapeType, color, diamondMode, engraving }: any) => {
 
 // --- PAGE ---
 const Configurateur = () => {
-  const [shape, setShape] = useState('ovale'); // Par défaut : Ovale
+  const [shape, setShape] = useState('rond');
   const [tint, setTint] = useState('#aaddff'); 
+  // ✅ diamondMode remplace le boolean (standard, classic, crystal)
   const [diamondMode, setDiamondMode] = useState('standard'); 
   const [engraving, setEngraving] = useState('');
 
@@ -122,14 +156,17 @@ const Configurateur = () => {
         
         {/* ZONE 3D */}
         <div className="w-full lg:w-2/3 h-[50vh] lg:h-full bg-gradient-to-br from-gray-100 to-gray-300 relative">
+            
             <Canvas shadows camera={{ position: [0, 0, 14], fov: 25 }}>
                 <Suspense fallback={null}>
+                    {/* Lumière studio très douce */}
                     <Stage environment="studio" intensity={0.2} adjustCamera={false}>
                         <Lens3D shapeType={shape} color={tint} diamondMode={diamondMode} engraving={engraving} />
                     </Stage>
                     <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI} />
                 </Suspense>
             </Canvas>
+
             <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-sm text-xs font-bold text-gray-700 flex flex-col gap-1">
                 <div className="flex items-center gap-2"><RotateCw className="w-3 h-3" /> 360° Interactif</div>
                 {engraving && <div className="flex items-center gap-2 text-blue-600"><Move className="w-3 h-3" /> Déplacez le texte sur le verre</div>}
@@ -152,33 +189,20 @@ const Configurateur = () => {
                 </TabsList>
 
                 <TabsContent value="forme" className="space-y-4">
-                    <h3 className="font-bold text-sm uppercase text-gray-500">Sélectionnez le calibre</h3>
-                    
-                    {/* ✅ VOS 4 FORMES OFFICIELLES */}
+                    <h3 className="font-bold text-sm uppercase text-gray-500">Forme du calibre</h3>
                     <div className="grid grid-cols-2 gap-3">
+                        <Button className={shape === 'rond' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('rond')}>Ronde</Button>
+                        <Button className={shape === 'carre' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('carre')}>Carrée</Button>
+                        <Button className={shape === 'hexagonal' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('hexagonal')}>Hexagonale</Button>
+                        <Button className={shape === 'aviator' ? 'bg-black text-white' : 'bg-white text-black border'} onClick={() => setShape('aviator')}>Aviateur</Button>
+                    </div>
+                    <div className="mt-4 pt-4 border-t">
+                        <p className="text-xs font-bold text-gray-400 mb-2">FORMES TECHNIQUES (OMA)</p>
                         <Button 
-                            className={shape === 'ovale' ? 'bg-black text-white' : 'bg-white text-black border'} 
-                            onClick={() => setShape('ovale')}
+                            className={`w-full ${shape === 'cartier' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'}`}
+                            onClick={() => setShape('cartier')}
                         >
-                            Ovale
-                        </Button>
-                        <Button 
-                            className={shape === '55' ? 'bg-black text-white' : 'bg-white text-black border'} 
-                            onClick={() => setShape('55')}
-                        >
-                            Forme 55
-                        </Button>
-                        <Button 
-                            className={shape === 'octo' ? 'bg-black text-white' : 'bg-white text-black border'} 
-                            onClick={() => setShape('octo')}
-                        >
-                            Octogonale
-                        </Button>
-                        <Button 
-                            className={shape === 'petitc' ? 'bg-black text-white' : 'bg-white text-black border'} 
-                            onClick={() => setShape('petitc')}
-                        >
-                            Petit C
+                            Cartier 0284O (Officiel)
                         </Button>
                     </div>
                 </TabsContent>
@@ -201,9 +225,11 @@ const Configurateur = () => {
                     </div>
                 </TabsContent>
 
+                {/* ✅ FINITION : 3 STYLES DIFFÉRENTS */}
                 <TabsContent value="finition" className="space-y-4">
                     <h3 className="font-bold text-sm uppercase text-gray-500">Façonnage des bords</h3>
                     <div className="grid grid-cols-1 gap-3">
+                        {/* STANDARD */}
                         <div 
                             className={`p-3 border rounded-lg cursor-pointer flex items-center gap-3 ${diamondMode === 'standard' ? 'border-black bg-gray-50 ring-1 ring-black' : 'border-gray-200'}`}
                             onClick={() => setDiamondMode('standard')}
@@ -213,6 +239,7 @@ const Configurateur = () => {
                             {diamondMode === 'standard' && <Check className="w-4 h-4 ml-auto" />}
                         </div>
 
+                        {/* CLASSIC */}
                         <div 
                             className={`p-3 border rounded-lg cursor-pointer flex items-center gap-3 ${diamondMode === 'classic' ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-gray-200'}`}
                             onClick={() => setDiamondMode('classic')}
@@ -222,6 +249,7 @@ const Configurateur = () => {
                             {diamondMode === 'classic' && <Check className="w-4 h-4 ml-auto text-blue-600" />}
                         </div>
 
+                        {/* CRYSTAL */}
                         <div 
                             className={`p-3 border rounded-lg cursor-pointer flex items-center gap-3 ${diamondMode === 'crystal' ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-600' : 'border-gray-200'}`}
                             onClick={() => setDiamondMode('crystal')}
