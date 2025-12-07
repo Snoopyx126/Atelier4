@@ -73,9 +73,9 @@ const Inscription = () => {
       const API_BASE_URL = "https://atelier4.vercel.app/api"; // L'URL de votre déploiement principal
 // ...
 const response = await fetch(`${API_BASE_URL}/inscription`, { 
-  method: "POST",
-  body: dataToSend, 
-});
+        method: "POST",
+        body: dataToSend, 
+      });
 
       if (!response.ok) {
         const errorData = await response.json();

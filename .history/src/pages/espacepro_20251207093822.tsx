@@ -36,10 +36,13 @@ const Login = () => {
       // ✅ Appel à l'endpoint de connexion local
       const API_BASE_URL = "https://atelier4.vercel.app/api"; // L'URL de votre déploiement principal
 // ...
-const response = await fetch(`${API_BASE_URL}/inscription`, { 
-  method: "POST",
-  body: dataToSend, 
-});
+const response = await fetch(`${API_BASE_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
       const data = await response.json();
 
@@ -48,7 +51,7 @@ const response = await fetch(`${API_BASE_URL}/inscription`, {
       }
 
       // 4. Succès de la connexion
-      alert(`Bienvenue ${data.user.nomSociete} !`);
+     
       
       // Stocker l'état de l'utilisateur (Assurez-vous que data.user contient 'siret')
       localStorage.setItem("user", JSON.stringify(data.user)); 
@@ -84,12 +87,13 @@ const response = await fetch(`${API_BASE_URL}/inscription`, {
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-6"> 
                 
+                {/* Email (inchangé) */}
                 <div>
                   <Label htmlFor="email">Email Professionnel</Label>
-                  <Input id="email" type="text" required onChange={handleChange} /> 
+                  <Input id="email" type="email" required onChange={handleChange} />
                 </div>
 
-                
+                {/* Mot de passe */}
                 <div>
                   <Label htmlFor="password">Mot de passe</Label>
                   <Input id="password" type="password" required onChange={handleChange} />
