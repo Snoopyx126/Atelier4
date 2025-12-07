@@ -13,7 +13,6 @@ import mongoose from 'mongoose';
 dotenv.config();
 const app = express();
 
-// --- CONFIGURATION CORS ---
 app.use(cors({
   origin: [
     "https://atelier4.vercel.app", 
@@ -26,81 +25,63 @@ app.use(cors({
 
 app.use(express.json());
 
-// --- CONNEXION MONGODB ---
 const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) return;
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("✅ Connecté à MongoDB");
   } catch (error) {
-    console.error("❌ Erreur de connexion MongoDB:", error);
+    console.error("❌ Erreur MongoDB:", error);
   }
 };
 
-// --- MODÈLES (Schémas de données) ---
+// --- MODÈLES ---
 
-// 1. Utilisateur (avec Rôle et Vérification)
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   nomSociete: { type: String, required: true },
   siret: { type: String, required: true },
   isVerified: { type: Boolean, default: false },
-  role: { type: String, default: 'user', enum: ['user', 'admin'] }, // Nouveau : Rôle
+  role: { type: String, default: 'user', enum: ['user', 'admin'] }, // Nouveau champ rôle
   createdAt: { type: Date, default: Date.now }
 });
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 
-// 2. Montage (Les lunettes envoyées)
 const montageSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Lien vers le client
-  clientName: String, // Pour afficher facilement le nom dans le tableau admin
-  description: String, // Ex: "Monture Dior Or - Verres Progressifs"
-  statut: { type: String, default: 'Reçu' }, // Reçu, En cours, Terminé, Expédié
+  clientName: String, // Nom pour affichage facile
+  description: String,
+  statut: { type: String, default: 'Reçu' }, // Reçu, En cours, Expédié...
   dateReception: { type: Date, default: Date.now }
 });
 const Montage = mongoose.models.Montage || mongoose.model("Montage", montageSchema);
 
-// --- CONFIGURATION FICHIERS ---
-const upload = multer({ 
-    dest: os.tmpdir(), 
-    limits: { fileSize: 4 * 1024 * 1024 } 
-});
-
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 4 * 1024 * 1024 } });
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SALT_ROUNDS = 10;
 
-// ================= ROUTES =================
+// --- ROUTES AUTH ---
 
-// --- 1. INSCRIPTION ---
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
     await connectDB();
     const { nomSociete, email, siret, password } = req.body;
     const uploadedFile = req.file;
 
     if (!nomSociete || !email || !siret || !password) {
-        return res.status(400).json({ success: false, message: "Tous les champs sont obligatoires." });
+        return res.status(400).json({ success: false, message: "Champs manquants" });
     }
 
     try {
         if (await User.findOne({ email })) {
              if (uploadedFile && fs.existsSync(uploadedFile.path)) fs.unlinkSync(uploadedFile.path);
-             return res.status(409).json({ success: false, message: "Cet email est déjà utilisé." });
+             return res.status(409).json({ success: false, message: "Email déjà utilisé." });
         }
 
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-        
-        // Création de l'utilisateur (Rôle 'user' par défaut)
-        await User.create({
-            email,
-            password: hashedPassword,
-            nomSociete,
-            siret,
-            isVerified: false, 
-            role: 'user'
-        });
+        await User.create({ email, password: hashedPassword, nomSociete, siret, isVerified: false, role: 'user' });
 
-        // Email Admin (Notification)
+        // Email Admin
         let attachments = [];
         if (uploadedFile && fs.existsSync(uploadedFile.path)) {
             const fileContent = fs.readFileSync(uploadedFile.path);
@@ -114,75 +95,68 @@ app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
             attachments: attachments
         });
 
-        // Email Client (Confirmation)
+        // Email Client
         await resend.emails.send({
             from: "onboarding@resend.dev",
             to: email,
             subject: "Inscription reçue - Atelier des Arts",
-            html: `<h1>Bienvenue ${nomSociete} !</h1><p>Nous avons bien reçu votre demande. Votre compte est en cours de validation par nos équipes.</p>`
+            html: `<h1>Bienvenue ${nomSociete} !</h1><p>Votre compte est en cours de validation.</p>`
         });
 
         if (uploadedFile && fs.existsSync(uploadedFile.path)) fs.unlinkSync(uploadedFile.path);
-        res.status(200).json({ success: true, message: "Inscription réussie." });
+        res.status(200).json({ success: true });
 
     } catch (error) {
-        console.error("Erreur Inscription:", error);
-        res.status(500).json({ success: false, message: "Erreur serveur." });
+        console.error(error);
+        res.status(500).json({ success: false, message: "Erreur serveur" });
     }
 });
 
-// --- 2. LOGIN ---
 app.post("/api/login", async (req, res) => {
     await connectDB();
     const { email, password } = req.body;
-    
     try {
         const user = await User.findOne({ email });
-        
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ success: false, message: "Identifiants invalides." });
         }
-
         if (!user.isVerified) {
-             return res.status(403).json({ success: false, message: "Votre compte est en attente de validation par l'administrateur." });
+             return res.status(403).json({ success: false, message: "Compte en attente de validation." });
         }
 
-        // On renvoie les infos complètes (ID, Rôle, etc.)
+        // On renvoie aussi l'ID et le Rôle
         res.json({ 
             success: true, 
             user: { 
-                id: user._id, 
+                id: user._id, // Important pour lier les montages
                 email: user.email, 
                 nomSociete: user.nomSociete, 
                 siret: user.siret,
-                role: user.role || 'user' // Par sécurité
+                role: user.role || 'user'
             } 
         });
     } catch (error) {
-        console.error("Erreur Login:", error);
-        res.status(500).json({ success: false, message: "Erreur serveur." });
+        res.status(500).json({ success: false, message: "Erreur serveur" });
     }
 });
 
-// --- 3. GESTION DES MONTAGES (ADMIN & CLIENT) ---
+// --- ROUTES MONTAGES (NOUVEAU) ---
 
-// A. Récupérer la liste des clients (Pour l'Admin, dans le menu déroulant)
+// 1. Récupérer tous les clients (Pour l'Admin)
 app.get("/api/users", async (req, res) => {
     await connectDB();
     try {
-        // On récupère tout le monde sauf les admins
-        const users = await User.find({ role: { $ne: 'admin' } }).select('-password'); 
+        const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
         res.json({ success: true, users });
     } catch (error) {
         res.status(500).json({ success: false });
     }
 });
 
-// B. Ajouter un montage (Pour l'Admin)
+// 2. Créer un montage pour un client (Pour l'Admin)
 app.post("/api/montages", async (req, res) => {
     await connectDB();
     const { userId, description, statut } = req.body;
-    
     try {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: "Client introuvable" });
@@ -193,25 +167,22 @@ app.post("/api/montages", async (req, res) => {
             description,
             statut: statut || 'Reçu'
         });
-        
         res.json({ success: true, montage: newMontage });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// C. Voir les montages (Admin voit tout, Client voit les siens)
+// 3. Récupérer les montages (Admin = tous, User = les siens)
 app.get("/api/montages", async (req, res) => {
     await connectDB();
-    const { userId, role } = req.query; // On lit les paramètres dans l'URL
+    const { userId, role } = req.query; // On passe l'ID et le rôle en paramètre
 
     try {
         let montages;
         if (role === 'admin') {
-            // L'admin voit tout, du plus récent au plus ancien
             montages = await Montage.find().sort({ dateReception: -1 });
         } else {
-            // Le client ne voit que SES montages
             montages = await Montage.find({ userId }).sort({ dateReception: -1 });
         }
         res.json({ success: true, montages });

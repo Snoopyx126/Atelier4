@@ -13,7 +13,6 @@ import Profil from "./pages/profil";
 import CommentCaMarche from "./pages/commentcamarche";
 import AdminDashboard from "./pages/AdminDashboard";
 
-
 const queryClient = new QueryClient();
 
 const App = () => {

@@ -13,7 +13,6 @@ import Profil from "./pages/profil";
 import CommentCaMarche from "./pages/commentcamarche";
 import AdminDashboard from "./pages/AdminDashboard";
 
-
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -35,7 +34,6 @@ const App = () => {
               <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
               <Route path="/profil" element={<Profil/>} />
               <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
-              <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </BrowserRouter>
           {/* ❌ L'appel d'Index a été supprimé ici car il était en double et hors du routeur. */}
