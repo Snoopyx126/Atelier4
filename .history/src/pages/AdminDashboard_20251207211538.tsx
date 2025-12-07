@@ -87,7 +87,7 @@ const AdminDashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  // AJOUTER UN MONTAGE (ADMIN)
+  // ✅ AJOUTER UN MONTAGE (ADMIN)
   const handleAddMontage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newClient || !newRef || !newFrame) {
@@ -101,7 +101,7 @@ const AdminDashboard = () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                userId: newClient, 
+                userId: newClient, // L'admin sélectionne l'ID du client
                 reference: newRef,
                 frame: newFrame,
                 category: newCategory,
@@ -113,10 +113,11 @@ const AdminDashboard = () => {
         
         if (data.success) {
             toast.success("Dossier créé avec succès !");
-            setIsDialogOpen(false); 
+            setIsDialogOpen(false); // Fermer la fenêtre
+            // Reset form
             setNewClient(""); setNewRef(""); setNewFrame(""); setNewDesc(""); 
             setNewCategory("Cerclé"); setNewOptions([]);
-            fetchMontages(); 
+            fetchMontages(); // Rafraîchir la liste
         } else {
             throw new Error(data.message);
         }
@@ -197,6 +198,7 @@ const AdminDashboard = () => {
             </div>
             
             <div className="flex gap-3">
+                {/* ✅ BOUTON NOUVEAU DOSSIER */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                         <Button className="bg-black hover:bg-gray-800 text-white gap-2">
@@ -211,9 +213,8 @@ const AdminDashboard = () => {
                             <div className="space-y-2">
                                 <Label>Client (Opticien)</Label>
                                 <Select onValueChange={setNewClient} value={newClient}>
-                                    {/* ✅ Ajout de bg-white */}
-                                    <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner un client..." /></SelectTrigger>
-                                    <SelectContent className="bg-white">
+                                    <SelectTrigger><SelectValue placeholder="Sélectionner un client..." /></SelectTrigger>
+                                    <SelectContent>
                                         {clients.map(c => (
                                             <SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>
                                         ))}
@@ -233,9 +234,8 @@ const AdminDashboard = () => {
                             <div className="space-y-2">
                                 <Label>Type de Montage</Label>
                                 <Select onValueChange={setNewCategory} value={newCategory}>
-                                    {/* ✅ Ajout de bg-white */}
-                                    <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
-                                    <SelectContent className="bg-white">
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
                                         <SelectItem value="Cerclé">Cerclé</SelectItem>
                                         <SelectItem value="Percé">Percé</SelectItem>
                                         <SelectItem value="Nylor">Nylor</SelectItem>
@@ -306,6 +306,7 @@ const AdminDashboard = () => {
                 </TabsTrigger>
             </TabsList>
 
+            {/* ONGLET ATELIER */}
             <TabsContent value="atelier">
                 <Card className="shadow-md border-0">
                     <CardHeader className="bg-white border-b">
@@ -371,8 +372,7 @@ const AdminDashboard = () => {
                                                                 <SelectTrigger className={`w-full sm:w-[180px] h-10 font-medium border-2 ${getStatusColor(m.statut)}`}>
                                                                     <SelectValue />
                                                                 </SelectTrigger>
-                                                                {/* ✅ Ajout de bg-white pour le menu déroulant Statut */}
-                                                                <SelectContent className="bg-white">
+                                                                <SelectContent>
                                                                     <SelectItem value="En attente">🔴 En attente</SelectItem>
                                                                     <SelectItem value="Reçu">🔵 Reçu</SelectItem>
                                                                     <SelectItem value="En cours">🟠 En cours</SelectItem>
@@ -396,6 +396,7 @@ const AdminDashboard = () => {
                 </Card>
             </TabsContent>
 
+            {/* ONGLET CLIENTS */}
             <TabsContent value="clients">
                 <Card className="shadow-md border-0">
                     <CardHeader className="bg-white border-b">
