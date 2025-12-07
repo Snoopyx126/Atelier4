@@ -1,94 +1,72 @@
-// src/pages/dashboardpro.tsx
+// src/pages/DashboardPro.tsx
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation"; 
 import { Button } from "@/components/ui/button"; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; 
-import { Link } from "react-router-dom"; 
+import { Link} from "react-router-dom"; 
 import { Badge } from "@/components/ui/badge";
-
-// 1. Définition des types de données
+// Définir le type des données utilisateur (Doit correspondre à ce que l'API retourne)
 interface UserData {
-  id: string;      
+  id: string;      // ✅ Ajoutez ceci
   nomSociete: string;
   email: string;
   siret: string;
-  role?: string;   
-}
-
-interface Montage {
-  _id: string;
-  description: string;
-  statut: string;
-  dateReception: string;
+  role?: string;   // Optionnel, mais utile pour le debug
 }
 
 const DashboardPro = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserData | null>(null);
-  
-  // ✅ Ces lignes manquaient dans votre version :
-  const [montages, setMontages] = useState<Montage[]>([]); 
   const [loading, setLoading] = useState(true);
 
-  // 2. Logique de chargement
+  // 1. Logique de chargement des données et de sécurité
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
     
     if (userDataString) {
       try {
+        // Tente de parser les données stockées
         const userData: UserData = JSON.parse(userDataString);
         setUser(userData);
-        // ✅ Appel de la fonction pour chercher les montages
-        fetchMontages(userData.id);
       } catch (e) {
-        console.error("Erreur lecture données", e);
+        console.error("Erreur lors de l'analyse des données utilisateur:", e);
+        // Si les données sont corrompues, déconnecter l'utilisateur
         handleLogout(); 
       }
     } else {
+      // Si aucune donnée utilisateur n'est trouvée (pas connecté), rediriger
       navigate("/espace-pro");
     }
     setLoading(false);
   }, [navigate]);
 
-  // ✅ Fonction manquante : Récupérer les montages
-  const fetchMontages = async (userId: string) => {
-    try {
-      // Assurez-vous que l'URL correspond à votre API déployée
-      const response = await fetch(`https://atelier4.vercel.app/api/montages?userId=${userId}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setMontages(data.montages);
-      }
-    } catch (error) {
-      console.error("Erreur API:", error);
-    }
-  };
-
+  // 2. Fonction de Déconnexion
   const handleLogout = () => {
-    localStorage.removeItem("user"); 
+    localStorage.removeItem("user"); // Supprime les données de session (Déconnexion)
+    // Redirige vers la page d'accueil
     navigate("/"); 
   };
   
+  // 3. Fonction de Redirection pour Modifier le profil
   const handleEditProfile = () => {
+    // Redirige vers la page de modification que nous avons créée
     navigate("/profil"); 
   };
 
-  // ✅ Fonction manquante : Couleurs des statuts
-  const getStatusColor = (statut: string) => {
-    switch(statut) {
-        case 'Reçu': return 'bg-blue-500 hover:bg-blue-600';
-        case 'En cours': return 'bg-orange-500 hover:bg-orange-600';
-        case 'Terminé': return 'bg-green-500 hover:bg-green-600';
-        case 'Expédié': return 'bg-purple-500 hover:bg-purple-600';
-        default: return 'bg-gray-500';
-    }
-  };
-
-  if (loading) return <div className="p-10 text-center">Chargement...</div>;
-  if (!user) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
+        Chargement de l'espace professionnel...
+      </div>
+    );
+  }
+  
+  if (!user) {
+    // Si l'utilisateur n'est pas trouvé (et n'a pas encore été redirigé par l'useEffect)
+    return null; 
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -97,6 +75,7 @@ const DashboardPro = () => {
       <div className="flex-grow pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto space-y-8">
           
+          {/* En-tête de bienvenue */}
           <header className="text-center pt-8">
             <h1 className="text-4xl font-playfair font-bold text-gray-900">
               Bienvenue, {user.nomSociete} !
@@ -106,41 +85,75 @@ const DashboardPro = () => {
             </p>
           </header>
 
+          {/* Section Informations et Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
+            {/* Carte des Informations Clés */}
             <Card className="col-span-1 md:col-span-2 shadow-lg">
               <CardHeader>
                 <CardTitle>Informations Clés</CardTitle>
                 <CardDescription>Vos détails d'entreprise enregistrés.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p><span className="font-semibold block text-gray-700">Nom :</span> {user.nomSociete}</p>
-                <p><span className="font-semibold block text-gray-700">Email :</span> {user.email}</p>
-                <p><span className="font-semibold block text-gray-700">SIRET :</span> {user.siret || "N/A"}</p>
                 
-                <Button variant="outline" className="mt-4" onClick={handleEditProfile}>
+                {/* Affichage du Nom de la Société */}
+                <p>
+                  <span className="font-semibold block text-gray-700">Nom de l'entreprise :</span> 
+                  {user.nomSociete}
+                </p>
+                
+                {/* Affichage de l'Email */}
+                <p>
+                  <span className="font-semibold block text-gray-700">Email :</span> 
+                  {user.email}
+                </p>
+                
+                {/* Affichage du SIRET (CORRIGÉ) */}
+                <p>
+                  <span className="font-semibold block text-gray-700">SIRET :</span> 
+                  {/* Si le SIRET est vide/nul, affiche un message d'attente */}
+                  {user.siret || "N/A "} 
+                </p>
+                
+                {/* Bouton Modifier le profil (FONCTIONNEL) */}
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={handleEditProfile} // ✅ Déclenche la navigation vers /profil
+                >
                   Modifier le profil
                 </Button>
               </CardContent>
             </Card>
 
+            {/* Carte de Déconnexion */}
             <Card className="bg-white shadow-lg border-red-200">
               <CardHeader>
                 <CardTitle className="text-red-600">Actions</CardTitle>
               </CardHeader>
+              
               <CardContent>
                 <Link to="/comment-ca-marche" className="w-full block mb-4">
-                  <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                  <Button 
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  >
                     Comment ça marche ?
                   </Button>
                 </Link>
-                <Button onClick={handleLogout} className="w-full bg-red-500 hover:bg-red-600 text-white">
+                <p className="mb-4 text-sm text-gray-600">
+                  Cliquez ci-dessous pour vous déconnecter en toute sécurité.
+                </p>
+                <Button 
+                  onClick={handleLogout} 
+                  className="w-full bg-red-500 hover:bg-red-600 text-white"
+                >
                   Déconnexion
                 </Button>
               </CardContent>
             </Card>
           </div>
 
+          {/* Espace pour les commandes ou autres fonctionnalités (À développer) */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Vos Commandes en cours</CardTitle>
@@ -162,6 +175,8 @@ const DashboardPro = () => {
                           Reçu le {new Date(montage.dateReception).toLocaleDateString()}
                         </p>
                       </div>
+                      
+                      {/* Badge de statut */}
                       <Badge className={`${getStatusColor(montage.statut)} text-white border-none`}>
                         {montage.statut}
                       </Badge>
@@ -171,7 +186,6 @@ const DashboardPro = () => {
               )}
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>
