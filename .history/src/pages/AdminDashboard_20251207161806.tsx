@@ -9,15 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 
-// 1. Définition de l'interface pour éviter les erreurs de type "any"
-interface Montage {
-  _id: string;
-  clientName: string;
-  description: string;
-  statut: string;
-  dateReception: string;
-}
-
+// Définition des priorités pour le tri (Les plus urgents en haut)
 const statusPriority: Record<string, number> = {
   'En attente': 1,
   'Reçu': 2,
@@ -28,23 +20,19 @@ const statusPriority: Record<string, number> = {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  // Utilisation de l'interface Montage[] au lieu de any[]
-  const [montages, setMontages] = useState<Montage[]>([]);
+  const [montages, setMontages] = useState<any[]>([]);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (!userStr) { navigate("/"); return; }
     
-    try {
-        const user = JSON.parse(userStr);
-        if (user.role !== 'admin') { 
-            navigate("/dashboardpro"); 
-            return; 
-        }
-        fetchData();
-    } catch (e) {
-        navigate("/");
+    const user = JSON.parse(userStr);
+    if (user.role !== 'admin') { 
+        navigate("/dashboardpro"); 
+        return; 
     }
+
+    fetchData();
   }, [navigate]);
 
   const fetchData = async () => {
@@ -55,11 +43,10 @@ const AdminDashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  // Fonction pour changer le statut
   const handleStatusChange = async (id: string, newStatus: string) => {
-      // Sauvegarde pour rollback si erreur
+      // Optimisation optimiste (mise à jour immédiate de l'interface)
       const oldMontages = [...montages];
-      
-      // Mise à jour optimiste
       setMontages(prev => prev.map(m => m._id === id ? { ...m, statut: newStatus } : m));
 
       try {
@@ -68,30 +55,27 @@ const AdminDashboard = () => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ statut: newStatus })
           });
-          
-          if (!res.ok) throw new Error("Erreur réseau");
-          
           const data = await res.json();
           if (data.success) {
               toast.success(`Statut mis à jour : ${newStatus}`);
           } else {
-              throw new Error("Erreur API");
+              throw new Error();
           }
       } catch (e) { 
           toast.error("Erreur de mise à jour");
-          setMontages(oldMontages); // Annulation en cas d'erreur
+          setMontages(oldMontages); // Retour en arrière si erreur
       }
   };
 
-  // Groupement par Magasin
+  // Groupement par Magasin (Client)
   const groupedByShop = montages.reduce((groups, montage) => {
     const shop = montage.clientName || "Client Inconnu";
     if (!groups[shop]) groups[shop] = [];
     groups[shop].push(montage);
     return groups;
-  }, {} as Record<string, Montage[]>);
+  }, {} as Record<string, any[]>);
 
-  // Fonction helper pour les couleurs
+  // Fonction pour obtenir la couleur du badge dans le Select
   const getStatusColor = (statut: string) => {
     switch(statut) {
         case 'En attente': return 'text-red-600 bg-red-50 border-red-200';
@@ -118,6 +102,7 @@ const AdminDashboard = () => {
         ) : (
             <Accordion type="single" collapsible className="space-y-4">
                 {Object.entries(groupedByShop).sort().map(([shopName, items]) => {
+                    // Calcul des items "En attente" ou "Reçu" pour afficher une alerte sur le dossier fermé
                     const urgentCount = items.filter(i => i.statut === 'En attente').length;
                     
                     return (
@@ -134,10 +119,11 @@ const AdminDashboard = () => {
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2 pb-4 space-y-3">
-                                {/* Tri sécurisé avec String() pour éviter les erreurs TS */}
-                                {items.sort((a, b) => (statusPriority[String(a.statut)] || 99) - (statusPriority[String(b.statut)] || 99)).map((m) => (
+                                {/* Tri des items par priorité de statut */}
+                                {items.sort((a, b) => (statusPriority[a.statut] || 99) - (statusPriority[b.statut] || 99)).map((m) => (
                                     <div key={m._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-50 rounded-md border border-gray-100 gap-4">
                                         
+                                        {/* Description */}
                                         <div className="flex-1">
                                             <p className="font-medium text-gray-900 text-base">{m.description}</p>
                                             <p className="text-xs text-gray-500">
@@ -145,6 +131,7 @@ const AdminDashboard = () => {
                                             </p>
                                         </div>
 
+                                        {/* Sélecteur de Statut */}
                                         <div className="w-full md:w-auto">
                                             <Select 
                                                 defaultValue={m.statut} 
