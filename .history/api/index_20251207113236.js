@@ -140,25 +140,11 @@ app.post("/api/login", async (req, res) => {
     
     try {
         const user = await User.findOne({ email });
-        // Vérification de l'existence de l'utilisateur
         if (!user) return res.status(401).json({ success: false, message: "Identifiants invalides." });
 
-        // Vérification du mot de passe
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(401).json({ success: false, message: "Identifiants invalides." });
 
-        // ---------------------------------------------------------
-        // ✅ NOUVEAU : BLOCAGE SI LE COMPTE N'EST PAS VÉRIFIÉ
-        // ---------------------------------------------------------
-        if (!user.isVerified) {
-             return res.status(403).json({ 
-                 success: false, 
-                 message: "Votre compte est en attente de validation par l'administrateur." 
-             });
-        }
-        // ---------------------------------------------------------
-
-        // Si tout est bon, on connecte l'utilisateur
         res.json({ 
             success: true, 
             user: { 
@@ -172,5 +158,6 @@ app.post("/api/login", async (req, res) => {
         res.status(500).json({ success: false, message: "Erreur serveur" });
     }
 });
+
 // Export par défaut pour Vercel (Syntaxe Module)
 export default app;
