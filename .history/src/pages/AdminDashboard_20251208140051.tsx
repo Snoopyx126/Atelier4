@@ -186,22 +186,11 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
                     </DialogHeader>
 
                     <div className="overflow-y-auto p-6 bg-gray-50 flex-grow">
-                        {/* ... DÉBUT DU CONTENU FACTURE DANS InvoiceModal ... */}
-                    <div id="invoice-content" className="p-10 bg-white text-black border shadow-sm mx-auto max-w-[210mm] min-h-[297mm] flex flex-col justify-between"> 
-                        <div>
-                            {/* HEADER */}
+                        <div id="invoice-content" className="p-10 bg-white text-black border shadow-sm mx-auto max-w-[210mm] min-h-[297mm]"> 
+                            {/* DESIGN FACTURE (Header) */}
                             <div className="flex justify-between items-start mb-10">
-                                <div>
-                                    <h1 className="text-4xl font-extrabold text-gray-900 mb-2">FACTURE</h1>
-                                    <p className="text-gray-500 font-medium">N° {invoiceNumber}</p>
-                                    <p className="text-sm text-gray-400">Date: {today.toLocaleDateString('fr-FR')}</p>
-                                </div>
-                                <div className="text-right">
-                                    <h2 className="text-xl font-bold text-gray-800">{FACTURE_INFO.name}</h2>
-                                    <p className="text-sm text-gray-600">{FACTURE_INFO.address}</p>
-                                    <p className="text-sm text-gray-600">{FACTURE_INFO.zipCity}</p>
-                                    <p className="text-sm text-gray-600">SIRET: {FACTURE_INFO.siret}</p>
-                                </div>
+                                <div><h1 className="text-4xl font-extrabold text-gray-900 mb-2">FACTURE</h1><p className="text-gray-500 font-medium">N° {invoiceNumber}</p><p className="text-sm text-gray-400">Date: {today.toLocaleDateString('fr-FR')}</p></div>
+                                <div className="text-right"><h2 className="text-xl font-bold text-gray-800">{FACTURE_INFO.name}</h2><p className="text-sm text-gray-600">{FACTURE_INFO.address}</p><p className="text-sm text-gray-600">{FACTURE_INFO.zipCity}</p><p className="text-sm text-gray-600">SIRET: {FACTURE_INFO.siret}</p></div>
                             </div>
 
                             {/* CLIENT INFO */}
@@ -209,8 +198,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
                                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Facturé à</h3>
                                 <p className="text-xl font-bold text-gray-900">{client.nomSociete}</p>
                                 <p className="text-gray-600">{client.address}</p>
-                                <p className="text-gray-600">{client.zipCity}</p>
-                                <p className="text-gray-600 text-sm mt-1">SIRET: {client.siret}</p>
+                                <p className="text-gray-600 text-sm">SIRET: {client.siret}</p>
                             </div>
 
                             {/* TABLEAU */}
@@ -228,51 +216,23 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
                                         return (
                                             <tr key={m._id}>
                                                 <td className="py-4 align-top font-medium text-gray-800">{m.reference}</td>
-                                                <td className="py-4 align-top text-sm text-gray-600">
-                                                    {details.map((d, i) => <div key={i}>{d}</div>)}
-                                                </td>
+                                                <td className="py-4 align-top text-sm text-gray-600">{details.map((d, i) => <div key={i}>{d}</div>)}</td>
                                                 <td className="py-4 align-top text-right font-bold text-gray-900">{total.toFixed(2)} €</td>
                                             </tr>
                                         );
                                     })}
                                 </tbody>
                             </table>
-                        </div>
 
-                        {/* PARTIE BASSE : RIB + TOTAUX + MENTIONS */}
-                        <div>
-                            <div className="flex justify-between items-end mb-8">
-                                {/* RIB / IBAN (NOUVEAU) */}
-                                <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg w-1/2 mr-8">
-                                    <h4 className="font-bold text-sm text-gray-900 mb-2">COORDONNÉES BANCAIRES</h4>
-                                    <div className="text-xs text-gray-600 space-y-1">
-                                        <p>Banque : <strong>L'ATELIER DES ARTS</strong></p>
-                                        <p>IBAN :</p>
-                                        <p className="font-mono text-sm font-bold text-gray-800 tracking-wider">
-                                            FR76 1820 6002 0065 1045 3419 297
-                                        </p>
-                                        <p className="text-[10px] text-gray-400 mt-1">BIC : (À rajouter si nécessaire)</p>
-                                    </div>
-                                </div>
-
-                                {/* TOTAUX */}
-                                <div className="w-1/3 space-y-3">
+                            {/* TOTAUX */}
+                            <div className="flex justify-end">
+                                <div className="w-1/2 space-y-3">
                                     <div className="flex justify-between text-gray-600"><span className="font-medium">Total HT</span><span>{totalHT.toFixed(2)} €</span></div>
                                     <div className="flex justify-between text-gray-600"><span className="font-medium">TVA (20%)</span><span>{tva.toFixed(2)} €</span></div>
                                     <div className="flex justify-between text-2xl font-extrabold text-gray-900 border-t-2 border-gray-900 pt-3"><span>Net à payer</span><span>{totalTTC.toFixed(2)} €</span></div>
                                 </div>
                             </div>
-
-                            {/* MENTIONS LÉGALES OBLIGATOIRES (NOUVEAU) */}
-                            <div className="pt-4 border-t border-gray-100 text-center text-[10px] text-gray-400 leading-tight">
-                                <p>Conditions de règlement : Paiement à réception de facture (ou selon accord contractuel).</p>
-                                <p>Aucun escompte pour paiement anticipé.</p>
-                                <p>En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de 40€ sera due, ainsi que des pénalités de retard exigibles sans rappel au taux de 3 fois le taux d'intérêt légal.</p>
-                                <p className="mt-2 font-medium">{FACTURE_INFO.name} - SIRET {FACTURE_INFO.siret} - 178 Avenue Daumesnil 75012 Paris</p>
-                            </div>
                         </div>
-                    </div>
-                    {/* ... FIN DU CONTENU FACTURE ... */}
                     </div>
 
                     <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 print-hidden flex-shrink-0 z-50 relative">
