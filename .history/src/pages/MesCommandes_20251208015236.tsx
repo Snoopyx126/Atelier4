@@ -34,10 +34,7 @@ const MesCommandes = () => {
   const [montages, setMontages] = useState<Montage[]>([]); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-const normalize = (text: string | undefined): string => {
-    if (!text) return "";
-    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-};
+
   // Formulaire
   const [reference, setReference] = useState("");
   const [frame, setFrame] = useState("");
