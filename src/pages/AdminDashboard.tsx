@@ -47,7 +47,7 @@ const normalize = (text: string | undefined): string => {
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 };
 
-// --- DÉFINITION DES PRIX FACTURE (inchangée) ---
+// --- DÉFINITION DES PRIX FACTURE ---
 const CATEGORY_COSTS: Record<string, number> = { 'Cerclé': 7.00, 'Percé': 15.90, 'Nylor': 14.90 };
 const GLASS_COSTS: Record<string, number> = { 'Verre 4 saisons': 12.00, 'Verre Dégradé': 25.00, 'Verre de stock': 0.00 };
 const DIAMONDCUT_COSTS: Record<string, number> = { 'Facette Lisse': 39.80, 'Facette Twinkle': 79.80, 'Diamond Ice': 93.60, 'Standard': 0.00 };
@@ -122,12 +122,13 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const montagesReferences = monthlyMontages.map(m => m.reference).filter(ref => ref) as string[];
 
     // Fonction de PUBLICATION et TÉLÉCHARGEMENT PDF
-    // DANS src/pages/AdminDashboard.tsx, à l'intérieur du composant InvoiceModal
-
-    // Fonction de PUBLICATION et TÉLÉCHARGEMENT PDF
     const handleDownloadPDF = async () => {
         const input = document.getElementById('invoice-content');
-        if (!input) { toast.error("Contenu de facture introuvable."); return; }
+        if (!input) { 
+            toast.error("Contenu de facture introuvable (ID HTML manquant)."); 
+            console.error("Critical: #invoice-content element not found.");
+            return; 
+        }
         
         // 1. Définition des données à enregistrer (basée sur la modale)
         const invoiceDataToSave = {
@@ -166,7 +167,6 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 
 
         // 3. GÉNÉRATION ET TÉLÉCHARGEMENT DU PDF
-        // Cette étape est volontairement lancée après l'enregistrement API
         html2canvas(input, { scale: 2, allowTaint: true, useCORS: true }).then((canvas) => {
             const imgData = canvas.toDataURL('image/jpeg', 1.0); 
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -176,11 +176,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
             pdf.save(`Facture_${client.nomSociete}_${today.toLocaleDateString('fr-CA')}.pdf`);
             
              if (isPublishedSuccessfully) {
-                 // Si la publication API a réussi, nous réaffirmons le succès du téléchargement
                  toast.success("Facture téléchargée localement!", { id: 'pdf-gen' });
-            } else {
-                 // Sinon, nous informons que seul le téléchargement local a eu lieu
-                 toast.info("Le PDF a été téléchargé, mais la publication chez le client a échoué (Vérifiez l'API).", { id: 'pdf-gen' });
             }
         }).catch(err => {
             console.error("Erreur html2canvas:", err);
@@ -190,10 +186,108 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            {/* ... (Styles pour l'impression) ... */}
+            {/* ✅ CORRECTION SYNTAXE : Utilisation de <style> standard React */}
+             <style>{`
+                .print-hidden { display: none !important; }
+                @media print {
+                    .print-hidden { display: none !important; }
+                    body > * { visibility: hidden !important; }
+                    .invoice-wrapper, .invoice-wrapper * { visibility: visible !important; }
+                    .invoice-wrapper { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; }
+                    .DialogContent { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; padding: 0 !important; }
+                    #invoice-content { box-shadow: none !important; border: none !important; }
+                }
+            `}</style>
+            
             <div className="invoice-wrapper"> 
                 <DialogContent className="DialogContent max-w-4xl bg-white p-8 print:p-0 max-h-[90vh] overflow-y-auto">
-                    {/* ... (Contenu de la facture) ... */}
+                    <DialogHeader><DialogTitle className="text-3xl font-bold text-gray-900 print-hidden">Facturation Mensuelle</DialogTitle></DialogHeader>
+
+                    {/* L'ID CRITIQUE POUR HTML2CANVAS */}
+                    <div id="invoice-content" className="p-6 bg-white print:p-0 print:text-black"> 
+                        <div className="flex justify-between items-start mb-10">
+                            {/* Émetteur */}
+                            <div>
+                                <h2 className="text-2xl font-bold">{FACTURE_INFO.name}</h2>
+                                <p className="text-sm text-gray-600">{FACTURE_INFO.address}</p>
+                                <p className="text-sm text-gray-600">{FACTURE_INFO.zipCity}</p>
+                                <p className="text-sm text-gray-600">SIRET: {FACTURE_INFO.siret}</p>
+                                <p className="text-sm text-blue-600 font-medium">Email: {FACTURE_INFO.email}</p>
+                            </div>
+                            {/* Récepteur */}
+                            <div className="text-right">
+                                <h3 className="text-lg font-semibold text-gray-800">Facturé à:</h3>
+                                <p className="font-bold">{client.nomSociete}</p>
+                                <p className="text-sm text-gray-600">{client.address}</p>
+                                <p className="text-sm text-gray-600">{client.zipCity}</p>
+                                <p className="text-sm text-gray-600">SIRET: {client.siret}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-100 p-4 mb-8 border-l-4 border-black">
+                            <h4 className="text-2xl font-extrabold text-gray-900">FACTURE N° {invoiceNumber}</h4>
+                            <p className="text-sm text-gray-600">Date d'émission: {today.toLocaleDateString('fr-FR')}</p>
+                        </div>
+
+                        {/* TABLEAU DES MONTANTS */}
+                        {monthlyMontages.length > 0 ? (
+                            <div className="space-y-4">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b-2 border-gray-300">
+                                            <th className="py-2 text-sm font-bold text-gray-600">Référence Montage</th>
+                                            <th className="py-2 text-sm font-bold text-gray-600">Détails de Prestation</th>
+                                            <th className="py-2 text-sm font-bold text-gray-600 text-right">Montant HT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {monthlyMontages.map(m => {
+                                            const { total, details } = getMontagePriceDetails(m);
+                                            return (
+                                                <tr key={m._id} className="border-b border-gray-200 hover:bg-gray-50">
+                                                    <td className="py-3 font-semibold text-gray-800">{m.reference} ({m.frame})</td>
+                                                    <td className="py-3 text-sm text-gray-700">
+                                                        {details.join(' / ')}
+                                                    </td>
+                                                    <td className="py-3 font-semibold text-right text-gray-800">{total.toFixed(2)} €</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+
+                                {/* Totaux */}
+                                <div className="flex justify-end">
+                                    <div className="w-full md:w-1/2 space-y-2 pt-4">
+                                        <div className="flex justify-between border-b border-gray-200 pb-1">
+                                            <span>Total Hors Taxes (HT):</span>
+                                            <span className="font-semibold">{totalHT.toFixed(2)} €</span>
+                                        </div>
+                                        <div className="flex justify-between border-b border-gray-200 pb-1">
+                                            <span>TVA ({FACTURE_INFO.tvaRate * 100}%):</span>
+                                            <span className="font-semibold">{tva.toFixed(2)} €</span>
+                                        </div>
+                                        <div className="flex justify-between pt-2 border-t-2 border-black">
+                                            <span className="text-xl font-extrabold text-gray-900">TOTAL TTC:</span>
+                                            <span className="text-xl font-extrabold text-blue-600">{totalTTC.toFixed(2)} €</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-10 text-gray-500">
+                                <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                                <p>Aucun montage terminé ce mois-ci pour ce client à facturer.</p>
+                            </div>
+                        )}
+                        
+                        <div className="mt-12 text-center text-xs text-gray-500 border-t pt-4">
+                            Paiement à réception de facture. TVA non applicable, article 293 B du Code général des impôts.
+                        </div>
+
+                    </div>
+                    {/* FIN DE L'ID invoice-content */}
+
 
                     <div className="flex justify-end mt-4 gap-3 print-hidden">
                         <Button variant="outline" className="flex items-center gap-2" disabled={monthlyMontages.length === 0}><Send className="w-4 h-4" /> Envoyer par E-mail (Pro)</Button>
