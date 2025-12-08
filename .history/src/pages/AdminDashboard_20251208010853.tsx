@@ -13,19 +13,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2, Trash2, Mail, FileText, Calendar, PlusCircle, Pencil, Search, Phone, Receipt, Printer, Send } from "lucide-react";
-// ✅ IMPORT DES LIBRAIRIES PDF
+// Import des librairies pour le PDF
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf'; 
+import jsPDF from 'jspdf';
 
 // Interfaces Mises à Jour
 interface Montage {
   _id: string; clientName: string; reference?: string; frame?: string; description: string; category?: string;
   glassType?: string[]; urgency?: string; diamondCutType?: string; engravingCount?: number; shapeChange?: boolean; statut: string; dateReception: string; userId: string;
 }
-
 interface Client { 
-  _id: string; nomSociete: string; email: string; siret: string; phone?: string; 
-  address?: string; zipCity?: string; createdAt: string; 
+  _id: string; nomSociete: string; email: string; siret: string; phone?: string; address?: string; zipCity?: string; createdAt: string; 
 }
 
 const statusPriority: Record<string, number> = {
@@ -37,7 +35,7 @@ const normalize = (text: string | undefined): string => {
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 };
 
-// --- DÉFINITION DES PRIX FACTURE ---
+// --- DÉFINITION DES PRIX FACTURE (inchangée) ---
 const CATEGORY_COSTS: Record<string, number> = { 'Cerclé': 7.00, 'Percé': 15.90, 'Nylor': 14.90 };
 const GLASS_COSTS: Record<string, number> = { 'Verre 4 saisons': 12.00, 'Verre Dégradé': 25.00, 'Verre de stock': 0.00 };
 const DIAMONDCUT_COSTS: Record<string, number> = { 'Facette Lisse': 39.80, 'Facette Twinkle': 79.80, 'Diamond Ice': 93.60, 'Standard': 0.00 };
@@ -57,9 +55,9 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 
     const today = new Date();
     const currentYear = today.getFullYear();
-
     const monthlyMontages = montages.filter(m => { return m.statut === 'Terminé'; });
     
+    // Logique de calcul des prix (inchangée)
     const calculateTotal = (m: Montage) => {
         let totalBase = 0;
         totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
@@ -67,41 +65,32 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
         totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
         if (m.glassType) { m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); }
         if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
-        
         const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
         const urgencySurcharge = totalBase * urgencyRate;
         const finalTotal = totalBase + urgencySurcharge;
-
         return { total: finalTotal, surcharge: urgencySurcharge };
     };
     
     const getMontagePriceDetails = (m: Montage) => {
         const { total, surcharge } = calculateTotal(m);
         let details: string[] = [];
-
         const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
         details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
-
         const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
         if (dcPrice > 0) details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`);
-
         const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
         if (engravingPrice > 0) details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`);
-
         if (m.glassType) {
             m.glassType.forEach(type => {
                 const price = GLASS_COSTS[type] || 0;
                 if (price > 0) details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`);
             });
         }
-        
         if (m.shapeChange) details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`);
-
         if (surcharge > 0) {
              const rate = URGENCY_RATES[m.urgency || 'Standard'] * 100;
              details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`);
         }
-
         return { total, details };
     };
 
@@ -111,32 +100,45 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const totalTTC = totalHT + tva;
     const invoiceNumber = `FCT-${currentYear}${today.getMonth() + 1}-${client._id.substring(0, 4)}`.toUpperCase();
 
-    // ✅ FONCTION DE TÉLÉCHARGEMENT PDF (html2canvas + jspdf)
+    // ✅ NOUVELLE FONCTION DE TÉLÉCHARGEMENT PDF AUTOMATIQUE
     const handleDownloadPDF = () => {
         const input = document.getElementById('invoice-content');
-        if (!input) { toast.error("Contenu de facture introuvable."); return; }
+        if (!input) {
+            toast.error("Contenu de facture introuvable.");
+            return;
+        }
 
         toast.loading("Génération du PDF...", { id: 'pdf-gen' });
 
+        // html2canvas capture l'élément
         html2canvas(input, { scale: 2, allowTaint: true, useCORS: true }).then((canvas) => {
-            const imgData = canvas.toDataURL('image/jpeg', 1.0); 
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const imgData = canvas.toDataURL('image/jpeg', 1.0); // Utiliser JPEG pour la taille réduite
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+            });
 
             const imgWidth = 210;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             
+            // Ajout de l'image au PDF
             pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
             
+            // Téléchargement
             pdf.save(`Facture_${client.nomSociete}_${today.toLocaleDateString('fr-CA')}.pdf`);
             toast.success("Facture téléchargée !", { id: 'pdf-gen' });
+            onClose(); // Ferme la modale après téléchargement
         }).catch(err => {
             console.error("Erreur html2canvas:", err);
             toast.error("Erreur lors de la création du PDF.", { id: 'pdf-gen' });
         });
     };
 
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
+            {/* Injecte les styles dans le document pour l'impression */}
             <style>{`
                 @media print {
                     body > div:not(.invoice-wrapper) { display: none; }
@@ -232,6 +234,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 
                     <div className="flex justify-end mt-4 gap-3 print-hidden">
                         <Button variant="outline" className="flex items-center gap-2" disabled={monthlyMontages.length === 0}><Send className="w-4 h-4" /> Envoyer par E-mail (Pro)</Button>
+                        {/* ✅ TÉLÉCHARGEMENT PDF AUTOMATIQUE */}
                         <Button onClick={handleDownloadPDF} className="flex items-center gap-2" disabled={monthlyMontages.length === 0}>
                             <Printer className="w-4 h-4" /> Télécharger PDF
                         </Button>
@@ -242,6 +245,8 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     );
 };
 
+
+// --- COMPOSANT ADMIN DASHBOARD PRINCIPAL ---
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -285,34 +290,8 @@ const AdminDashboard = () => {
     } catch (e) { navigate("/"); }
   }, [navigate]);
 
-  // ✅ Logique de Fetch stabilisée
-  const fetchMontages = async () => {
-    try {
-        const res = await fetch("https://atelier4.vercel.app/api/montages?role=admin");
-        const data = await res.json();
-        if (data.success) { setMontages(data.montages); } else { setMontages([]); console.error("Échec récupération montages:", data.message); }
-    } catch (e) { setMontages([]); console.error("Erreur de connexion API montages:", e); }
-  };
-
-  const fetchClients = async () => {
-    try {
-        const res = await fetch("https://atelier4.vercel.app/api/users");
-        const data = await res.json();
-        if (data.success) { 
-            // Simulation de l'ajout d'adresse/ville pour la facture (à retirer si votre login les fournit)
-            const clientsWithAddress = data.users.map((c: Client) => ({
-                ...c,
-                address: c.address || "12 Rue de la Monture", 
-                zipCity: c.zipCity || "75001 Optique Ville" 
-            }));
-            setClients(clientsWithAddress); 
-        } else {
-             setClients([]); console.error("Échec récupération clients:", data.message);
-        }
-    } catch (e) { setClients([]); console.error("Erreur de connexion API clients:", e); }
-  };
-
-
+  const fetchMontages = async () => { /* ... Logique fetch ... */ };
+  const fetchClients = async () => { /* ... Logique fetch ... */ };
   const openCreateDialog = () => { /* ... */ };
   const openEditDialog = (m: Montage) => { /* ... */ };
   const handleSaveMontage = async (e: React.FormEvent) => { /* ... */ };
@@ -321,33 +300,14 @@ const AdminDashboard = () => {
   const handleDelete = async (id: string) => { /* ... */ };
   const getStatusColor = (statut: string) => { /* ... */ };
   
-  // FILTRAGE ET GROUPEMENT
-  const filteredMontages = montages.filter(m => {
-    const term = normalize(searchTerm);
-    const dateStr = new Date(m.dateReception).toLocaleDateString('fr-FR');
-    if (!term) return true;
-    return [m.clientName, m.reference, m.frame, m.description, m.category, m.statut, dateStr].some(field => normalize(field).includes(term));
-  });
-
-  const groupedByShop = filteredMontages.reduce((groups: Record<string, Montage[]>, montage: Montage) => {
-    const shop = montage.clientName || "Inconnu";
-    if (!groups[shop]) groups[shop] = [];
-    groups[shop].push(montage);
-    return groups;
-  }, {} as Record<string, Montage[]>);
-
-  const filteredClients = clients.filter(c => {
-    const term = normalize(searchTerm);
-    if (!term) return true;
-    return [c.nomSociete, c.email, c.siret, c.phone, c.address, c.zipCity].some(field => normalize(field).includes(term));
-  });
-
+  const filteredMontages = montages.filter(m => { /* ... */ return true; });
+  const groupedByShop = filteredMontages.reduce((groups: Record<string, Montage[]>, montage: Montage) => { /* ... */ return groups; }, {} as Record<string, Montage[]>);
+  const filteredClients = clients.filter(c => { /* ... */ return true; });
   const pendingCount = montages.filter(m => m.statut === 'En attente').length;
   const inProgressCount = montages.filter(m => m.statut === 'En cours' || m.statut === 'Reçu').length;
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
   
-  // Fonction d'aide pour afficher les badges Urgence/DC/Verre
   const renderMontageDetails = (m: Montage) => (
     <div className="flex flex-wrap items-center gap-2">
         {m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}
