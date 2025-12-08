@@ -36,7 +36,7 @@ const normalize = (text: string | undefined): string => {
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 };
 
-// --- DÉFINITION DES PRIX FACTURE ---
+// --- DÉFINITION DES PRIX FACTURE (inchangée) ---
 const CATEGORY_COSTS: Record<string, number> = { 'Cerclé': 7.00, 'Percé': 15.90, 'Nylor': 14.90 };
 const GLASS_COSTS: Record<string, number> = { 'Verre 4 saisons': 12.00, 'Verre Dégradé': 25.00, 'Verre de stock': 0.00 };
 const DIAMONDCUT_COSTS: Record<string, number> = { 'Facette Lisse': 39.80, 'Facette Twinkle': 79.80, 'Diamond Ice': 93.60, 'Standard': 0.00 };
@@ -48,7 +48,7 @@ const FACTURE_INFO = {
     name: "L'Atelier des Arts", address: "178 Avenue Daumesnil", zipCity: "75012 Paris", siret: "98095501700010", email: "contact@atelierdesarts.com", tvaRate: 0.20
 };
 
-// --- COMPOSANT MODAL DE FACTURATION ---
+// --- COMPOSANT MODAL DE FACTURATION (Logique inchangée) ---
 interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; }
 
 const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClose }) => {
@@ -56,7 +56,6 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 
     const today = new Date();
     const currentYear = today.getFullYear();
-
     const monthlyMontages = montages.filter(m => { return m.statut === 'Terminé'; });
     
     // Logique de calcul des prix (omise pour la concision)
@@ -297,7 +296,6 @@ const AdminDashboard = () => {
     try {
         const res = await fetch("https://atelier4.vercel.app/api/users");
         const data = await res.json();
-        // ✅ FIX CRITIQUE: S'assurer que les données sont bien un tableau avant de les traiter
         if (data.success && Array.isArray(data.users)) { 
             const clientsWithAddress = data.users.map((c: Client) => ({
                 ...c,
@@ -321,7 +319,7 @@ const AdminDashboard = () => {
   // ✅ Implémentation de la fonction d'ouverture de la modale (bouton 'Créer')
   const openCreateDialog = () => { 
       setEditingId(null);
-      setNewClient(clients.length > 0 ? clients[0]._id : ""); 
+      setNewClient(clients.length > 0 ? clients[0]._id : ""); // Définit le premier client par défaut
       setNewRef("");
       setNewFrame("");
       setNewCategory("Cerclé");
@@ -358,6 +356,7 @@ const AdminDashboard = () => {
     const method = editingId ? "PUT" : "POST";
     const url = editingId ? `https://atelier4.vercel.app/api/montages/${editingId}` : "https://atelier4.vercel.app/api/montages";
     
+    // newClient contient l'ID du client sélectionné
     const montageData = {
         userId: newClient, 
         reference: newRef,
@@ -394,7 +393,7 @@ const AdminDashboard = () => {
   const handleGlassTypeChange = (type: string, checked: boolean) => {
     setNewGlassType(prev => checked ? [...prev, type] : prev.filter(t => t !== type));
   };
-
+  
   const handleStatusChange = async (id: string, newStatus: string) => { 
       const oldMontages = [...montages];
       setMontages(prev => prev.map(m => m._id === id ? { ...m, statut: newStatus } : m));
@@ -439,6 +438,7 @@ const AdminDashboard = () => {
   });
 
   const groupedByMonthAndShop = filteredMontages.reduce((monthGroups: Record<string, Record<string, Montage[]>>, montage: Montage) => {
+    // Note: Utiliser dateReception pour le groupement par mois
     const date = new Date(montage.dateReception);
     const monthYear = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     const shop = montage.clientName || "Client Inconnu";
@@ -586,9 +586,9 @@ const AdminDashboard = () => {
                     <CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader>
                     <CardContent className="p-6 bg-gray-50/50 min-h-[400px]">
                         {Object.keys(groupedByMonthAndShop).length === 0 ? (<div className="text-center py-20 text-gray-400">Aucun montage trouvé.</div>) : (
-                            <Accordion type="multiple" className="space-y-4"> {/* Outer Accordion: Month (collapsible removed) */}
+                            <Accordion type="multiple" collapsible className="space-y-4"> {/* Outer Accordion: Month */}
                                 {Object.entries(groupedByMonthAndShop)
-                                    // Trier par mois (le plus récent en premier)
+                                    // Trier par mois (le plus récent en premier) - peut nécessiter une logique de date plus complexe
                                     .sort(([monthA], [monthB]) => monthB.localeCompare(monthA))
                                     .map(([monthName, shopGroups]) => {
                                     const totalMontagesInMonth = Object.values(shopGroups).flat().length;
@@ -603,7 +603,7 @@ const AdminDashboard = () => {
                                                 </div>
                                             </AccordionTrigger>
                                             <AccordionContent className="pt-4 pb-6 space-y-4">
-                                                <Accordion type="multiple" className="space-y-2"> {/* Inner Accordion: Shop (collapsible removed) */}
+                                                <Accordion type="multiple" collapsible className="space-y-2"> {/* Inner Accordion: Shop */}
                                                     {Object.entries(shopGroups).sort().map(([shopName, items]) => {
                                                         const client = clients.find(c => c.nomSociete === shopName) || { _id: '', nomSociete: shopName, email: '', siret: '', createdAt: '' };
                                                         return (
