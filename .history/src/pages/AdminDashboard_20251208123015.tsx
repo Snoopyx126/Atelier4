@@ -27,8 +27,7 @@ interface Client {
   address?: string; zipCity?: string; createdAt: string; 
 }
 
-// ✅ CORRECTION TYPAGE : Ajout de montagesReferences
-interface FactureData { 
+interface FactureData { // Correspond au modèle Facture du backend
     id: string;
     userId: string;
     clientName: string;
@@ -36,7 +35,6 @@ interface FactureData {
     totalTTC: number;
     dateEmission: string;
     pdfUrl: string;
-    montagesReferences?: string[]; 
 }
 
 const statusPriority: Record<string, number> = {
@@ -61,7 +59,7 @@ const FACTURE_INFO = {
 };
 
 // --- COMPOSANT MODAL DE FACTURATION (Génération PDF) ---
-interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; onInvoicePublished: (invoiceData: FactureData) => void; }
+interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; onInvoicePublished: (invoiceData: any) => void; }
 
 const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
     if (!isOpen) return null;
@@ -78,7 +76,6 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
         totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
         if (m.glassType) { m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); }
         if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
-        
         const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
         const urgencySurcharge = totalBase * urgencyRate;
         const finalTotal = totalBase + urgencySurcharge;
@@ -88,30 +85,23 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const getMontagePriceDetails = (m: Montage) => {
         const { total, surcharge } = calculateTotal(m);
         let details: string[] = [];
-
         const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
         details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
-
         const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
         if (dcPrice > 0) details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`);
-
         const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
         if (engravingPrice > 0) details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`);
-
         if (m.glassType) {
             m.glassType.forEach(type => {
                 const price = GLASS_COSTS[type] || 0;
                 if (price > 0) details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`);
             });
         }
-        
         if (m.shapeChange) details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`);
-
         if (surcharge > 0) {
              const rate = URGENCY_RATES[m.urgency || 'Standard'] * 100;
              details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`);
         }
-
         return { total, details };
     };
 
@@ -140,7 +130,6 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
         };
 
         toast.loading("Génération du PDF et publication...", { id: 'pdf-gen' });
-        let isPublishedSuccessfully = false;
 
         // 2. ENREGISTRER LA FACTURE CÔTÉ SERVEUR
         try {
@@ -152,11 +141,11 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
             const data = await res.json();
 
             if (!data.success) {
-                 toast.warning(`Facture déjà publiée ou erreur d'enregistrement (${data.message || 'Doublon/Erreur'}). Téléchargement en cours...`, { id: 'pdf-gen' });
+                // Si l'erreur est un doublon (déjà facturé), on notifie mais on procède au téléchargement
+                 toast.warning(`Facture déjà publiée (${data.message || 'Doublon'}). Téléchargement en cours...`, { id: 'pdf-gen' });
             } else {
                  toast.success("Facture enregistrée et publiée chez le client !", { id: 'pdf-gen' });
-                 onInvoicePublished(data.facture); 
-                 isPublishedSuccessfully = true;
+                 onInvoicePublished(data.facture); // Notifie l'AdminDashboard pour rafraîchir la liste Admin
             }
         } catch (e) {
             toast.error("Échec de la connexion pour enregistrer la facture.", { id: 'pdf-gen' });
@@ -172,7 +161,8 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
             pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
             pdf.save(`Facture_${client.nomSociete}_${today.toLocaleDateString('fr-CA')}.pdf`);
             
-             if (isPublishedSuccessfully) {
+            // Si la notification précédente n'était pas un warning, on met à jour le succès du téléchargement
+            if (!toast.isActive('pdf-gen')) {
                  toast.success("Facture téléchargée localement!", { id: 'pdf-gen' });
             }
         }).catch(err => {
@@ -183,11 +173,10 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            {/* ... (Styles pour l'impression) ... */}
+            {/* ... (Styles et structure modale inchangés) ... */}
             <div className="invoice-wrapper"> 
                 <DialogContent className="DialogContent max-w-4xl bg-white p-8 print:p-0 max-h-[90vh] overflow-y-auto">
-                    {/* ... (Contenu de la facture) ... */}
-
+                    {/* ... (Header, Contenu de la facture, Totaux inchangés) ... */}
                     <div className="flex justify-end mt-4 gap-3 print-hidden">
                         <Button variant="outline" className="flex items-center gap-2" disabled={monthlyMontages.length === 0}><Send className="w-4 h-4" /> Envoyer par E-mail (Pro)</Button>
                         <Button onClick={handleDownloadPDF} className="flex items-center gap-2" disabled={monthlyMontages.length === 0}>
@@ -200,7 +189,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     );
 };
 
-// --- MODALE : AFFICHAGE DES FACTURES CLIENTS ---
+// --- NOUVELLE MODALE : AFFICHAGE DES FACTURES CLIENTS ---
 interface ClientInvoicesModalProps { client: Client | null; invoices: FactureData[]; isOpen: boolean; onClose: () => void; }
 
 const ClientInvoicesModal: React.FC<ClientInvoicesModalProps> = ({ client, invoices, isOpen, onClose }) => {
@@ -349,8 +338,17 @@ const AdminDashboard = () => {
   
   // Fonction de callback après la publication de la facture
   const handleInvoicePublished = (newInvoice: FactureData) => {
-      // Ajout de la nouvelle facture à la liste locale des factures
-      setAllInvoices(prev => [newInvoice, ...prev]);
+      // Rafraîchir la liste locale des factures
+      setAllInvoices(prev => [{
+           id: newInvoice.id,
+           userId: newInvoice.userId,
+           clientName: newInvoice.clientName,
+           invoiceNumber: newInvoice.invoiceNumber,
+           totalTTC: newInvoice.totalTTC,
+           dateEmission: newInvoice.dateEmission,
+           pdfUrl: newInvoice.pdfUrl,
+           montagesReferences: newInvoice.montagesReferences
+      }, ...prev]);
   };
   
   // Fonction pour ouvrir la modale des factures client (au clic sur le client)
@@ -364,11 +362,35 @@ const AdminDashboard = () => {
     };
 
 
-  // --- Logiques de Formulaire et de Statut ---
+  // --- Logiques de Formulaire et de Statut (pour la concision, elles sont écourtées) ---
 
-  const openCreateDialog = () => { /* ... */ };
+  const openCreateDialog = () => { 
+      setEditingId(null);
+      setNewClient(clients.length > 0 ? clients[0]._id : ""); 
+      setNewRef("");
+      setNewFrame("");
+      setNewCategory("Cerclé");
+      setNewGlassType([]);
+      setNewUrgency("Standard");
+      setNewDiamondCutType("Standard");
+      setNewEngravingCount(0);
+      setNewShapeChange(false);
+      setNewDesc("");
+      setIsDialogOpen(true);
+  };
+  
   const openEditDialog = (m: Montage) => { /* ... */ };
-  const handleSaveMontage = async (e: React.FormEvent) => { /* ... */ };
+
+  const handleSaveMontage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClient || !newRef || !newFrame) { toast.error("Veuillez remplir les champs obligatoires (Client, Référence, Monture)."); return; }
+    setIsSubmitting(true);
+    const method = editingId ? "PUT" : "POST";
+    const url = editingId ? `https://atelier4.vercel.app/api/montages/${editingId}` : "https://atelier4.vercel.app/api/montages";
+    // ... (logic for saving montage)
+    setIsSubmitting(false);
+  };
+  
   const handleGlassTypeChange = (type: string, checked: boolean) => { /* ... */ };
 
   const handleStatusChange = async (id: string, newStatus: string) => { 
@@ -451,6 +473,62 @@ const AdminDashboard = () => {
                         <form onSubmit={handleSaveMontage} className="space-y-4 pt-4">
                             
                             {/* ... (Formulaire de création de montage) ... */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-2 col-span-3">
+                                    <Label>Client</Label>
+                                    <Select onValueChange={setNewClient} value={newClient}>
+                                        <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                                        <SelectContent className="bg-white">{clients.map(c => (<SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2"><Label>Référence</Label><Input value={newRef} onChange={e => setNewRef(e.target.value)} required /></div>
+                                <div className="space-y-2"><Label>Monture</Label><Input value={newFrame} onChange={e => setNewFrame(e.target.value)} required /></div>
+                                <div className="space-y-2">
+                                    <Label>Urgence</Label>
+                                    <Select onValueChange={setNewUrgency} value={newUrgency}>
+                                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="bg-white">{URGENCY_OPTIONS.map(opt => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <hr />
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Type de Montage</Label>
+                                    <Select onValueChange={setNewCategory} value={newCategory}>
+                                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem></SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Diamond Cut</Label>
+                                    <Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}>
+                                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(opt => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Gravure (Qté)</Label>
+                                    <Input type="number" min={0} max={2} value={newEngravingCount} onChange={e => setNewEngravingCount(parseInt(e.target.value))} />
+                                </div>
+                            </div>
+                            <hr />
+                            <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+                                <Label className="text-lg block font-bold">Options Spécifiques</Label>
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex gap-6">
+                                        {GLASS_OPTIONS.map(opt => (
+                                            <div key={opt} className="flex items-center space-x-2"><Checkbox id={`glass-${opt}`} checked={newGlassType.includes(opt)} onCheckedChange={(checked) => handleGlassTypeChange(opt, checked as boolean)} /><label htmlFor={`glass-${opt}`}>{opt}</label></div>
+                                        ))}
+                                    </div>
+                                    <hr className="border-gray-200"/>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox id="shapeChange" checked={newShapeChange} onCheckedChange={(checked) => setNewShapeChange(checked as boolean)} />
+                                        <label htmlFor="shapeChange" className="font-semibold text-gray-700">Changement de Forme</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-2"><Label>Note / Commentaire</Label><Input value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
                             <Button type="submit" className="w-full" disabled={isSubmitting}>{editingId ? "Modifier" : "Créer"}</Button>
                         </form>
                     </DialogContent>
@@ -478,7 +556,87 @@ const AdminDashboard = () => {
             </TabsList>
 
             <TabsContent value="atelier">
-                {/* ... (Contenu Atelier avec groupement Mois > Magasin) ... */}
+                <Card className="shadow-md border-0">
+                    <CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader>
+                    <CardContent className="p-6 bg-gray-50/50 min-h-[400px]">
+                        {Object.keys(groupedByMonthAndShop).length === 0 ? (<div className="text-center py-20 text-gray-400">Aucun montage trouvé.</div>) : (
+                            <Accordion type="multiple" className="space-y-4"> {/* Outer Accordion: Month */}
+                                {Object.entries(groupedByMonthAndShop)
+                                    .sort(([monthA], [monthB]) => monthB.localeCompare(monthA))
+                                    .map(([monthName, shopGroups]) => {
+                                    const totalMontagesInMonth = Object.values(shopGroups).flat().length;
+                                    
+                                    return (
+                                        <AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4">
+                                            <AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4">
+                                                <div className="flex items-center gap-4 w-full pr-4">
+                                                    <Calendar className="w-5 h-5 text-blue-600" />
+                                                    <span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span>
+                                                    <span className="text-sm text-gray-500">({totalMontagesInMonth} dossiers)</span>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="pt-4 pb-6 space-y-4">
+                                                <Accordion type="multiple" className="space-y-2"> {/* Inner Accordion: Shop */}
+                                                    {Object.entries(shopGroups).sort().map(([shopName, items]) => {
+                                                        const client = clients.find(c => c.nomSociete === shopName) || { _id: '', nomSociete: shopName, email: '', siret: '', createdAt: '' };
+                                                        return (
+                                                            <AccordionItem key={shopName} value={shopName} className="bg-white border rounded-lg shadow-sm px-4">
+                                                                <AccordionTrigger className="hover:no-underline py-4">
+                                                                    <div className="flex items-center gap-4 w-full pr-4">
+                                                                        <span className="text-lg font-bold text-gray-800">{shopName}</span>
+                                                                        <span className="text-xs text-gray-400">({items.length})</span>
+                                                                        
+                                                                        {/* BOUTON FACTURE */}
+                                                                        <Button 
+                                                                            variant="outline" size="sm" className="ml-auto flex items-center gap-1 text-xs bg-black text-white hover:bg-gray-800"
+                                                                            onClick={(e) => { e.stopPropagation(); handleGenerateInvoice(client as Client, items); }}
+                                                                            disabled={items.length === 0}
+                                                                        >
+                                                                            <Receipt className="w-4 h-4" /> Facturer
+                                                                        </Button>
+
+                                                                        {items.some(i => i.statut === 'En attente') && <Badge variant="destructive">Action requise</Badge>}
+                                                                    </div>
+                                                                </AccordionTrigger>
+                                                                <AccordionContent className="pt-2 pb-6 space-y-3">
+                                                                    {items.sort((a, b) => (statusPriority[String(a.statut)] || 99) - (statusPriority[String(b.statut)] || 99)).map((m) => (
+                                                                        <div key={m._id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
+                                                                            <div className="flex-1">
+                                                                                <div className="mb-2">
+                                                                                    <span className="font-bold text-xl text-gray-900">{m.reference || "N/A"}</span>
+                                                                                    <span className="text-gray-400 mx-2">|</span>
+                                                                                    <span className="font-semibold text-gray-700 text-lg">{m.frame || "Monture"}</span>
+                                                                                    {m.urgency !== 'Standard' && <Badge className="ml-2 bg-red-100 text-red-800 border-red-200">🚨 {m.urgency}</Badge>}
+                                                                                </div>
+                                                                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                                                    <Badge variant="outline">{m.category}</Badge>
+                                                                                    {renderMontageDetails(m)}
+                                                                                </div>
+                                                                                {m.description && <p className="text-sm text-gray-500 italic">"{m.description}"</p>}
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                                                <Select defaultValue={m.statut} onValueChange={(val) => handleStatusChange(m._id, val)}>
+                                                                                    <SelectTrigger className={`w-[160px] bg-white border-2 ${getStatusColor(m.statut)}`}><SelectValue /></SelectTrigger>
+                                                                                    <SelectContent className="bg-white"><SelectItem value="En attente">🔴 En attente</SelectItem><SelectItem value="Reçu">🔵 Reçu</SelectItem><SelectItem value="En cours">🟠 En cours</SelectItem><SelectItem value="Terminé">🟢 Terminé</SelectItem><SelectItem value="Expédié">🟣 Expédié</SelectItem></SelectContent>
+                                                                                </Select>
+                                                                                <Button variant="outline" size="icon" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => openEditDialog(m)}><Pencil className="w-4 h-4" /></Button>
+                                                                                <Button variant="outline" size="icon" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(m._id)}><Trash2 className="w-4 h-4" /></Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </AccordionContent>
+                                                            </AccordionItem>
+                                                        );
+                                                    })}
+                                                </Accordion>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    );
+                                })}
+                            </Accordion>
+                        )}
+                    </CardContent>
+                </Card>
             </TabsContent>
 
             {/* CONTENU CLIENTS : CLIC POUR VOIR LES FACTURES */}
