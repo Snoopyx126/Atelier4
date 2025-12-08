@@ -11,9 +11,7 @@ interface UserData {
   nomSociete: string;
   email: string;
   siret: string;
-  phone?: string;
-  address?: string;
-  zipCity?: string; // ✅ Ajout du champ optionnel
+  phone?: string; // ✅ Ajout du champ optionnel
 }
 
 const DashboardPro = () => {
