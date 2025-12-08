@@ -108,9 +108,7 @@ const MesCommandes = () => {
                 dateEmission: f.dateEmission,
                 totalHT: f.totalHT,
                 totalTTC: f.totalTTC,
-                invoiceData: f.invoiceData || [],
-                amountPaid: f.amountPaid, // ✅
-                paymentStatus: f.paymentStatus // ✅
+                invoiceData: f.invoiceData || []
             })));
         }
     } catch (error) { console.error(error); }
@@ -343,15 +341,7 @@ const MesCommandes = () => {
                         {factures.map(f => (
                             <Card key={f.invoiceNumber} className="flex flex-col md:flex-row justify-between items-center p-6 hover:shadow-md transition-shadow">
                                 <div className="mb-4 md:mb-0">
-                                    <div className="flex items-center gap-3">
-                                        <p className="font-bold text-lg flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-400"/> {f.invoiceNumber}</p>
-                                        
-                                        {/* ✅ BADGE STATUT PAIEMENT CLIENT */}
-                                        {f.paymentStatus === 'Payé' && <Badge className="bg-green-100 text-green-700 border-green-200">Réglé</Badge>}
-                                        {f.paymentStatus === 'Partiellement payé' && <Badge className="bg-orange-100 text-orange-700 border-orange-200">Partiel</Badge>}
-                                        {(f.paymentStatus === 'Non payé' || !f.paymentStatus) && <Badge className="bg-red-100 text-red-700 border-red-200">À régler</Badge>}
-                                    </div>
-
+                                    <p className="font-bold text-lg flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-400"/> {f.invoiceNumber}</p>
                                     <p className="text-sm text-gray-500">Date d'émission: {new Date(f.dateEmission).toLocaleDateString()}</p>
                                     <p className="text-xs text-gray-400 mt-1">Dossiers: {f.montageReference}</p>
                                 </div>
@@ -359,10 +349,6 @@ const MesCommandes = () => {
                                     <div className="text-right">
                                         <p className="text-xs text-gray-500">Montant TTC</p>
                                         <span className="text-xl font-extrabold text-gray-900">{f.totalTTC.toFixed(2)} €</span>
-                                        {/* Afficher le reste à payer si partiel */}
-                                        {f.paymentStatus === 'Partiellement payé' && (
-                                            <p className="text-xs text-orange-600 font-bold">Reste: {(f.totalTTC - (f.amountPaid || 0)).toFixed(2)} €</p>
-                                        )}
                                     </div>
                                     <Button variant="outline" onClick={() => handleDownloadClientInvoice(f)} className="bg-blue-600 text-white hover:bg-blue-700 border-0">
                                         <FileText className="w-4 h-4 mr-2" /> Télécharger PDF
