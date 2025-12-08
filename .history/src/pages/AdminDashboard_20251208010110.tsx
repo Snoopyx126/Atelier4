@@ -13,8 +13,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2, Trash2, Mail, FileText, Calendar, PlusCircle, Pencil, Search, Phone, Receipt, Printer, Send } from "lucide-react";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf'; // Assurez-vous d'avoir installé 'jspdf'
 
 // Interfaces Mises à Jour
 interface Montage {
@@ -48,6 +46,7 @@ const FACTURE_INFO = {
     name: "L'Atelier des Arts", address: "178 Avenue Daumesnil", zipCity: "75012 Paris", siret: "98095501700010", email: "contact@atelierdesarts.com", tvaRate: 0.20
 };
 
+
 // --- COMPOSANT MODAL DE FACTURATION ---
 interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; }
 
@@ -57,9 +56,10 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const today = new Date();
     const currentYear = today.getFullYear();
 
-    const monthlyMontages = montages.filter(m => { return m.statut === 'Terminé'; });
+    const monthlyMontages = montages.filter(m => {
+        return m.statut === 'Terminé';
+    });
     
-    // Logique de calcul des prix (inchangée)
     const calculateTotal = (m: Montage) => {
         let totalBase = 0;
         totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
@@ -67,9 +67,11 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
         totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
         if (m.glassType) { m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); }
         if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
+        
         const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
         const urgencySurcharge = totalBase * urgencyRate;
         const finalTotal = totalBase + urgencySurcharge;
+
         return { total: finalTotal, surcharge: urgencySurcharge };
     };
     
@@ -107,6 +109,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0);
     const tva = totalHT * FACTURE_INFO.tvaRate;
     const totalTTC = totalHT + tva;
+    const monthName = today.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
     const invoiceNumber = `FCT-${currentYear}${today.getMonth() + 1}-${client._id.substring(0, 4)}`.toUpperCase();
 
     // Fonction de téléchargement PDF (html2canvas + jspdf)
@@ -243,8 +246,6 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
 };
 
 
-// --- COMPOSANT ADMIN DASHBOARD PRINCIPAL ---
-
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [montages, setMontages] = useState<Montage[]>([]);
@@ -283,6 +284,7 @@ const AdminDashboard = () => {
     try {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
+        // Tentative de récupération des données au montage
         Promise.all([fetchMontages(), fetchClients()]).finally(() => setLoading(false));
     } catch (e) { navigate("/"); }
   }, [navigate]);

@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-// ✅ CORRECTION DE L'IMPORT : Ajout de Glasses ici
-import { Eye, Clock, FileText, Users, MapPin, Mail, Phone, Home, ShoppingCart, CheckCircle2, Calendar, LayoutDashboard, Glasses } from "lucide-react"; 
+import { Eye, Clock, FileText, Users, MapPin, Mail, Phone, Home, ShoppingCart, CheckCircle2, Calendar, LayoutDashboard } from "lucide-react"; // Import des icônes
 
 // ✅ Interface UserData mise à jour
 interface UserData { 
@@ -37,7 +36,7 @@ const DashboardPro = () => {
         try {
             const userData: UserData = JSON.parse(userStr);
             
-            // Simuler la récupération des champs d'adresse (à retirer si votre API de login les fournit)
+            // Simuler l'ajout de données d'adresse pour l'affichage (si votre API de login ne les fournit pas encore)
             const userWithAddress = {
                 ...userData,
                 address: userData.address || "12 Rue de la Monture", 
