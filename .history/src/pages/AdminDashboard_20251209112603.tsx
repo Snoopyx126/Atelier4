@@ -20,13 +20,12 @@ import jsPDF from 'jspdf';
 interface Montage {
   _id: string; clientName: string; reference?: string; frame?: string; description: string; category?: string;
   glassType?: string[]; urgency?: string; diamondCutType?: string; engravingCount?: number; shapeChange?: boolean; statut: string; dateReception: string; userId: string;
-  photoUrl?: string;
+  photoUrl?: string; // ✅ Ajout du champ photoUrl
 }
 
 interface Client { 
   _id: string; nomSociete: string; email: string; siret: string; phone?: string; 
   address?: string; zipCity?: string; createdAt: string; 
-  isVerified?: boolean;
 }
 
 interface FactureData { 
@@ -53,25 +52,6 @@ const FACTURE_INFO = {
     name: "L'Atelier des Arts", address: "178 Avenue Daumesnil", zipCity: "75012 Paris", siret: "98095501700010", email: "contact@atelierdesarts.com", tvaRate: 0.20
 };
 
-// ✅ FONCTION CALCUL PRIX INDIVIDUEL (Accessible globalement)
-const calculateSingleMontagePrice = (m: Montage): number => {
-    let totalBase = 0;
-    totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
-    totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
-    totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
-    
-    if (m.glassType) { 
-        m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); 
-    }
-    
-    if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
-    
-    const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
-    const urgencySurcharge = totalBase * urgencyRate;
-    
-    return totalBase + urgencySurcharge;
-};
-
 // --- MODALE DE FACTURATION ---
 interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; onInvoicePublished: (invoiceData: FactureData) => void; }
 const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
@@ -81,58 +61,32 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const currentYear = today.getFullYear();
     const monthlyMontages = montages.filter(m => { return m.statut === 'Terminé'; });
     
-    // Note: On réutilise la logique de calcul, mais avec les détails pour la facture
-    const getMontagePriceDetails = (m: Montage) => {
+    const calculateTotal = (m: Montage) => {
         let totalBase = 0;
-        let details: string[] = [];
-        
-        // Base category
-        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
-        totalBase += montagePrice;
-        details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
-
-        // Diamond Cut
-        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
-        if (dcPrice > 0) {
-            totalBase += dcPrice;
-            details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`);
-        }
-
-        // Gravure
-        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
-        if (engravingPrice > 0) {
-            totalBase += engravingPrice;
-            details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`);
-        }
-
-        // Verres
-        if (m.glassType) { 
-            m.glassType.forEach(type => { 
-                const price = GLASS_COSTS[type] || 0; 
-                if (price > 0) {
-                    totalBase += price;
-                    details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`); 
-                }
-            }); 
-        }
-
-        // Changement forme
-        if (m.shapeChange) { 
-            totalBase += SHAPE_CHANGE_COST; 
-            details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`);
-        }
-
-        // Urgence
+        totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
+        totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
+        totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
+        if (m.glassType) { m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); }
+        if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
         const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
-        const surcharge = totalBase * urgencyRate;
-        
-        if (surcharge > 0) { 
-            const rate = urgencyRate * 100; 
-            details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`); 
-        }
-        
-        const finalTotal = totalBase + surcharge;
-        return { total: finalTotal, details };
+        const urgencySurcharge = totalBase * urgencyRate;
+        const finalTotal = totalBase + urgencySurcharge;
+        return { total: finalTotal, surcharge: urgencySurcharge };
+    };
+    
+    const getMontagePriceDetails = (m: Montage) => {
+        const { total, surcharge } = calculateTotal(m);
+        let details: string[] = [];
+        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
+        details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
+        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
+        if (dcPrice > 0) details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`);
+        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
+        if (engravingPrice > 0) details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`);
+        if (m.glassType) { m.glassType.forEach(type => { const price = GLASS_COSTS[type] || 0; if (price > 0) details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`); }); }
+        if (m.shapeChange) details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`);
+        if (surcharge > 0) { const rate = URGENCY_RATES[m.urgency || 'Standard'] * 100; details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`); }
+        return { total, details };
     };
 
     const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0);
@@ -255,7 +209,7 @@ const AdminDashboard = () => {
 
   const URGENCY_OPTIONS = ['Standard', 'Prioritaire -48H', 'Express -24H', 'Urgent -3H'];
   const DIAMONDCUT_OPTIONS = ['Standard', 'Facette Lisse', 'Diamond Ice', 'Facette Twinkle'];
-  const GLASS_OPTIONS = ['Verre 4 Dégradé saisons', 'Verre Dégradé', 'Verre de stock'];
+  const GLASS_OPTIONS = ['Verre 4 saisons', 'Verre Dégradé', 'Verre de stock'];
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -350,49 +304,42 @@ const AdminDashboard = () => {
         <div className="mb-6 relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" /><Input className="pl-10 bg-white shadow-sm h-12" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
         <Tabs defaultValue="atelier" className="space-y-6"><TabsList className="bg-white p-1 shadow-sm border h-auto w-full md:w-auto"><TabsTrigger value="atelier" className="px-6 py-2"><Glasses className="w-4 h-4 mr-2" /> Atelier ({filteredMontages.length})</TabsTrigger><TabsTrigger value="clients" className="px-6 py-2"><Users className="w-4 h-4 mr-2" /> Fiches Clients ({filteredClients.length})</TabsTrigger></TabsList>
             <TabsContent value="atelier">
-                <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { const client = clients.find(c => c.nomSociete === shopName); return (<AccordionItem key={shopName} value={shopName} className="bg-white border rounded-lg shadow-sm px-4"><AccordionTrigger className="hover:no-underline py-4"><div className="flex items-center gap-4 w-full pr-4"><span className="text-lg font-bold text-gray-800">{shopName}</span><span className="text-xs text-gray-400">({items.length})</span><Button variant="outline" size="sm" className="ml-auto flex items-center gap-1 text-xs bg-black text-white hover:bg-gray-800" onClick={(e) => { e.stopPropagation(); handleGenerateInvoice(client as Client, items); }} disabled={items.length === 0}><Receipt className="w-4 h-4" /> Facturer</Button></div></AccordionTrigger><AccordionContent className="pt-2 pb-6 space-y-3">{items.map((m: Montage) => {
-    // ✅ Calcul du prix
-    const price = calculateSingleMontagePrice(m);
-
-    return (
-        <div key={m._id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
-            <div className="flex-1">
-                <div className="mb-2 flex items-center gap-3 flex-wrap"> 
-                    <span className="font-bold text-xl text-gray-900">{m.reference}</span>
-                    <span className="text-gray-400 mx-2">|</span>
-                    <span className="font-semibold text-gray-700">{m.frame}</span>
-                    <span className="text-sm text-gray-500 ml-3">
-                        Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}
-                    </span>
-                    {/* ✅ AJOUT DU PRIX */}
-                    <Badge variant="outline" className="ml-auto sm:ml-4 text-base px-3 py-1 border-green-600 text-green-700 bg-green-50">
-                        {price.toFixed(2)} € HT
-                    </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mb-2"><Badge variant="outline" className="bg-white">{m.category}</Badge>{renderMontageDetails(m)}</div>
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                <Select defaultValue={m.statut} onValueChange={(val) => handleStatusChange(m._id, val)}><SelectTrigger className={`w-[160px] bg-white border-2 ${getStatusColor(m.statut)}`}><SelectValue /></SelectTrigger><SelectContent className="bg-white"><SelectItem value="En attente">🔴 En attente</SelectItem><SelectItem value="Reçu">🔵 Reçu</SelectItem><SelectItem value="En cours">🟠 En cours</SelectItem><SelectItem value="Terminé">🟢 Terminé</SelectItem></SelectContent></Select>
-                
-                {m.photoUrl ? (
-                    <Button variant="outline" size="icon" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => setSelectedPhotoUrl(m.photoUrl!)}>
-                        <ImageIcon className="w-4 h-4" />
-                    </Button>
-                ) : (
-                    <>
-                        <input type="file" accept="image/*" style={{ display: 'none' }} ref={el => fileInputRefs.current[m._id] = el} onChange={(e) => { if (e.target.files && e.target.files[0]) handlePhotoUpload(m._id, e.target.files[0]); }} />
-                        <Button variant="outline" size="icon" className="text-gray-600 border-gray-300 hover:bg-gray-50" onClick={() => fileInputRefs.current[m._id]?.click()}>
-                            <Camera className="w-4 h-4" />
-                        </Button>
-                    </>
-                )}
-
-                <Button variant="outline" size="icon" onClick={() => openEditDialog(m)} className="bg-white"><Pencil className="w-4 h-4 text-blue-600" /></Button>
-                <Button variant="outline" size="icon" onClick={() => handleDelete(m._id)} className="bg-white"><Trash2 className="w-4 h-4 text-red-600" /></Button>
-            </div>
+                <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { const client = clients.find(c => c.nomSociete === shopName); return (<AccordionItem key={shopName} value={shopName} className="bg-white border rounded-lg shadow-sm px-4"><AccordionTrigger className="hover:no-underline py-4"><div className="flex items-center gap-4 w-full pr-4"><span className="text-lg font-bold text-gray-800">{shopName}</span><span className="text-xs text-gray-400">({items.length})</span><Button variant="outline" size="sm" className="ml-auto flex items-center gap-1 text-xs bg-black text-white hover:bg-gray-800" onClick={(e) => { e.stopPropagation(); handleGenerateInvoice(client as Client, items); }} disabled={items.length === 0}><Receipt className="w-4 h-4" /> Facturer</Button></div></AccordionTrigger><AccordionContent className="pt-2 pb-6 space-y-3">{items.map((m: Montage) => (
+<div key={m._id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
+    <div className="flex-1">
+        <div className="mb-2 flex items-center gap-3"> {/* J'ajoute flex/items-center/gap-3 pour un bon alignement */}
+            <span className="font-bold text-xl text-gray-900">{m.reference}</span>
+            <span className="text-gray-400 mx-2">|</span>
+            <span className="font-semibold text-gray-700">{m.frame}</span>
+            {/* ✅ AJOUT DE LA DATE DE RÉCEPTION */}
+            <span className="text-sm text-gray-500 ml-3">
+                Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}
+            </span>
         </div>
-    );
-})}</AccordionContent></AccordionItem>); })}</Accordion></AccordionContent></AccordionItem>))}
+        <div className="flex flex-wrap items-center gap-2 mb-2"><Badge variant="outline" className="bg-white">{m.category}</Badge>{renderMontageDetails(m)}</div>
+    </div>
+    <div className="flex items-center gap-3 w-full sm:w-auto">
+        <Select defaultValue={m.statut} onValueChange={(val) => handleStatusChange(m._id, val)}><SelectTrigger className={`w-[160px] bg-white border-2 ${getStatusColor(m.statut)}`}><SelectValue /></SelectTrigger><SelectContent className="bg-white"><SelectItem value="En attente">🔴 En attente</SelectItem><SelectItem value="Reçu">🔵 Reçu</SelectItem><SelectItem value="En cours">🟠 En cours</SelectItem><SelectItem value="Terminé">🟢 Terminé</SelectItem></SelectContent></Select>
+        
+        {/* ✅ BOUTONS PHOTO */}
+        {m.photoUrl ? (
+            <Button variant="outline" size="icon" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => setSelectedPhotoUrl(m.photoUrl!)}>
+                <ImageIcon className="w-4 h-4" />
+            </Button>
+        ) : (
+            <>
+                <input type="file" accept="image/*" style={{ display: 'none' }} ref={el => fileInputRefs.current[m._id] = el} onChange={(e) => { if (e.target.files && e.target.files[0]) handlePhotoUpload(m._id, e.target.files[0]); }} />
+                <Button variant="outline" size="icon" className="text-gray-600 border-gray-300 hover:bg-gray-50" onClick={() => fileInputRefs.current[m._id]?.click()}>
+                    <Camera className="w-4 h-4" />
+                </Button>
+            </>
+        )}
+
+        <Button variant="outline" size="icon" onClick={() => openEditDialog(m)} className="bg-white"><Pencil className="w-4 h-4 text-blue-600" /></Button>
+        <Button variant="outline" size="icon" onClick={() => handleDelete(m._id)} className="bg-white"><Trash2 className="w-4 h-4 text-red-600" /></Button>
+    </div>
+</div>
+))}</AccordionContent></AccordionItem>); })}</Accordion></AccordionContent></AccordionItem>))}
                             </Accordion>)}
                     </CardContent>
                 </Card>
@@ -402,6 +349,7 @@ const AdminDashboard = () => {
         {currentClientToInvoice && <InvoiceModal client={currentClientToInvoice} montages={montagesToInvoice} isOpen={isInvoiceOpen} onClose={() => setIsInvoiceOpen(false)} onInvoicePublished={handleInvoicePublished} />}
         <ClientInvoicesModal client={selectedClient} invoices={currentClientInvoices} isOpen={isClientInvoicesModalOpen} onClose={() => setIsClientInvoicesModalOpen(false)} onDelete={handleDeleteInvoice} onPaymentUpdate={handlePaymentUpdate} />
       
+      {/* ✅ MODALE VISUALISATION PHOTO */}
       <Dialog open={!!selectedPhotoUrl} onOpenChange={() => setSelectedPhotoUrl(null)}>
           <DialogContent className="bg-transparent shadow-none border-0 p-0 flex items-center justify-center max-w-4xl w-full h-full pointer-events-none">
               <div className="relative pointer-events-auto p-4">

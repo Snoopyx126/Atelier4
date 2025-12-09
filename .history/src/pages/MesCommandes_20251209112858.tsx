@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Search, FileText, ShoppingCart, Receipt, Calendar, PlusCircle, Clock, CheckCircle2, AlertCircle, Package, Image as ImageIcon, X } from "lucide-react"; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; 
-import { Dialog, DialogContent } from "@/components/ui/dialog"; 
+import { Dialog, DialogContent } from "@/components/ui/dialog"; // ✅ Ajout pour la modale photo
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf'; 
 
@@ -25,7 +25,7 @@ interface Montage {
     _id: string; reference: string; frame: string; description: string; category: string; 
     glassType?: string[]; urgency?: string; diamondCutType?: string; engravingCount?: number;
     shapeChange?: boolean; statut: string; dateReception: string;
-    photoUrl?: string; 
+    photoUrl?: string; // ✅ Ajout
 }
 
 interface Facture {
@@ -36,33 +36,6 @@ interface Facture {
 const normalize = (text: string | undefined): string => {
     if (!text) return "";
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-};
-
-// --- CONSTANTES PRIX (COPIÉES DEPUIS ADMIN) ---
-const CATEGORY_COSTS: Record<string, number> = { 'Cerclé': 7.00, 'Percé': 15.90, 'Nylor': 14.90 };
-const GLASS_COSTS: Record<string, number> = { 'Verre 4 saisons': 12.00, 'Verre Dégradé': 25.00, 'Verre de stock': 0.00 };
-const DIAMONDCUT_COSTS: Record<string, number> = { 'Facette Lisse': 39.80, 'Facette Twinkle': 79.80, 'Diamond Ice': 93.60, 'Standard': 0.00 };
-const URGENCY_RATES: Record<string, number> = { 'Urgent -3H': 0.50, 'Urgent -24H': 0.30, 'Urgent -48H': 0.20, 'Standard': 0.00 };
-const SHAPE_CHANGE_COST = 10.00;
-const ENGRAVING_UNIT_COST = 12.00;
-
-// ✅ FONCTION CALCUL PRIX INDIVIDUEL (COPIÉE DEPUIS ADMIN)
-const calculateSingleMontagePrice = (m: Montage): number => {
-    let totalBase = 0;
-    totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
-    totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
-    totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
-    
-    if (m.glassType) { 
-        m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); 
-    }
-    
-    if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
-    
-    const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
-    const urgencySurcharge = totalBase * urgencyRate;
-    
-    return totalBase + urgencySurcharge;
 };
 
 // --- CONSTANTES POUR LE FORMULAIRE ---
@@ -80,7 +53,7 @@ const MesCommandes = () => {
   const [factures, setFactures] = useState<Facture[]>([]); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null); 
+  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null); // ✅ État modale photo
 
   // Formulaire État
   const [reference, setReference] = useState("");
@@ -189,45 +162,26 @@ const MesCommandes = () => {
 
                 {/* 2. LISTE DES MONTAGES */}
                 <div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" /><Input className="pl-10 bg-white h-12 shadow-sm mb-6" placeholder="Rechercher un dossier..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                {Object.keys(groupedByMonth).length === 0 ? <div className="text-center py-10 text-gray-500">Aucune commande trouvée.</div> : (<Accordion type="multiple" className="space-y-4" defaultValue={[Object.keys(groupedByMonth)[0]]}>{Object.entries(groupedByMonth).sort().reverse().map(([monthName, items]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-sm px-4"><AccordionTrigger className="hover:no-underline py-4"><div className="flex items-center gap-4 w-full"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-bold text-gray-900 capitalize">{monthName}</span><Badge variant="secondary" className="ml-auto mr-4">{items.length} dossier(s)</Badge></div></AccordionTrigger><AccordionContent className="pt-2 pb-6 space-y-3">{items.sort((a: Montage, b: Montage) => new Date(b.dateReception).getTime() - new Date(a.dateReception).getTime()).map((m: Montage) => {
-    // ✅ Calcul du prix
-    const price = calculateSingleMontagePrice(m);
-
-    return (
-        <div key={m._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
-            <div className="flex-1">
-                <div className="mb-2 flex items-center gap-3 flex-wrap">
-                    <span className="font-bold text-lg text-gray-900">{m.reference}</span>
-                    <span className="text-gray-400">|</span>
-                    <span className="font-semibold text-gray-700">{m.frame}</span>
-                    {/* ✅ AJOUT PRIX */}
-                    <Badge variant="outline" className="ml-auto md:ml-4 text-base px-3 py-1 border-green-600 text-green-700 bg-green-50">
-                        {price.toFixed(2)} € HT
-                    </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <Badge variant="outline" className="bg-white">{m.category}</Badge>
-                    {renderMontageDetails(m)}
-                </div>
-                {m.description && <p className="text-sm text-gray-500 italic mt-1">Note: "{m.description}"</p>}
-                <p className="text-xs text-gray-400 mt-2">Envoyé le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</p>
-            </div>
-            <div className="flex items-center gap-3">
-                {m.photoUrl && (
-                    <Button variant="outline" size="icon" className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white" onClick={() => setSelectedPhotoUrl(m.photoUrl!)} title="Voir la photo du montage terminé">
-                        <ImageIcon className="w-4 h-4" />
-                    </Button>
-                )}
-                <span className={`px-3 py-1 rounded-full text-sm font-medium border flex items-center ${getStatusColor(m.statut)}`}>{getStatusIcon(m.statut)}{m.statut}</span>
-            </div>
-        </div>
-    );
-})}</AccordionContent></AccordionItem>))}</Accordion>)}
+                {Object.keys(groupedByMonth).length === 0 ? <div className="text-center py-10 text-gray-500">Aucune commande trouvée.</div> : (<Accordion type="multiple" className="space-y-4" defaultValue={[Object.keys(groupedByMonth)[0]]}>{Object.entries(groupedByMonth).sort().reverse().map(([monthName, items]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-sm px-4"><AccordionTrigger className="hover:no-underline py-4"><div className="flex items-center gap-4 w-full"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-bold text-gray-900 capitalize">{monthName}</span><Badge variant="secondary" className="ml-auto mr-4">{items.length} dossier(s)</Badge></div></AccordionTrigger><AccordionContent className="pt-2 pb-6 space-y-3">{items.sort((a: Montage, b: Montage) => new Date(b.dateReception).getTime() - new Date(a.dateReception).getTime()).map((m: Montage) => (
+<div key={m._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
+    <div className="flex-1"><div className="mb-2 flex items-center gap-2"><span className="font-bold text-lg text-gray-900">{m.reference}</span><span className="text-gray-400">|</span><span className="font-semibold text-gray-700">{m.frame}</span></div><div className="flex flex-wrap items-center gap-2 mb-2"><Badge variant="outline" className="bg-white">{m.category}</Badge>{renderMontageDetails(m)}</div>{m.description && <p className="text-sm text-gray-500 italic mt-1">Note: "{m.description}"</p>}<p className="text-xs text-gray-400 mt-2">Envoyé le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</p></div>
+    <div className="flex items-center gap-3">
+        {/* ✅ BOUTON PHOTO CLIENT */}
+        {m.photoUrl && (
+            <Button variant="outline" size="icon" className="text-blue-600 border-blue-200 hover:bg-blue-50 bg-white" onClick={() => setSelectedPhotoUrl(m.photoUrl!)} title="Voir la photo du montage terminé">
+                <ImageIcon className="w-4 h-4" />
+            </Button>
+        )}
+        <span className={`px-3 py-1 rounded-full text-sm font-medium border flex items-center ${getStatusColor(m.statut)}`}>{getStatusIcon(m.statut)}{m.statut}</span>
+    </div>
+</div>
+))}</AccordionContent></AccordionItem>))}</Accordion>)}
             </TabsContent>
 
             <TabsContent value="factures">{factures.length === 0 ? <p className="text-center py-10 bg-white rounded border">Aucune facture disponible.</p> : (<div className="grid gap-4">{factures.map(f => (<Card key={f.invoiceNumber} className="flex flex-col md:flex-row justify-between items-center p-6 hover:shadow-md transition-shadow bg-white"><div className="mb-4 md:mb-0"><div className="flex items-center gap-3"><p className="font-bold text-lg flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-400"/> {f.invoiceNumber}</p>{f.paymentStatus === 'Payé' && <Badge className="bg-green-100 text-green-700 border-green-200">Réglé</Badge>}{f.paymentStatus === 'Partiellement payé' && <Badge className="bg-orange-100 text-orange-700 border-orange-200">Partiel</Badge>}{(f.paymentStatus === 'Non payé' || !f.paymentStatus) && <Badge className="bg-red-100 text-red-700 border-red-200">À régler</Badge>}</div><p className="text-sm text-gray-500">Date d'émission: {new Date(f.dateEmission).toLocaleDateString()}</p><p className="text-xs text-gray-400 mt-1">Dossiers: {f.montageReference}</p></div><div className="flex items-center gap-6"><div className="text-right"><p className="text-xs text-gray-500">Montant TTC</p><span className="text-xl font-extrabold text-gray-900">{f.totalTTC.toFixed(2)} €</span>{f.paymentStatus === 'Partiellement payé' && (<p className="text-xs text-orange-600 font-bold">Reste: {(f.totalTTC - (f.amountPaid || 0)).toFixed(2)} €</p>)}</div><Button variant="outline" onClick={() => handleDownloadClientInvoice(f)} className="bg-blue-600 text-white hover:bg-blue-700 border-0"><FileText className="w-4 h-4 mr-2" /> Télécharger PDF</Button></div></Card>))}</div>)}</TabsContent>
         </Tabs>
 
+      {/* ✅ MODALE VISUALISATION PHOTO (CLIENT) */}
       <Dialog open={!!selectedPhotoUrl} onOpenChange={() => setSelectedPhotoUrl(null)}>
           <DialogContent className="bg-transparent shadow-none border-0 p-0 flex items-center justify-center max-w-4xl w-full h-full pointer-events-none">
               <div className="relative pointer-events-auto p-4">

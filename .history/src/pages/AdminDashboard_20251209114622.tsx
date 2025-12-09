@@ -26,7 +26,6 @@ interface Montage {
 interface Client { 
   _id: string; nomSociete: string; email: string; siret: string; phone?: string; 
   address?: string; zipCity?: string; createdAt: string; 
-  isVerified?: boolean;
 }
 
 interface FactureData { 
