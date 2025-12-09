@@ -26,7 +26,7 @@ interface Montage {
     _id: string; reference: string; frame: string; description: string; category: string; 
     glassType?: string[]; urgency?: string; diamondCutType?: string; engravingCount?: number;
     shapeChange?: boolean; statut: string; dateReception: string;
-    photoUrl?: string; createdBy?: string; clientName?: string; userId?: string;
+    photoUrl?: string; createdBy?: string; clientName?: string;
 }
 
 interface Facture {
@@ -103,12 +103,9 @@ const MesCommandes = () => {
         fetch(`${baseUrl}/api/factures?userId=${userData.id}`).then(r=>r.json()).then(d=>{if(d.success)setFactures(d.factures.map((f:any)=>({id:f._id,invoiceNumber:f.invoiceNumber,montageReference:f.montagesReferences?.join(', ')||'N/A',dateEmission:f.dateEmission,totalHT:f.totalHT,totalTTC:f.totalTTC,invoiceData:f.invoiceData||[],amountPaid:f.amountPaid,paymentStatus:f.paymentStatus})));});
 
         if (userData.role === 'manager') {
-            // Le backend renvoie déjà assignedShops peuplé lors du login ou du fetch user
-            // Si ce n'est pas le cas, il faudrait refetcher le user
-            // Pour l'instant on suppose que c'est dans le localStorage ou qu'on l'a
-            // Si assignedShops est vide, on peut tenter de le fetcher
             setClientsList(userData.assignedShops || []);
             if (userData.assignedShops && userData.assignedShops.length > 0) {
+                // Si les objets sont peuplés, on prend _id, sinon on prend l'ID direct
                 const firstId = typeof userData.assignedShops[0] === 'string' ? userData.assignedShops[0] : userData.assignedShops[0]._id;
                 setSelectedTargetClient(firstId);
             }
@@ -188,16 +185,18 @@ const MesCommandes = () => {
   // Groupement logique selon rôle
   const filteredMontages = montages.filter(m => normalize(m.reference + m.frame).includes(normalize(searchTerm)));
   
-  // ✅ CORRECTION VARIABLE: groupedByMonth (et non groupedData)
-  const groupedByMonth = filteredMontages.reduce((acc: any, m) => { 
+  // Si MANAGER, on groupe par MOIS puis par CLIENT
+  const groupedData = filteredMontages.reduce((acc: any, m) => { 
       const d = new Date(m.dateReception).toLocaleDateString('fr-FR', {month:'long', year:'numeric'}); 
-      if(!acc[d]) acc[d] = user?.role === 'manager' ? {} : []; 
+      if(!acc[d]) acc[d] = user?.role === 'manager' ? {} : []; // Si manager, objet pour sous-groupes, sinon tableau simple
       
       if (user?.role === 'manager') {
+          // Sous-groupe par magasin
           const shopName = m.clientName || "Inconnu";
           if (!acc[d][shopName]) acc[d][shopName] = [];
           acc[d][shopName].push(m);
       } else {
+          // Liste simple
           acc[d].push(m);
       }
       return acc; 
@@ -236,7 +235,7 @@ const MesCommandes = () => {
                                     <Select onValueChange={setSelectedTargetClient} value={selectedTargetClient}>
                                         <SelectTrigger className="bg-white border-blue-300"><SelectValue placeholder="Choisir un client..." /></SelectTrigger>
                                         <SelectContent className="bg-white max-h-60">
-                                            {clientsList.map((c: any) => (<SelectItem key={c._id} value={c._id}>{c.nomSociete} ({c.zipCity})</SelectItem>))}
+                                            {clientsList.map((c: any) => (<SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>))}
                                         </SelectContent>
                                     </Select>
                                 </div>
