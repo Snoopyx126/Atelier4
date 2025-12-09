@@ -25,9 +25,7 @@ const Contact = () => {
 
     try {
       // ✅ APPEL API VERS VOTRE BACKEND (RESEND)
-      const apiUrl = window.location.hostname === "localhost" 
-  ? "http://localhost:3000/api/contact" 
-  : "https://atelier4.vercel.app/api/contact";
+      const apiUrl = window.location.hostname === "localhost" ? "http://localhost:3000/api/contact" : "/api/contact";
 const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

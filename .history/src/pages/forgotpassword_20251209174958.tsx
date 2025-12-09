@@ -27,7 +27,7 @@ const ForgotPassword = () => {
       // ✅ CORRECTION : URL dynamique selon l'environnement
       const API_BASE_URL = window.location.hostname === "localhost" 
         ? "http://localhost:3000/api" 
-        : "https://atelier4.vercel.app/api";
+        : "/api";
 
       const response = await fetch(`${API_BASE_URL}/forgot-password`, {
         method: "POST",

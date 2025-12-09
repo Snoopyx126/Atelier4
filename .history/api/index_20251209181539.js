@@ -27,7 +27,7 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Autorise toutes les actions
   allowedHeaders: ["Content-Type", "Authorization"]     // Autorise les types de contenu standards
 }));
-app.options('*', cors());
+
 app.use(express.json({ limit: '10mb' }));
 
 const connectDB = async () => {

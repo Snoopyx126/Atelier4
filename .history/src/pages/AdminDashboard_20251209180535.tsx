@@ -222,9 +222,7 @@ const AdminDashboard = () => {
     try {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
-        const baseUrl = window.location.hostname === "localhost" 
-  ? "http://localhost:3000" 
-  : "https://atelier4.vercel.app";
+        const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "";
         Promise.all([fetch(`${baseUrl}/api/montages?role=admin`).then(r => r.json()), fetch(`${baseUrl}/api/users`).then(r => r.json()), fetch(`${baseUrl}/api/factures`).then(r => r.json())]).then(([mData, cData, iData]) => {
             if (mData.success) setMontages(mData.montages);
             if (cData.success) { setClients(cData.users); if(cData.users.length) setNewClient(cData.users[0]._id); }
@@ -234,16 +232,16 @@ const AdminDashboard = () => {
     } catch (e) { navigate("/"); }
   }, [navigate]);
 
-  const fetchMontages = async () => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; const res = await fetch(`${baseUrl}/api/montages?role=admin`); const data = await res.json(); if (data.success) setMontages(data.montages); };
-  const handleDeleteInvoice = async (id: string) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { toast.success("Facture supprimée"); setAllInvoices(prev => prev.filter(f => f.id !== id)); setCurrentClientInvoices(prev => prev.filter(f => f.id !== id)); } else toast.error("Erreur suppression"); };
-  const handlePaymentUpdate = async (id: string, amount: number) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; try { const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: amount }) }); const data = await res.json(); if (data.success) { toast.success("Paiement mis à jour !"); const updatedInv = data.facture; setAllInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); setCurrentClientInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); } } catch (e) { toast.error("Erreur mise à jour paiement"); } };
+  const fetchMontages = async () => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; const res = await fetch(`${baseUrl}/api/montages?role=admin`); const data = await res.json(); if (data.success) setMontages(data.montages); };
+  const handleDeleteInvoice = async (id: string) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { toast.success("Facture supprimée"); setAllInvoices(prev => prev.filter(f => f.id !== id)); setCurrentClientInvoices(prev => prev.filter(f => f.id !== id)); } else toast.error("Erreur suppression"); };
+  const handlePaymentUpdate = async (id: string, amount: number) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; try { const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: amount }) }); const data = await res.json(); if (data.success) { toast.success("Paiement mis à jour !"); const updatedInv = data.facture; setAllInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); setCurrentClientInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); } } catch (e) { toast.error("Erreur mise à jour paiement"); } };
 
   const handlePhotoUpload = async (montageId: string, file: File) => {
       if (!file) return;
       if (file.size > 5 * 1024 * 1024) { toast.error("L'image est trop volumineuse (Max 5MB)"); return; }
       if (!file.type.startsWith('image/')) { toast.error("Le fichier doit être une image."); return; }
       const formData = new FormData(); formData.append('photo', file); toast.loading("Envoi de la photo...", { id: 'photo-upload' });
-      const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+      const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "";
       try {
           const res = await fetch(`${baseUrl}/api/montages/${montageId}/photo`, { method: 'POST', body: formData });
           const data = await res.json();
@@ -252,11 +250,11 @@ const AdminDashboard = () => {
       } catch (error) { toast.error("Erreur de connexion lors de l'upload.", { id: 'photo-upload' }); }
   };
 
-  const handleSaveMontage = async (e: React.FormEvent) => { e.preventDefault(); setIsSubmitting(true); const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; const method = editingId ? "PUT" : "POST"; const url = editingId ? `${baseUrl}/api/montages/${editingId}` : `${baseUrl}/api/montages`; try { const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: newClient, reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin" }) }); const data = await res.json(); if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } } catch (error) { toast.error("Erreur API"); } finally { setIsSubmitting(false); } };
+  const handleSaveMontage = async (e: React.FormEvent) => { e.preventDefault(); setIsSubmitting(true); const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; const method = editingId ? "PUT" : "POST"; const url = editingId ? `${baseUrl}/api/montages/${editingId}` : `${baseUrl}/api/montages`; try { const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: newClient, reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin" }) }); const data = await res.json(); if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } } catch (error) { toast.error("Erreur API"); } finally { setIsSubmitting(false); } };
   const openCreateDialog = () => { setEditingId(null); setNewRef(""); setNewFrame(""); setNewCategory("Cerclé"); setNewGlassType([]); setNewUrgency("Standard"); setNewDiamondCutType("Standard"); setNewEngravingCount(0); setNewShapeChange(false); setNewDesc(""); setIsDialogOpen(true); };
   const openEditDialog = (m: Montage) => { setEditingId(m._id); setNewRef(m.reference||""); setNewFrame(m.frame||""); setNewCategory(m.category||"Cerclé"); setNewGlassType(m.glassType||[]); setNewUrgency(m.urgency||"Standard"); setNewDiamondCutType(m.diamondCutType||"Standard"); setNewEngravingCount(m.engravingCount||0); setNewShapeChange(m.shapeChange||false); setNewDesc(m.description||""); setIsDialogOpen(true); };
-  const handleStatusChange = async (id: string, newStatus: string) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; await fetch(`${baseUrl}/api/montages/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: newStatus }) }); fetchMontages(); toast.success(`Statut: ${newStatus}`); };
-  const handleDelete = async (id: string) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; if(confirm("Supprimer ?")) { await fetch(`${baseUrl}/api/montages/${id}`, { method: 'DELETE' }); fetchMontages(); toast.success("Supprimé"); } };
+  const handleStatusChange = async (id: string, newStatus: string) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; await fetch(`${baseUrl}/api/montages/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: newStatus }) }); fetchMontages(); toast.success(`Statut: ${newStatus}`); };
+  const handleDelete = async (id: string) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; if(confirm("Supprimer ?")) { await fetch(`${baseUrl}/api/montages/${id}`, { method: 'DELETE' }); fetchMontages(); toast.success("Supprimé"); } };
   const handleGenerateInvoice = (client: Client, items: Montage[]) => { setCurrentClientToInvoice(client); setMontagesToInvoice(items); setIsInvoiceOpen(true); };
   const handleInvoicePublished = (newInvoice: FactureData) => { setAllInvoices(prev => [newInvoice, ...prev]); };
   const openClientInvoices = (client: Client) => { setSelectedClient(client); setCurrentClientInvoices(allInvoices.filter(f => f.userId === client._id)); setIsClientInvoicesModalOpen(true); };
@@ -266,7 +264,7 @@ const AdminDashboard = () => {
 
   // Modale Manager
   const openShopAssign = (manager: Client) => { setSelectedManager(manager); const existingIds = manager.assignedShops?.map((s: any) => typeof s === 'string' ? s : s._id) || []; setTempAssignedShops(existingIds); setIsShopAssignOpen(true); };
-  const saveAssignedShops = async () => { if (!selectedManager) return; try { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; const res = await fetch(`${baseUrl}/api/users/${selectedManager._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedShops: tempAssignedShops }) }); const data = await res.json(); if (data.success) { toast.success("Magasins assignés !"); setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c)); setIsShopAssignOpen(false); } else { toast.error("Erreur sauvegarde."); } } catch (e) { toast.error("Erreur technique."); } };
+  const saveAssignedShops = async () => { if (!selectedManager) return; try { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; const res = await fetch(`${baseUrl}/api/users/${selectedManager._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedShops: tempAssignedShops }) }); const data = await res.json(); if (data.success) { toast.success("Magasins assignés !"); setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c)); setIsShopAssignOpen(false); } else { toast.error("Erreur sauvegarde."); } } catch (e) { toast.error("Erreur technique."); } };
 
   // Export CSV
   const handleExportCSV = () => {
@@ -362,7 +360,7 @@ const AdminDashboard = () => {
                                 value={c.pricingTier?.toString() || "1"} 
                                 onValueChange={async (val) => {
                                     const newTier = parseInt(val);
-                                    const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+                                    const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "";
                                     await fetch(`${baseUrl}/api/users/${c._id}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
@@ -389,7 +387,7 @@ const AdminDashboard = () => {
                                 </Button>
                             )}
                             {!c.isVerified && (
-                                <Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}>
+                                <Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : ""; await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}>
                                     <CheckCircle2 className="w-4 h-4 mr-2" /> Valider
                                 </Button>
                             )}

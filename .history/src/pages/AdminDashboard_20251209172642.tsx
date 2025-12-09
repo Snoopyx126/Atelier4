@@ -152,9 +152,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); pdf.addImage(imgData, 'JPEG', 0, 0, 210, (canvas.height * 210) / canvas.width); const pdfBase64 = pdf.output('datauristring');
             const invoiceDetailsSnapshot = monthlyMontages.map(m => ({ reference: m.reference, details: getMontagePriceDetails(m).details, price: getMontagePriceDetails(m).total }));
             const payload = { userId: client._id, clientName: client.nomSociete, invoiceNumber: invoiceNumber, totalHT: parseFloat(totalHT.toFixed(2)), totalTTC: parseFloat(totalTTC.toFixed(2)), montagesReferences: montagesReferences, dateEmission: new Date().toISOString(), invoiceData: invoiceDetailsSnapshot, pdfUrl: '#', sendEmail: true, pdfBase64: pdfBase64 };
-            const baseUrl = window.location.hostname === "localhost" 
-  ? "http://localhost:3000" 
-  : "https://atelier4.vercel.app";
+            const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "";
             const res = await fetch(`${baseUrl}/api/factures`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             const data = await res.json();
             if (data.success) { toast.success("Facture envoyée !"); pdf.save(`Facture_${client.nomSociete}_${invoiceNumber}.pdf`); onInvoicePublished(data.facture); onClose(); }
@@ -222,9 +220,7 @@ const AdminDashboard = () => {
     try {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
-        const baseUrl = window.location.hostname === "localhost" 
-  ? "http://localhost:3000" 
-  : "https://atelier4.vercel.app";
+        const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "";
         Promise.all([fetch(`${baseUrl}/api/montages?role=admin`).then(r => r.json()), fetch(`${baseUrl}/api/users`).then(r => r.json()), fetch(`${baseUrl}/api/factures`).then(r => r.json())]).then(([mData, cData, iData]) => {
             if (mData.success) setMontages(mData.montages);
             if (cData.success) { setClients(cData.users); if(cData.users.length) setNewClient(cData.users[0]._id); }

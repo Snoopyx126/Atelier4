@@ -17,17 +17,16 @@ const EMAIL_ADMIN = "atelierdesarts.12@gmail.com";
 
 app.use(cors({
   origin: [
-    "https://l-atelier-des-arts.com",       // Votre domaine principal (SANS slash à la fin)
-    "https://www.l-atelier-des-arts.com",   // La version avec www (important !)
-    "https://atelier4.vercel.app",          // L'adresse Vercel elle-même
-    "http://localhost:5173",                // Pour vos tests locaux
-    "http://localhost:3000"                 // Pour vos tests locaux
+    "https://l-atelier-des-arts.com",       // ✅ Ton nouveau domaine
+    "https://www.l-atelier-des-arts.com",
+    "https://atelier4.vercel.app", 
+    "http://localhost:5173", 
+    "http://localhost:3000"
   ],
-  credentials: true,                        // Autorise les cookies/headers sécurisés
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Autorise toutes les actions
-  allowedHeaders: ["Content-Type", "Authorization"]     // Autorise les types de contenu standards
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 }));
-app.options('*', cors());
+
 app.use(express.json({ limit: '10mb' }));
 
 const connectDB = async () => {
