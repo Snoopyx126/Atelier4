@@ -154,9 +154,7 @@ let attachments = [];
         <p style="margin-top: 20px;">Connectez-vous à votre espace Admin pour valider ce compte.</p>
       `
     });
-if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-    }
+
     // B. Email Client : Confirmation "En attente"
     await resend.emails.send({
       from: EMAIL_SENDER,
@@ -182,11 +180,8 @@ if (req.file && fs.existsSync(req.file.path)) {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: error.message });
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ success: false, message: error.message });
   }
 });
- 
 
 // 2. LOGIN
 app.post("/api/login", async (req, res) => {

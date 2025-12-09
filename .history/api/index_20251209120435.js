@@ -182,11 +182,8 @@ if (req.file && fs.existsSync(req.file.path)) {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: error.message });
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ success: false, message: error.message });
   }
 });
- 
 
 // 2. LOGIN
 app.post("/api/login", async (req, res) => {
