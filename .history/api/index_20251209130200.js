@@ -193,7 +193,20 @@ if (req.file && fs.existsSync(req.file.path)) {
                 </div>
             `
         });
-
+          await resend.emails.send({
+            from: EMAIL_SENDER,
+            to: email,
+            subject: "Nous avons bien reçu votre message - L'Atelier des Arts",
+            html: `
+                <div style="font-family: Arial, sans-serif; color: #333;">
+                    <h2 style="color: #000;">Bonjour ${name},</h2>
+                    <p>Nous accusons bonne réception de votre message.</p>
+                    <p>Notre équipe va en prendre connaissance et reviendra vers vous <strong>dans les plus brefs délais</strong> pour répondre à votre demande.</p>
+                    <br/>
+                    <p>Merci de votre confiance,</p>
+                    <p><strong>L'Atelier des Arts</strong></p>
+                    <p style="font-size: 12px; color: #888; margin-top: 20px;">Ceci est un message automatique, merci de ne pas y répondre directement.</p>
+                </div>
     res.status(200).json({ success: true });
   } catch (error) {
     console.error(error);
