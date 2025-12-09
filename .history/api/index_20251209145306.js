@@ -372,31 +372,13 @@ app.post("/api/montages", async (req, res) => {
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.post("/api/montages", async (req, res) => {
+app.get("/api/montages", async (req, res) => {
     await connectDB();
-    // On récupère createdBy (qui envoie la demande ?)
-    const { userId, description, category, reference, frame, glassType, urgency, diamondCutType, engravingCount, shapeChange, createdBy } = req.body; 
+    const { userId, role } = req.query;
     try {
-        const user = await User.findById(userId); // Le userId est celui du magasin CIBLE (choisi par le manager ou le client lui-même)
-        if (!user) return res.status(404).json({ message: "Client introuvable" });
-        
-        const newMontage = await Montage.create({ 
-            userId, 
-            clientName: user.nomSociete, 
-            reference: reference || "Sans ref", 
-            frame: frame || "Inconnue", 
-            description: description || "", 
-            category: category || "Cerclé", 
-            glassType: glassType || [], 
-            urgency: urgency || 'Standard', 
-            diamondCutType: diamondCutType || 'Standard', 
-            engravingCount: engravingCount || 0, 
-            shapeChange: shapeChange || false, 
-            statut: 'En attente', 
-            createdBy: createdBy || "Client", // ✅ On enregistre qui a fait l'action
-            dateReception: Date.now() 
-        });
-        res.json({ success: true, montage: newMontage });
+        let montages;
+        if (role === 'admin') { montages = await Montage.find().sort({ dateReception: -1 }); } else { montages = await Montage.find({ userId }).sort({ dateReception: -1 }); }
+        res.json({ success: true, montages });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
