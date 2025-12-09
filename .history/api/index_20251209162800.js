@@ -215,7 +215,7 @@ app.put("/api/users/:id", async (req, res) => {
           });
        } catch (e) {}
     }
-    if (pricingTier !== undefined) user.pricingTier = pricingTier;
+
     if (assignedShops !== undefined) user.assignedShops = assignedShops; // ✅ Mise à jour des magasins assignés
     if (isVerified !== undefined) user.isVerified = isVerified;
     if (nomSociete !== undefined) user.nomSociete = nomSociete;

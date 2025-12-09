@@ -27,7 +27,6 @@ interface Client {
   _id: string; nomSociete: string; email: string; siret: string; phone?: string; 
   address?: string; zipCity?: string; createdAt: string; 
   isVerified?: boolean; role: string; assignedShops?: any[];
-  pricingTier?: 1 | 2;
 }
 
 interface FactureData { 
@@ -39,61 +38,51 @@ const normalize = (text: string | undefined): string => {
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 };
 
-// --- CONSTANTES PRIX (Double Tarif) ---
+// --- NOUVELLES CONSTANTES AVEC 2 TARIFS ---
+// Structure : { 'Nom': { 1: Prix1, 2: Prix2 } }
+
 const CATEGORY_COSTS: Record<string, { 1: number, 2: number }> = { 
-    'Cerclé': { 1: 7.00, 2: 3.60 }, 
-    'Percé': { 1: 15.90, 2: 12.00 }, 
-    'Nylor': { 1: 14.90, 2: 12.00 } 
+    'Cerclé': { 1: 7.00, 2: 6.00 }, // Exemple: Tarif 2 moins cher
+    'Percé': { 1: 15.90, 2: 14.00 }, 
+    'Nylor': { 1: 14.90, 2: 13.00 } 
 };
 
 const GLASS_COSTS: Record<string, { 1: number, 2: number }> = { 
-    'Verre 4 saisons': { 1: 28.80, 2: 28.80 }, 
-    'Verre Dégradé': { 1: 50.00, 2: 48.00 }, 
+    'Verre 4 saisons': { 1: 12.00, 2: 10.00 }, 
+    'Verre Dégradé': { 1: 25.00, 2: 20.00 }, 
     'Verre de stock': { 1: 0.00, 2: 0.00 } 
 };
 
 const DIAMONDCUT_COSTS: Record<string, { 1: number, 2: number }> = { 
-    'Facette Lisse': { 1: 39.80, 2: 21.50 }, 
-    'Facette Twinkle': { 1: 79.80, 2: 60.00 }, 
-    'Diamond Ice': { 1: 93.60, 2: 60.00 }, 
+    'Facette Lisse': { 1: 39.80, 2: 35.00 }, 
+    'Facette Twinkle': { 1: 79.80, 2: 70.00 }, 
+    'Diamond Ice': { 1: 93.60, 2: 85.00 }, 
     'Standard': { 1: 0.00, 2: 0.00 } 
 };
 
+// Pour l'urgence, c'est souvent un pourcentage, on peut garder un seul taux ou le doubler aussi
 const URGENCY_RATES: Record<string, number> = { 
     'Urgent -3H': 0.50, 'Urgent -24H': 0.30, 'Urgent -48H': 0.20, 'Standard': 0.00 
 };
 
 const SHAPE_CHANGE_COST = { 1: 10.00, 2: 8.00 };
 const ENGRAVING_UNIT_COST = { 1: 12.00, 2: 10.00 };
-
 const FACTURE_INFO = {
     name: "L'Atelier des Arts", address: "178 Avenue Daumesnil", zipCity: "75012 Paris", siret: "98095501700010", email: "contact@atelierdesarts.com", tvaRate: 0.20
 };
 
-// --- FONCTION CALCUL PRIX DYNAMIQUE ---
-const calculateSingleMontagePrice = (m: Montage, tier: 1 | 2 = 1): number => {
+const calculateSingleMontagePrice = (m: Montage): number => {
     let totalBase = 0;
-    
-    // On accède au prix via [tier]
-    totalBase += CATEGORY_COSTS[m.category || 'Cerclé'][tier] || 0;
-    totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'][tier] || 0;
-    totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST[tier];
-    
-    if (m.glassType) { 
-        m.glassType.forEach(type => { 
-            totalBase += GLASS_COSTS[type] ? GLASS_COSTS[type][tier] : 0; 
-        }); 
-    }
-    
-    if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST[tier]; }
-    
+    totalBase += CATEGORY_COSTS[m.category || 'Cerclé'] || 0;
+    totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0;
+    totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST;
+    if (m.glassType) { m.glassType.forEach(type => { totalBase += GLASS_COSTS[type] || 0; }); }
+    if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; }
     const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
     const urgencySurcharge = totalBase * urgencyRate;
-    
     return totalBase + urgencySurcharge;
 };
 
-// --- MODALE FACTURE ---
 interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; onInvoicePublished: (invoiceData: FactureData) => void; }
 const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
     const [isPublishing, setIsPublishing] = useState(false);
@@ -101,47 +90,19 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const today = new Date();
     const currentYear = today.getFullYear();
     const monthlyMontages = montages.filter(m => { return m.statut === 'Terminé'; });
-    
-    // Récupérer le tarif du client
-    const tier = client.pricingTier || 1;
-
     const getMontagePriceDetails = (m: Montage) => {
         let totalBase = 0; let details: string[] = [];
-        
-        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'][tier] || 0; 
-        totalBase += montagePrice; 
-        details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
-
-        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'][tier] || 0; 
-        if (dcPrice > 0) { totalBase += dcPrice; details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`); }
-
-        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST[tier]; 
-        if (engravingPrice > 0) { totalBase += engravingPrice; details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`); }
-
-        if (m.glassType) { 
-            m.glassType.forEach(type => { 
-                const price = GLASS_COSTS[type] ? GLASS_COSTS[type][tier] : 0; 
-                if (price > 0) { totalBase += price; details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`); } 
-            }); 
-        }
-
-        if (m.shapeChange) { 
-            const scPrice = SHAPE_CHANGE_COST[tier];
-            totalBase += scPrice; 
-            details.push(`Changement de forme (+${scPrice.toFixed(2)}€)`); 
-        }
-
-        const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0; 
-        const surcharge = totalBase * urgencyRate;
+        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'] || 0; totalBase += montagePrice; details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
+        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || 0; if (dcPrice > 0) { totalBase += dcPrice; details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`); }
+        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST; if (engravingPrice > 0) { totalBase += engravingPrice; details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`); }
+        if (m.glassType) { m.glassType.forEach(type => { const price = GLASS_COSTS[type] || 0; if (price > 0) { totalBase += price; details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`); } }); }
+        if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST; details.push(`Changement de forme (+${SHAPE_CHANGE_COST.toFixed(2)}€)`); }
+        const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0; const surcharge = totalBase * urgencyRate;
         if (surcharge > 0) { const rate = urgencyRate * 100; details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`); }
-        
         const finalTotal = totalBase + surcharge;
         return { total: finalTotal, details };
     };
-
-    const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0); 
-    const tva = totalHT * FACTURE_INFO.tvaRate; 
-    const totalTTC = totalHT + tva;
+    const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0); const tva = totalHT * FACTURE_INFO.tvaRate; const totalTTC = totalHT + tva;
     const invoiceNumber = `FCT-${currentYear}${today.getMonth() + 1}-${client._id.substring(0, 4)}`.toUpperCase();
     const montagesReferences = monthlyMontages.map(m => m.reference).filter(ref => ref) as string[];
 
@@ -182,7 +143,7 @@ const AdminDashboard = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [allInvoices, setAllInvoices] = useState<FactureData[]>([]);
   
-  // États de formulaire
+  // États formulaire création montage
   const [newClient, setNewClient] = useState("");
   const [newRef, setNewRef] = useState("");
   const [newFrame, setNewFrame] = useState("");
@@ -195,7 +156,7 @@ const AdminDashboard = () => {
   const [newDesc, setNewDesc] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Modales
+  // Modales Factures & Photo
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [currentClientToInvoice, setCurrentClientToInvoice] = useState<Client | null>(null);
   const [montagesToInvoice, setMontagesToInvoice] = useState<Montage[]>([]);
@@ -205,7 +166,7 @@ const AdminDashboard = () => {
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Modale Manager
+  // ✅ MODALE GESTION MAGASINS (MANAGER)
   const [isShopAssignOpen, setIsShopAssignOpen] = useState(false);
   const [selectedManager, setSelectedManager] = useState<Client | null>(null);
   const [tempAssignedShops, setTempAssignedShops] = useState<string[]>([]);
@@ -235,17 +196,15 @@ const AdminDashboard = () => {
   const handlePaymentUpdate = async (id: string, amount: number) => { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; try { const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: amount }) }); const data = await res.json(); if (data.success) { toast.success("Paiement mis à jour !"); const updatedInv = data.facture; setAllInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); setCurrentClientInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); } } catch (e) { toast.error("Erreur mise à jour paiement"); } };
 
   const handlePhotoUpload = async (montageId: string, file: File) => {
-      if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { toast.error("L'image est trop volumineuse (Max 5MB)"); return; }
-      if (!file.type.startsWith('image/')) { toast.error("Le fichier doit être une image."); return; }
-      const formData = new FormData(); formData.append('photo', file); toast.loading("Envoi de la photo...", { id: 'photo-upload' });
-      const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+      if (!file || file.size > 5 * 1024 * 1024 || !file.type.startsWith('image/')) { toast.error("Image invalide (Max 5MB)"); return; }
+      const formData = new FormData(); formData.append('photo', file); toast.loading("Envoi...", { id: 'photo-upload' });
       try {
+          const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
           const res = await fetch(`${baseUrl}/api/montages/${montageId}/photo`, { method: 'POST', body: formData });
           const data = await res.json();
-          if (data.success) { toast.success("Photo ajoutée avec succès !", { id: 'photo-upload' }); setMontages(prev => prev.map(m => m._id === montageId ? { ...m, photoUrl: data.montage.photoUrl } : m)); } 
-          else { toast.error(`Erreur upload: ${data.message}`, { id: 'photo-upload' }); }
-      } catch (error) { toast.error("Erreur de connexion lors de l'upload.", { id: 'photo-upload' }); }
+          if (data.success) { toast.success("Photo ajoutée !", { id: 'photo-upload' }); setMontages(prev => prev.map(m => m._id === montageId ? { ...m, photoUrl: data.montage.photoUrl } : m)); } 
+          else { toast.error(`Erreur: ${data.message}`, { id: 'photo-upload' }); }
+      } catch (error) { toast.error("Erreur connexion.", { id: 'photo-upload' }); }
   };
 
   const handleSaveMontage = async (e: React.FormEvent) => { e.preventDefault(); setIsSubmitting(true); const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; const method = editingId ? "PUT" : "POST"; const url = editingId ? `${baseUrl}/api/montages/${editingId}` : `${baseUrl}/api/montages`; try { const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: newClient, reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin" }) }); const data = await res.json(); if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } } catch (error) { toast.error("Erreur API"); } finally { setIsSubmitting(false); } };
@@ -260,21 +219,64 @@ const AdminDashboard = () => {
   const getStatusColor = (statut: string) => { if(statut==='Terminé') return 'border-green-500'; if(statut==='En cours') return 'border-orange-500'; if(statut==='Reçu') return 'border-blue-500'; return 'border-gray-300'; };
   const renderMontageDetails = (m: Montage) => ( <div className="flex flex-wrap items-center gap-2">{m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}{m.diamondCutType !== 'Standard' && <Badge className="bg-blue-100 text-blue-800">{m.diamondCutType}</Badge>}{m.engravingCount && m.engravingCount > 0 && <Badge className="bg-purple-100 text-purple-800">✍️ {m.engravingCount} Gravure(s)</Badge>}{m.glassType && m.glassType.map(g => <Badge key={g} className="bg-green-100 text-green-800">{g.replace('Verre ', '')}</Badge>)} {m.shapeChange && <Badge className="bg-yellow-100 text-yellow-800">📐 Changement Forme</Badge>}</div>);
 
-  // Modale Manager
-  const openShopAssign = (manager: Client) => { setSelectedManager(manager); const existingIds = manager.assignedShops?.map((s: any) => typeof s === 'string' ? s : s._id) || []; setTempAssignedShops(existingIds); setIsShopAssignOpen(true); };
-  const saveAssignedShops = async () => { if (!selectedManager) return; try { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; const res = await fetch(`${baseUrl}/api/users/${selectedManager._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedShops: tempAssignedShops }) }); const data = await res.json(); if (data.success) { toast.success("Magasins assignés !"); setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c)); setIsShopAssignOpen(false); } else { toast.error("Erreur sauvegarde."); } } catch (e) { toast.error("Erreur technique."); } };
+  // ✅ OUVERTURE MODALE MANAGER
+  const openShopAssign = (manager: Client) => {
+      setSelectedManager(manager);
+      // On récupère les IDs des magasins déjà assignés
+      const existingIds = manager.assignedShops?.map((s: any) => typeof s === 'string' ? s : s._id) || [];
+      setTempAssignedShops(existingIds);
+      setIsShopAssignOpen(true);
+  };
+  
+  // ✅ SAUVEGARDE ASSIGNATION MAGASINS
+  const saveAssignedShops = async () => {
+      if (!selectedManager) return;
+      try {
+          const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+          const res = await fetch(`${baseUrl}/api/users/${selectedManager._id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ assignedShops: tempAssignedShops }) // Envoi du tableau d'IDs
+          });
+          const data = await res.json();
+          if (data.success) {
+              toast.success("Magasins assignés !");
+              // Mise à jour locale
+              setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c));
+              setIsShopAssignOpen(false);
+          } else { toast.error("Erreur sauvegarde."); }
+      } catch (e) { toast.error("Erreur technique."); }
+  };
 
-  // Export CSV
+  // ✅ FONCTION EXPORT CSV
   const handleExportCSV = () => {
     const headers = ["Date Reception", "Client", "Reference", "Monture", "Categorie", "Statut", "Prix HT", "Cree Par"];
-    const csvContent = [headers.join(";"), ...montages.map(m => {
-        const client = clients.find(c => c._id === m.userId);
-        const clientName = client?.nomSociete || "Inconnu";
-        const clientTier = client?.pricingTier || 1;
-        const price = calculateSingleMontagePrice(m, clientTier).toFixed(2);
-        return [new Date(m.dateReception).toLocaleDateString(), `"${clientName}"`, `"${m.reference}"`, `"${m.frame}"`, m.category, m.statut, price.replace('.', ','), `"${m.createdBy || 'Client'}"`].join(";");
-    })].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.setAttribute("download", `export_atelier_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    const csvContent = [
+      headers.join(";"),
+      ...montages.map(m => {
+        const clientName = m.clientName || clients.find(c => c._id === m.userId)?.nomSociete || "Inconnu";
+        const price = calculateSingleMontagePrice(m).toFixed(2);
+        return [
+          new Date(m.dateReception).toLocaleDateString(),
+          `"${clientName}"`,
+          `"${m.reference}"`,
+          `"${m.frame}"`,
+          m.category,
+          m.statut,
+          price.replace('.', ','),
+          `"${m.createdBy || 'Client'}"`
+        ].join(";");
+      })
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `export_atelier_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const filteredMontages = montages.filter(m => normalize(m.reference + m.clientName).includes(normalize(searchTerm)));
@@ -292,7 +294,11 @@ const AdminDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div><h1 className="text-3xl font-bold text-gray-900 tracking-tight">Tableau de Bord</h1><p className="text-gray-500">Gestion de l'atelier et suivi de production.</p></div>
             <div className="flex gap-3">
-                <Button variant="outline" onClick={handleExportCSV} className="bg-white gap-2 border-gray-300 hover:bg-gray-50"><FileText className="w-4 h-4" /> Export CSV</Button>
+                {/* ✅ BOUTON EXPORT CSV */}
+                <Button variant="outline" onClick={handleExportCSV} className="bg-white gap-2 border-gray-300 hover:bg-gray-50">
+                    <FileText className="w-4 h-4" /> Export CSV
+                </Button>
+
                 <Button onClick={openCreateDialog} className="bg-black hover:bg-gray-800 text-white gap-2"><PlusCircle className="w-4 h-4" /> Créer un dossier</Button>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-3xl bg-white"><DialogHeader><DialogTitle>{editingId ? "Modifier" : "Ajouter"}</DialogTitle></DialogHeader><form onSubmit={handleSaveMontage} className="space-y-4 pt-4"><div className="grid grid-cols-3 gap-4"><div className="col-span-3"><Label>Client</Label><Select onValueChange={setNewClient} value={newClient}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div><div><Label>Réf.</Label><Input value={newRef} onChange={e=>setNewRef(e.target.value)} required className="bg-white"/></div><div><Label>Monture</Label><Input value={newFrame} onChange={e=>setNewFrame(e.target.value)} required className="bg-white"/></div><div><Label>Urgence</Label><Select onValueChange={setNewUrgency} value={newUrgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div></div><hr/><div className="grid grid-cols-3 gap-4"><div><Label>Type</Label><Select onValueChange={setNewCategory} value={newCategory}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem></SelectContent></Select></div><div><Label>Diamond Cut</Label><Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div><div><Label>Gravure</Label><Input type="number" value={newEngravingCount} onChange={e=>setNewEngravingCount(parseInt(e.target.value))} className="bg-white"/></div></div><div className="flex gap-4">{GLASS_OPTIONS.map(o=><div key={o} className="flex items-center gap-2"><Checkbox checked={newGlassType.includes(o)} onCheckedChange={(c)=>handleGlassTypeChange(o, c as boolean)}/><label>{o}</label></div>)}</div><Button type="submit" className="w-full">{editingId?"Modifier":"Créer"}</Button></form></DialogContent></Dialog>
                 <Button variant="outline" className="bg-white border-red-200 text-red-600 hover:bg-red-50" onClick={() => { localStorage.clear(); navigate("/"); }}>Déconnexion</Button>
@@ -306,10 +312,7 @@ const AdminDashboard = () => {
             
             <TabsContent value="atelier">
                 <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { const client = clients.find(c => c.nomSociete === shopName); return (<AccordionItem key={shopName} value={shopName} className="bg-white border rounded-lg shadow-sm px-4"><AccordionTrigger className="hover:no-underline py-4"><div className="flex items-center gap-4 w-full pr-4"><span className="text-lg font-bold text-gray-800">{shopName}</span><span className="text-xs text-gray-400">({items.length})</span><Button variant="outline" size="sm" className="ml-auto flex items-center gap-1 text-xs bg-black text-white hover:bg-gray-800" onClick={(e) => { e.stopPropagation(); handleGenerateInvoice(client as Client, items); }} disabled={items.length === 0}><Receipt className="w-4 h-4" /> Facturer</Button></div></AccordionTrigger><AccordionContent className="pt-2 pb-6 space-y-3">{items.map((m: Montage) => {
-                    // ✅ AJOUT DE LA LOGIQUE DE CALCUL DYNAMIQUE ICI
-                    const clientTier = clients.find(c => c._id === m.userId)?.pricingTier || 1;
-                    const price = calculateSingleMontagePrice(m, clientTier);
-
+                    const price = calculateSingleMontagePrice(m);
                     return (
                         <div key={m._id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
                             <div className="flex-1">
@@ -317,9 +320,9 @@ const AdminDashboard = () => {
                                     <span className="font-bold text-xl text-gray-900">{m.reference}</span>
                                     <span className="text-gray-400 mx-2">|</span>
                                     <span className="font-semibold text-gray-700">{m.frame}</span>
+                                    {/* ALERT SI CREATED BY MANAGER */}
                                     {m.createdBy && m.createdBy.includes("Manager") && <Badge className="bg-blue-100 text-blue-800 border-blue-200">Ajout Manager</Badge>}
                                     <span className="text-sm text-gray-500 ml-3">Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
-                                    {/* AFFICHE LE PRIX CALCULÉ */}
                                     <Badge variant="outline" className="ml-auto sm:ml-4 text-sm font-medium px-2 py-0.5 border-green-600 text-green-700 bg-green-50">{price.toFixed(2)} € HT</Badge>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mb-2"><Badge variant="outline" className="bg-white">{m.category}</Badge>{renderMontageDetails(m)}</div>
@@ -351,39 +354,14 @@ const AdminDashboard = () => {
                             <p className="text-sm text-gray-500">{c.email} | SIRET: {c.siret}</p>
                             <p className="text-xs text-gray-400">{c.address} {c.zipCity}</p>
                         </div>
-                        {/* ✅ SÉLECTEUR DE TARIF AJOUTÉ */}
-                        <div className="flex items-center gap-2 mr-4">
-                            <Label className="text-xs text-gray-500">Tarif :</Label>
-                            <Select 
-                                value={c.pricingTier?.toString() || "1"} 
-                                onValueChange={async (val) => {
-                                    const newTier = parseInt(val);
-                                    const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
-                                    await fetch(`${baseUrl}/api/users/${c._id}`, {
-                                        method: 'PUT',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ pricingTier: newTier })
-                                    });
-                                    toast.success(`Tarif ${newTier} appliqué à ${c.nomSociete}`);
-                                    setClients(prev => prev.map(cli => cli._id === c._id ? { ...cli, pricingTier: newTier as 1|2 } : cli));
-                                }}
-                            >
-                                <SelectTrigger className="w-[100px] h-8 text-xs bg-white">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="1">Tarif 1 (Std)</SelectItem>
-                                    <SelectItem value="2">Tarif 2 (VIP)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
                         <div className="flex items-center gap-3">
+                            {/* ✅ BOUTON MANAGER : GÉRER LES MAGASINS */}
                             {c.role === 'manager' && (
                                 <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); openShopAssign(c); }}>
                                     <Store className="w-4 h-4 mr-2" /> Gérer Magasins
                                 </Button>
                             )}
+
                             {!c.isVerified && (
                                 <Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app"; await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}>
                                     <CheckCircle2 className="w-4 h-4 mr-2" /> Valider
@@ -406,7 +384,13 @@ const AdminDashboard = () => {
                 <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto">
                     {clients.filter(c => c.role === 'user').map(shop => (
                         <div key={shop._id} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50">
-                            <Checkbox id={shop._id} checked={tempAssignedShops.includes(shop._id)} onCheckedChange={(checked) => { setTempAssignedShops(prev => checked ? [...prev, shop._id] : prev.filter(id => id !== shop._id)); }} />
+                            <Checkbox 
+                                id={shop._id} 
+                                checked={tempAssignedShops.includes(shop._id)}
+                                onCheckedChange={(checked) => {
+                                    setTempAssignedShops(prev => checked ? [...prev, shop._id] : prev.filter(id => id !== shop._id));
+                                }}
+                            />
                             <label htmlFor={shop._id} className="flex-1 cursor-pointer font-medium">{shop.nomSociete} <span className="text-gray-400 text-xs">({shop.zipCity})</span></label>
                         </div>
                     ))}
