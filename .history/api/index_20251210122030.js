@@ -192,60 +192,20 @@ app.get("/api/users", async (req, res) => {
 });
 
 app.put("/api/users/:id", async (req, res) => {
-  const { id } = req.params;
-  const { nomSociete, email, siret, phone, address, zipCity, currentPassword, newPassword, isVerified, assignedShops, pricingTier } = req.body;
-  
-  try {
-    const user = await User.findById(id);
-    if (!user) return res.status(404).json({ success: false });
-
-    // ✅ DÉTECTION : Si le compte passe de "non validé" à "validé"
-    if (isVerified === true && user.isVerified === false) {
-       try { 
-           await resend.emails.send({ 
-               from: "ne-pas-repondre@l-atelier-des-arts.com", 
-               to: user.email, 
-               subject: "✅ Votre compte a été validé !", 
-               html: `
-                   <h1>Félicitations !</h1>
-                   <p>Votre compte professionnel pour <strong>${user.nomSociete}</strong> est maintenant actif.</p>
-                   <p>Vous pouvez dès à présent vous connecter et accéder à nos services :</p>
-                   <p><a href="https://l-atelier-des-arts.com/espace-pro">Accéder à mon Espace Pro</a></p>
-                   <br>
-                   <p>À bientôt,<br>L'équipe Atelier des Arts</p>
-               ` 
-           }); 
-       } catch (e) { console.error("Erreur mail validation", e); }
-    }
-
-    // Mise à jour des champs
-    if (pricingTier !== undefined) user.pricingTier = pricingTier;
-    if (assignedShops !== undefined) user.assignedShops = assignedShops;
-    if (isVerified !== undefined) user.isVerified = isVerified;
-    if (nomSociete !== undefined) user.nomSociete = nomSociete;
-    if (siret !== undefined) user.siret = siret;
-    if (phone !== undefined) user.phone = phone;
-    if (address !== undefined) user.address = address;
-    if (zipCity !== undefined) user.zipCity = zipCity;
-    if (email && email !== user.email) user.email = email;
-    
-    if (newPassword && currentPassword) {
-       if (await bcrypt.compare(currentPassword, user.password)) {
-           user.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
-       }
-    }
-
-    await user.save();
-    
-    // On renvoie l'utilisateur mis à jour
-    const updatedUser = await User.findById(id).populate('assignedShops', 'nomSociete _id zipCity');
-    res.json({ success: true, user: updatedUser });
-
-  } catch (error) { 
-      console.error(error);
-      res.status(500).json({ success: false }); 
-  }
+    try {
+        const updates = { ...req.body };
+        // Gestion mot de passe si présent
+        if (updates.newPassword && updates.currentPassword) {
+            const user = await User.findById(req.params.id);
+            if (await bcrypt.compare(updates.currentPassword, user.password)) {
+                updates.password = await bcrypt.hash(updates.newPassword, SALT_ROUNDS);
+            }
+        }
+        const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true }).populate('assignedShops', 'nomSociete _id zipCity');
+        res.json({ success: true, user });
+    } catch (e) { res.status(500).json({ success: false }); }
 });
+
 // MONTAGES
 app.post("/api/montages", async (req, res) => {
     try {
@@ -269,74 +229,11 @@ app.get("/api/montages", async (req, res) => {
     } catch (e) { res.status(500).json({ success: false }); }
 });
 
-// MISE À JOUR MONTAGE (Avec notifications email automatiques)
 app.put("/api/montages/:id", async (req, res) => {
     try {
-        // 1. On effectue la mise à jour en base de données
         const m = await Montage.findByIdAndUpdate(req.params.id, req.body, { new: true });
-
-        // 2. Si la mise à jour contient un changement de "statut", on envoie un email
-        if (req.body.statut) {
-            // On récupère les infos du client pour avoir son email
-            const user = await User.findById(m.userId);
-            
-            if (user) {
-                let subject = `Mise à jour dossier : ${m.reference}`;
-                let messageBody = "";
-
-                // On personnalise le message selon le nouveau statut
-                switch (req.body.statut) {
-                    case "Reçu":
-                        subject = `📦 Dossier Reçu : ${m.reference}`;
-                        messageBody = `<p>Nous avons bien reçu la monture et les éléments pour le dossier <strong>${m.reference}</strong>.</p><p>Il est désormais dans notre file d'attente.</p>`;
-                        break;
-                    case "En cours":
-                        subject = `🛠 En Production : ${m.reference}`;
-                        messageBody = `<p>Le montage <strong>${m.reference}</strong> est actuellement en cours de réalisation par nos opticiens.</p>`;
-                        break;
-                    case "Terminé":
-                        subject = `✅ Montage Terminé : ${m.reference}`;
-                        messageBody = `<p>Bonne nouvelle ! Le montage <strong>${m.reference}</strong> est terminé et a passé le contrôle qualité avec succès.</p><p>Il est prêt pour l'expédition ou le retrait.</p>`;
-                        break;
-                    case "Expédié":
-                        subject = `🚚 Dossier Expédié : ${m.reference}`;
-                        messageBody = `<p>Le montage <strong>${m.reference}</strong> a été expédié ce jour.</p>`;
-                        break;
-                }
-
-                // Si un message correspond, on l'envoie
-                if (messageBody) {
-                    try {
-                        await resend.emails.send({
-                            from: EMAIL_SENDER,
-                            to: user.email,
-                            subject: subject,
-                            html: `
-                                <div style="font-family: sans-serif; color: #333;">
-                                    <h2>Bonjour ${user.nomSociete},</h2>
-                                    ${messageBody}
-                                    <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
-                                        <p style="margin: 0;"><strong>Référence :</strong> ${m.reference}</p>
-                                        <p style="margin: 5px 0 0 0;"><strong>Monture :</strong> ${m.frame}</p>
-                                    </div>
-                                    <p>Cordialement,<br>L'équipe Atelier des Arts</p>
-                                </div>
-                            `
-                        });
-                        console.log(`✉️ Email statut "${req.body.statut}" envoyé à ${user.email}`);
-                    } catch (emailError) {
-                        console.error("❌ Erreur envoi email statut:", emailError);
-                        // On ne bloque pas la réponse si l'email échoue, c'est du bonus
-                    }
-                }
-            }
-        }
-
         res.json({ success: true, montage: m });
-    } catch (e) { 
-        console.error(e);
-        res.status(500).json({ success: false }); 
-    }
+    } catch (e) { res.status(500).json({ success: false }); }
 });
 
 app.delete("/api/montages/:id", async (req, res) => {

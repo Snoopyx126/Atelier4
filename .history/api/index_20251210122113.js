@@ -269,74 +269,11 @@ app.get("/api/montages", async (req, res) => {
     } catch (e) { res.status(500).json({ success: false }); }
 });
 
-// MISE À JOUR MONTAGE (Avec notifications email automatiques)
 app.put("/api/montages/:id", async (req, res) => {
     try {
-        // 1. On effectue la mise à jour en base de données
         const m = await Montage.findByIdAndUpdate(req.params.id, req.body, { new: true });
-
-        // 2. Si la mise à jour contient un changement de "statut", on envoie un email
-        if (req.body.statut) {
-            // On récupère les infos du client pour avoir son email
-            const user = await User.findById(m.userId);
-            
-            if (user) {
-                let subject = `Mise à jour dossier : ${m.reference}`;
-                let messageBody = "";
-
-                // On personnalise le message selon le nouveau statut
-                switch (req.body.statut) {
-                    case "Reçu":
-                        subject = `📦 Dossier Reçu : ${m.reference}`;
-                        messageBody = `<p>Nous avons bien reçu la monture et les éléments pour le dossier <strong>${m.reference}</strong>.</p><p>Il est désormais dans notre file d'attente.</p>`;
-                        break;
-                    case "En cours":
-                        subject = `🛠 En Production : ${m.reference}`;
-                        messageBody = `<p>Le montage <strong>${m.reference}</strong> est actuellement en cours de réalisation par nos opticiens.</p>`;
-                        break;
-                    case "Terminé":
-                        subject = `✅ Montage Terminé : ${m.reference}`;
-                        messageBody = `<p>Bonne nouvelle ! Le montage <strong>${m.reference}</strong> est terminé et a passé le contrôle qualité avec succès.</p><p>Il est prêt pour l'expédition ou le retrait.</p>`;
-                        break;
-                    case "Expédié":
-                        subject = `🚚 Dossier Expédié : ${m.reference}`;
-                        messageBody = `<p>Le montage <strong>${m.reference}</strong> a été expédié ce jour.</p>`;
-                        break;
-                }
-
-                // Si un message correspond, on l'envoie
-                if (messageBody) {
-                    try {
-                        await resend.emails.send({
-                            from: EMAIL_SENDER,
-                            to: user.email,
-                            subject: subject,
-                            html: `
-                                <div style="font-family: sans-serif; color: #333;">
-                                    <h2>Bonjour ${user.nomSociete},</h2>
-                                    ${messageBody}
-                                    <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
-                                        <p style="margin: 0;"><strong>Référence :</strong> ${m.reference}</p>
-                                        <p style="margin: 5px 0 0 0;"><strong>Monture :</strong> ${m.frame}</p>
-                                    </div>
-                                    <p>Cordialement,<br>L'équipe Atelier des Arts</p>
-                                </div>
-                            `
-                        });
-                        console.log(`✉️ Email statut "${req.body.statut}" envoyé à ${user.email}`);
-                    } catch (emailError) {
-                        console.error("❌ Erreur envoi email statut:", emailError);
-                        // On ne bloque pas la réponse si l'email échoue, c'est du bonus
-                    }
-                }
-            }
-        }
-
         res.json({ success: true, montage: m });
-    } catch (e) { 
-        console.error(e);
-        res.status(500).json({ success: false }); 
-    }
+    } catch (e) { res.status(500).json({ success: false }); }
 });
 
 app.delete("/api/montages/:id", async (req, res) => {
