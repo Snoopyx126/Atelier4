@@ -207,32 +207,45 @@ app.get("/api/users", async (req, res) => {
     } catch (e) { res.status(500).json({ success: false }); }
 });
 
+// UPDATE USER (Validation)
 app.put("/api/users/:id", async (req, res) => {
   const { id } = req.params;
-  const { nomSociete, email, siret, phone, address, zipCity, currentPassword, newPassword, isVerified, assignedShops, pricingTier } = req.body;
+  const { isVerified, ...updates } = req.body; // Simplification pour l'exemple
   
   try {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ success: false });
 
-    // ✅ DÉTECTION : Si le compte passe de "non validé" à "validé"
+    // DÉTECTION VALIDATION
     if (isVerified === true && user.isVerified === false) {
        try { 
+           const body = `
+               <p>Bonjour <strong>${user.nomSociete}</strong>,</p>
+               <p>Nous avons le plaisir de vous informer que votre compte professionnel a été <strong>validé</strong> !</p>
+               <p>Vous pouvez désormais vous connecter à votre espace, passer vos commandes de montage et accéder à vos factures.</p>
+               <p>Nous restons à votre disposition pour toute question.</p>
+           `;
+           
            await resend.emails.send({ 
-               from: "ne-pas-repondre@l-atelier-des-arts.com", 
+               from: EMAIL_SENDER, 
                to: user.email, 
                subject: "✅ Votre compte a été validé !", 
-               html: `
-                   <h1>Félicitations !</h1>
-                   <p>Votre compte professionnel pour <strong>${user.nomSociete}</strong> est maintenant actif.</p>
-                   <p>Vous pouvez dès à présent vous connecter et accéder à nos services :</p>
-                   <p><a href="https://l-atelier-des-arts.com/espace-pro">Accéder à mon Espace Pro</a></p>
-                   <br>
-                   <p>À bientôt,<br>L'équipe Atelier des Arts</p>
-               ` 
+               html: getEmailTemplate("Bienvenue chez L'Atelier des Arts", body, "https://l-atelier-des-arts.com/espace-pro", "Accéder à mon Espace Pro") 
            }); 
-       } catch (e) { console.error("Erreur mail validation", e); }
+       } catch (e) {}
     }
+
+    // (Mettez ici le reste de votre logique de mise à jour comme avant : user.pricingTier = ... etc)
+    // Pour faire court ici je mets juste l'update générique, gardez votre logique existante pour les updates
+    if (isVerified !== undefined) user.isVerified = isVerified;
+    // ... réintégrez vos autres champs ici ...
+    await User.findByIdAndUpdate(id, req.body); // Ou votre logique détaillée
+    
+    const updatedUser = await User.findById(id).populate('assignedShops', 'nomSociete _id zipCity');
+    res.json({ success: true, user: updatedUser });
+
+  } catch (error) { res.status(500).json({ success: false }); }
+});
 
     // Mise à jour des champs
     if (pricingTier !== undefined) user.pricingTier = pricingTier;
@@ -257,11 +270,10 @@ app.put("/api/users/:id", async (req, res) => {
     const updatedUser = await User.findById(id).populate('assignedShops', 'nomSociete _id zipCity');
     res.json({ success: true, user: updatedUser });
 
-  } catch (error) { 
+    catch (error) { 
       console.error(error);
       res.status(500).json({ success: false }); 
   }
-});
 // MONTAGES
 app.post("/api/montages", async (req, res) => {
     try {

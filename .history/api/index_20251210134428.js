@@ -134,70 +134,72 @@ app.post("/api/login", async (req, res) => {
 });
 
 // AUTH : Inscription
-// INSCRIPTION
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
   const { nomSociete, email, siret, password, phone, address, zipCity } = req.body;
   
-  if (!nomSociete || !email || !password) return res.status(400).json({ success: false, message: "Champs manquants" });
+  if (!nomSociete || !email || !password) {
+      return res.status(400).json({ success: false, message: "Champs manquants" });
+  }
 
   try {
-    if (await User.findOne({ email })) return res.status(409).json({ success: false, message: "Email déjà utilisé." });
+    if (await User.findOne({ email })) {
+        return res.status(409).json({ success: false, message: "Email déjà utilisé." });
+    }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await User.create({ email, password: hashedPassword, nomSociete, siret, phone, address, zipCity, role: 'user', assignedShops: [] });
 
-    // Gestion pièce jointe
+    // --- GESTION DE LA PIÈCE JOINTE ---
     let attachments = [];
     if (req.file) {
-        try { attachments.push({ filename: req.file.originalname, content: fs.readFileSync(req.file.path) }); } catch (err) {}
+        try {
+            const fileBuffer = fs.readFileSync(req.file.path);
+            attachments.push({
+                filename: req.file.originalname,
+                content: fileBuffer
+            });
+        } catch (err) {
+            console.error("Erreur lecture fichier:", err);
+        }
     }
 
-    // 1. Email Admin (Design Pro)
+    // 1. Email Admin (AVEC PIÈCE JOINTE)
     try { 
-        const adminBody = `
-            <p>Une nouvelle demande d'inscription vient d'arriver.</p>
-            <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">Société</td><td style="padding: 8px 0;">${nomSociete}</td></tr>
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">Email</td><td style="padding: 8px 0;">${email}</td></tr>
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">SIRET</td><td style="padding: 8px 0;">${siret}</td></tr>
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">Téléphone</td><td style="padding: 8px 0;">${phone || 'Non renseigné'}</td></tr>
-                <tr><td style="padding: 8px 0; font-weight: bold;">Ville</td><td style="padding: 8px 0;">${zipCity || 'Non renseigné'}</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-style: italic;">Le justificatif est en pièce jointe.</p>
-        `;
-        
         await resend.emails.send({ 
             from: EMAIL_SENDER, 
             to: EMAIL_ADMIN, 
             subject: `🔔 Nouvelle inscription : ${nomSociete}`, 
-            html: getEmailTemplate("Nouvelle demande d'ouverture", adminBody),
-            attachments: attachments 
+            html: `<p>Société: ${nomSociete}<br>Email: ${email}<br>Siret: ${siret}</p><p>Le Kbis/CNI est en pièce jointe.</p>`,
+            attachments: attachments // 👈 C'est ici que la magie opère
         }); 
-    } catch (e) {}
+    } catch (e) { console.error("Erreur mail admin", e); }
 
-    // 2. Email Client (Design Pro)
+    // 2. Email Client
     try {
-        const clientBody = `
-            <p>Bonjour <strong>${nomSociete}</strong>,</p>
-            <p>Nous avons bien reçu votre demande d'ouverture de compte professionnel.</p>
-            <p style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; color: #9a3412;">
-                Votre dossier est actuellement <strong>en attente de validation</strong> par notre équipe.
-            </p>
-            <p>Vous recevrez un email de confirmation dès que votre accès sera activé.</p>
-        `;
-
         await resend.emails.send({
             from: EMAIL_SENDER,
             to: email,
-            subject: "Confirmation de réception de votre demande",
-            html: getEmailTemplate("Demande reçue", clientBody)
+            subject: "Bienvenue - Votre demande est en cours de traitement",
+            html: `
+                <h1>Bonjour ${nomSociete},</h1>
+                <p>Nous avons bien reçu votre demande.</p>
+                <p>Votre dossier est en attente de validation.</p>
+                <br><p>Cordialement,<br>L'équipe Atelier des Arts</p>
+            `
         });
-    } catch (e) {}
+    } catch (e) { console.error("Erreur mail client", e); }
 
-    if (req.file) try { fs.unlinkSync(req.file.path); } catch(e) {}
+    // NETTOYAGE : On supprime le fichier temporaire du serveur
+    if (req.file) {
+        try { fs.unlinkSync(req.file.path); } catch(e) {}
+    }
+
     res.status(200).json({ success: true });
 
-  } catch (error) { res.status(500).json({ success: false }); }
+  } catch (error) { 
+      console.error(error);
+      res.status(500).json({ success: false }); 
+  }
 });
 // USERS
 app.get("/api/users", async (req, res) => {
@@ -286,71 +288,73 @@ app.get("/api/montages", async (req, res) => {
 });
 
 // MISE À JOUR MONTAGE (Avec notifications email automatiques)
-// MISE À JOUR MONTAGE
 app.put("/api/montages/:id", async (req, res) => {
     try {
+        // 1. On effectue la mise à jour en base de données
         const m = await Montage.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
+        // 2. Si la mise à jour contient un changement de "statut", on envoie un email
         if (req.body.statut) {
+            // On récupère les infos du client pour avoir son email
             const user = await User.findById(m.userId);
+            
             if (user) {
-                let title = `Mise à jour : ${m.reference}`;
-                let messageInfo = "";
-                let color = "#333";
+                let subject = `Mise à jour dossier : ${m.reference}`;
+                let messageBody = "";
 
+                // On personnalise le message selon le nouveau statut
                 switch (req.body.statut) {
                     case "Reçu":
-                        title = "Dossier Reçu";
-                        messageInfo = "Nous avons bien réceptionné la monture et les verres. Le dossier entre dans notre file d'attente.";
-                        color = "#3b82f6"; // Bleu
+                        subject = `📦 Dossier Reçu : ${m.reference}`;
+                        messageBody = `<p>Nous avons bien reçu la monture et les éléments pour le dossier <strong>${m.reference}</strong>.</p><p>Il est désormais dans notre file d'attente.</p>`;
                         break;
                     case "En cours":
-                        title = "En Production";
-                        messageInfo = "Nos opticiens travaillent actuellement sur votre montage.";
-                        color = "#f97316"; // Orange
+                        subject = `🛠 En Production : ${m.reference}`;
+                        messageBody = `<p>Le montage <strong>${m.reference}</strong> est actuellement en cours de réalisation par nos opticiens.</p>`;
                         break;
                     case "Terminé":
-                        title = "Montage Terminé";
-                        messageInfo = "Le montage est terminé et a passé le contrôle qualité avec succès.";
-                        color = "#22c55e"; // Vert
+                        subject = `✅ Montage Terminé : ${m.reference}`;
+                        messageBody = `<p>Bonne nouvelle ! Le montage <strong>${m.reference}</strong> est terminé et a passé le contrôle qualité avec succès.</p><p>Il est prêt pour l'expédition ou le retrait.</p>`;
                         break;
                     case "Expédié":
-                        title = "Dossier Expédié";
-                        messageInfo = "Votre dossier a été expédié ce jour.";
-                        color = "#a855f7"; // Violet
+                        subject = `🚚 Dossier Expédié : ${m.reference}`;
+                        messageBody = `<p>Le montage <strong>${m.reference}</strong> a été expédié ce jour.</p>`;
                         break;
                 }
 
-                const body = `
-                    <p>Bonjour <strong>${user.nomSociete}</strong>,</p>
-                    <p>Le statut de votre dossier <strong>${m.reference}</strong> a évolué.</p>
-                    
-                    <div style="background-color: #f3f4f6; border-left: 5px solid ${color}; padding: 20px; margin: 25px 0; border-radius: 4px;">
-                        <h3 style="margin: 0 0 10px; color: ${color}; text-transform: uppercase; font-size: 16px;">${req.body.statut}</h3>
-                        <p style="margin: 0; color: #555;">${messageInfo}</p>
-                    </div>
-
-                    <table style="width: 100%; font-size: 14px; color: #666;">
-                        <tr><td style="padding: 5px 0;"><strong>Référence :</strong></td><td>${m.reference}</td></tr>
-                        <tr><td style="padding: 5px 0;"><strong>Monture :</strong></td><td>${m.frame}</td></tr>
-                        <tr><td style="padding: 5px 0;"><strong>Type :</strong></td><td>${m.category}</td></tr>
-                    </table>
-                `;
-
-                if (messageInfo) {
+                // Si un message correspond, on l'envoie
+                if (messageBody) {
                     try {
                         await resend.emails.send({
                             from: EMAIL_SENDER,
                             to: user.email,
-                            subject: `${req.body.statut} : Dossier ${m.reference}`,
-                            html: getEmailTemplate(title, body, "https://l-atelier-des-arts.com/espace-pro", "Voir le détail")
+                            subject: subject,
+                            html: `
+                                <div style="font-family: sans-serif; color: #333;">
+                                    <h2>Bonjour ${user.nomSociete},</h2>
+                                    ${messageBody}
+                                    <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                                        <p style="margin: 0;"><strong>Référence :</strong> ${m.reference}</p>
+                                        <p style="margin: 5px 0 0 0;"><strong>Monture :</strong> ${m.frame}</p>
+                                    </div>
+                                    <p>Cordialement,<br>L'équipe Atelier des Arts</p>
+                                </div>
+                            `
                         });
-                    } catch (e) {}
+                        console.log(`✉️ Email statut "${req.body.statut}" envoyé à ${user.email}`);
+                    } catch (emailError) {
+                        console.error("❌ Erreur envoi email statut:", emailError);
+                        // On ne bloque pas la réponse si l'email échoue, c'est du bonus
+                    }
                 }
             }
         }
+
         res.json({ success: true, montage: m });
-    } catch (e) { res.status(500).json({ success: false }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ success: false }); 
+    }
 });
 
 app.delete("/api/montages/:id", async (req, res) => {

@@ -134,70 +134,72 @@ app.post("/api/login", async (req, res) => {
 });
 
 // AUTH : Inscription
-// INSCRIPTION
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
   const { nomSociete, email, siret, password, phone, address, zipCity } = req.body;
   
-  if (!nomSociete || !email || !password) return res.status(400).json({ success: false, message: "Champs manquants" });
+  if (!nomSociete || !email || !password) {
+      return res.status(400).json({ success: false, message: "Champs manquants" });
+  }
 
   try {
-    if (await User.findOne({ email })) return res.status(409).json({ success: false, message: "Email déjà utilisé." });
+    if (await User.findOne({ email })) {
+        return res.status(409).json({ success: false, message: "Email déjà utilisé." });
+    }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await User.create({ email, password: hashedPassword, nomSociete, siret, phone, address, zipCity, role: 'user', assignedShops: [] });
 
-    // Gestion pièce jointe
+    // --- GESTION DE LA PIÈCE JOINTE ---
     let attachments = [];
     if (req.file) {
-        try { attachments.push({ filename: req.file.originalname, content: fs.readFileSync(req.file.path) }); } catch (err) {}
+        try {
+            const fileBuffer = fs.readFileSync(req.file.path);
+            attachments.push({
+                filename: req.file.originalname,
+                content: fileBuffer
+            });
+        } catch (err) {
+            console.error("Erreur lecture fichier:", err);
+        }
     }
 
-    // 1. Email Admin (Design Pro)
+    // 1. Email Admin (AVEC PIÈCE JOINTE)
     try { 
-        const adminBody = `
-            <p>Une nouvelle demande d'inscription vient d'arriver.</p>
-            <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">Société</td><td style="padding: 8px 0;">${nomSociete}</td></tr>
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">Email</td><td style="padding: 8px 0;">${email}</td></tr>
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">SIRET</td><td style="padding: 8px 0;">${siret}</td></tr>
-                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; font-weight: bold;">Téléphone</td><td style="padding: 8px 0;">${phone || 'Non renseigné'}</td></tr>
-                <tr><td style="padding: 8px 0; font-weight: bold;">Ville</td><td style="padding: 8px 0;">${zipCity || 'Non renseigné'}</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-style: italic;">Le justificatif est en pièce jointe.</p>
-        `;
-        
         await resend.emails.send({ 
             from: EMAIL_SENDER, 
             to: EMAIL_ADMIN, 
             subject: `🔔 Nouvelle inscription : ${nomSociete}`, 
-            html: getEmailTemplate("Nouvelle demande d'ouverture", adminBody),
-            attachments: attachments 
+            html: `<p>Société: ${nomSociete}<br>Email: ${email}<br>Siret: ${siret}</p><p>Le Kbis/CNI est en pièce jointe.</p>`,
+            attachments: attachments // 👈 C'est ici que la magie opère
         }); 
-    } catch (e) {}
+    } catch (e) { console.error("Erreur mail admin", e); }
 
-    // 2. Email Client (Design Pro)
+    // 2. Email Client
     try {
-        const clientBody = `
-            <p>Bonjour <strong>${nomSociete}</strong>,</p>
-            <p>Nous avons bien reçu votre demande d'ouverture de compte professionnel.</p>
-            <p style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; color: #9a3412;">
-                Votre dossier est actuellement <strong>en attente de validation</strong> par notre équipe.
-            </p>
-            <p>Vous recevrez un email de confirmation dès que votre accès sera activé.</p>
-        `;
-
         await resend.emails.send({
             from: EMAIL_SENDER,
             to: email,
-            subject: "Confirmation de réception de votre demande",
-            html: getEmailTemplate("Demande reçue", clientBody)
+            subject: "Bienvenue - Votre demande est en cours de traitement",
+            html: `
+                <h1>Bonjour ${nomSociete},</h1>
+                <p>Nous avons bien reçu votre demande.</p>
+                <p>Votre dossier est en attente de validation.</p>
+                <br><p>Cordialement,<br>L'équipe Atelier des Arts</p>
+            `
         });
-    } catch (e) {}
+    } catch (e) { console.error("Erreur mail client", e); }
 
-    if (req.file) try { fs.unlinkSync(req.file.path); } catch(e) {}
+    // NETTOYAGE : On supprime le fichier temporaire du serveur
+    if (req.file) {
+        try { fs.unlinkSync(req.file.path); } catch(e) {}
+    }
+
     res.status(200).json({ success: true });
 
-  } catch (error) { res.status(500).json({ success: false }); }
+  } catch (error) { 
+      console.error(error);
+      res.status(500).json({ success: false }); 
+  }
 });
 // USERS
 app.get("/api/users", async (req, res) => {
