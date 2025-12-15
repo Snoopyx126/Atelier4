@@ -191,13 +191,12 @@ app.post("/api/montages", async (req, res) => {
 });
 
 // 2. LISTE OPTIMISÉE (GET) - SÉCURISÉ (Anti-Crash 500)
-// 2. LISTE ULTRA-LÉGÈRE (Spécial Admin - Anti-Crash)
 app.get("/api/montages", async (req, res) => {
     try {
         const { role, userId, managerId } = req.query;
         let query = {};
-
-        // SÉCURITÉ IDs
+        
+        // SÉCURITÉ : On ne convertit en ObjectId que si c'est valide
         if (role === 'manager' && managerId) {
             if (mongoose.Types.ObjectId.isValid(managerId)) {
                 const manager = await User.findById(managerId);
@@ -210,62 +209,40 @@ app.get("/api/montages", async (req, res) => {
             if (mongoose.Types.ObjectId.isValid(userId)) {
                 query = { userId: new mongoose.Types.ObjectId(userId) };
             } else {
-                return res.json({ success: true, montages: [] });
+                // Si l'ID est pourri (ex: "undefined"), on renvoie une liste vide au lieu de planter
+                return res.json({ success: true, montages: [] }); 
             }
         }
 
+        // AGREGATION ANTI-CRASH
         const montages = await Montage.aggregate([
             { $match: query },
             { $sort: { dateReception: -1 } },
             {
                 $addFields: {
-                    // Calcul simple : Y a-t-il du contenu dans photoUrl ?
-                    // On ne vérifie même plus si c'est une image valide pour économiser du CPU
-                    // On regarde juste si le champ n'est pas vide.
                     hasPhoto: { 
-                        $cond: { 
-                            if: { $gt: [{ $strLenCP: { $ifNull: [{ $toString: "$photoUrl" }, ""] } }, 50] }, 
-                            then: true, 
-                            else: false 
-                        }
+                        $regexMatch: { 
+                            input: { $ifNull: [{ $toString: "$photoUrl" }, ""] }, 
+                            regex: /^data:image/ 
+                        } 
                     }
                 }
             },
             {
-                // 🚨 DIÈTE RADICALE : On ne garde QUE ce qui est affiché dans le tableau
-                // Tout le reste (descriptions géantes, vieux champs inutiles) est jeté.
-                $project: {
-                    _id: 1,
-                    reference: 1,
-                    clientName: 1,
-                    frame: 1,
-                    category: 1,
-                    statut: 1,
-                    dateReception: 1,
-                    userId: 1,
-                    urgency: 1,
-                    diamondCutType: 1,
-                    engravingCount: 1,
-                    glassType: 1,
-                    shapeChange: 1,
-                    description: 1, // On garde la description, mais attention si elle est énorme
-                    createdBy: 1,
-                    hasPhoto: 1 // On garde notre indicateur calculé
-                    // photoUrl est implicitement EXCLU car pas listé ici
-                }
+                $project: { photoUrl: 0 } // ON RETIRE LE CHAMP LOURD
             }
         ]);
 
-        // Formatage final pour le frontend
         const optimizedMontages = montages.map(m => ({
             ...m,
-            photoUrl: m.hasPhoto ? "DISPONIBLE" : null
+            photoUrl: m.hasPhoto ? "DISPONIBLE" : null 
         }));
-
+        
         res.json({ success: true, montages: optimizedMontages });
-    } catch (e) {
+    } catch (e) { 
         console.error("❌ Erreur Liste:", e);
-        res.json({ success: true, montages: [] }); // En cas d'erreur, on renvoie vide pour ne pas planter l'admin
+        // On renvoie un tableau vide pour ne pas bloquer l'interface admin
+        res.json({ success: true, montages: [] }); 
     }
 });
 
