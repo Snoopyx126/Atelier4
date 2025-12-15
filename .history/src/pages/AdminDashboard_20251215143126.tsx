@@ -54,7 +54,6 @@ const CATEGORY_COSTS: Record<string, { 1: number, 2: number }> = {
     'Nylor': { 1: 14.90, 2: 12.00 } 
 };
 
-// Correction nom clé pour correspondre au formulaire
 const GLASS_COSTS: Record<string, { 1: number, 2: number }> = { 
     'Verre 4 saisons': { 1: 28.80, 2: 28.80 }, 
     'Verre Dégradé': { 1: 50.00, 2: 48.00 }, 
@@ -188,6 +187,7 @@ const AdminDashboard = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [allInvoices, setAllInvoices] = useState<FactureData[]>([]);
   
+  // États de formulaire
   const [newClient, setNewClient] = useState("");
   const [newRef, setNewRef] = useState("");
   const [newFrame, setNewFrame] = useState("");
@@ -217,10 +217,10 @@ const AdminDashboard = () => {
 
   const URGENCY_OPTIONS = ['Standard', 'Prioritaire -48H', 'Express -24H', 'Urgent -3H'];
   const DIAMONDCUT_OPTIONS = ['Standard', 'Facette Lisse', 'Diamond Ice', 'Facette Twinkle'];
-  // ✅ Correction de la constante Verre pour correspondre au prix
+  // ✅ CORRECTION OPTION VERRE
   const GLASS_OPTIONS = ['Verre 4 saisons', 'Verre Dégradé', 'Verre de stock'];
 
-  // ✅ FILTRE STATUT INITIALISÉ À NULL (TOUT VOIR)
+  // ✅ ÉTAT FILTRE STATUT (Initialisé à NULL pour tout voir)
   const [statusFilter, setStatusFilter] = useState<string | null>(null); 
 
   useEffect(() => {
@@ -230,9 +230,9 @@ const AdminDashboard = () => {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
         const baseUrl = getApiUrl();
-        // ✅ FETCH SANS FILTRE 'role=admin' POUR ÊTRE SÛR DE TOUT RÉCUPÉRER
+        // ✅ CORRECTION FETCH : Suppression de ?role=admin pour forcer le chargement de tout
         Promise.all([
-            fetch(`${baseUrl}/api/montages`).then(r => r.json()), 
+            fetch(`${baseUrl}/api/montages`).then(r => r.json()), // Ici, plus de paramètre role=admin
             fetch(`${baseUrl}/api/users`).then(r => r.json()), 
             fetch(`${baseUrl}/api/factures`).then(r => r.json())
         ]).then(([mData, cData, iData]) => {
@@ -244,7 +244,7 @@ const AdminDashboard = () => {
     } catch (e) { navigate("/"); }
   }, [navigate]);
 
-  // ✅ FETCH RECHARGEMENT SANS FILTRE
+  // ✅ CORRECTION FETCH RECHARGEMENT : Suppression de ?role=admin
   const fetchMontages = async () => { 
       const baseUrl = getApiUrl(); 
       const res = await fetch(`${baseUrl}/api/montages`); 
@@ -278,6 +278,7 @@ const AdminDashboard = () => {
           reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, 
           urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin" 
       };
+      // ✅ CORRECTION SAUVEGARDE : userId envoyé uniquement en création
       const payload = method === "POST" ? { ...basePayload, userId: newClient } : basePayload; 
       
       try { 
@@ -311,7 +312,6 @@ const AdminDashboard = () => {
       <div className="flex flex-wrap items-center gap-2">
           {m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}
           {m.diamondCutType !== 'Standard' && <Badge className="bg-blue-100 text-blue-800">{m.diamondCutType}</Badge>}
-          {/* ✅ CORRECTION: Masquer si 0 */}
           {m.engravingCount !== undefined && m.engravingCount > 0 && <Badge className="bg-purple-100 text-purple-800">✍️ {m.engravingCount} Gravure(s)</Badge>}
           {m.glassType && m.glassType.map(g => <Badge key={g} className="bg-green-100 text-green-800">{g.replace('Verre ', '')}</Badge>)} 
           {m.shapeChange && <Badge className="bg-yellow-100 text-yellow-800">📐 Changement Forme</Badge>}
@@ -333,10 +333,11 @@ const AdminDashboard = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.setAttribute("download", `export_atelier_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
+  // ✅ FILTRAGE CORRIGÉ : Gère les cas limites
   const filteredMontages = montages.filter(m => {
       const search = normalize(searchTerm);
       const ref = normalize(m.reference) || "";
-      const client = normalize(m.clientName) || ""; 
+      const client = normalize(m.clientName) || ""; // Évite crash si undefined
       const searchMatch = (ref + client).includes(search);
       
       let statusMatch = true;
@@ -351,15 +352,7 @@ const AdminDashboard = () => {
   const groupedByMonthAndShop = filteredMontages.reduce((acc: any, m) => { 
       const clientFound = clients.find(c => c._id === m.userId);
       const clientNameKey = clientFound?.nomSociete || m.clientName || `ID Inconnu: ${m.userId.substring(0, 4)}`;
-      
-      // ✅ SÉCURITÉ DATES POUR ÉVITER LE CRASH SUR LES ANCIENS MONTAGES
-      let monthName = "Date Inconnue";
-      try {
-          if (m.dateReception) {
-              monthName = new Date(m.dateReception).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-          }
-      } catch (e) { console.error("Erreur date sur montage", m._id); }
-
+      const monthName = new Date(m.dateReception).toLocaleDateString('fr-FR', {month:'long', year:'numeric'}); 
       if(!acc[monthName]) acc[monthName] = {}; 
       if(!acc[monthName][clientNameKey]) acc[monthName][clientNameKey] = []; 
       acc[monthName][clientNameKey].push(m); 
@@ -376,24 +369,34 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-100/50 flex flex-col">
       <Navigation />
       <div className="flex-grow pt-24 pb-10 px-6 container mx-auto max-w-7xl">
-        {/* ✅ DEBUG BARRE: SI 0 MONTAGES CHARGÉS, ON LE SAIT TOUT DE SUITE */}
-        <div className="text-xs text-gray-400 mb-2">Total montages chargés : {montages.length}</div>
-
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div><h1 className="text-3xl font-bold text-gray-900 tracking-tight">Tableau de Bord</h1><p className="text-gray-500">Gestion de l'atelier et suivi de production.</p></div>
             <div className="flex gap-3">
                 <Button variant="outline" onClick={handleExportCSV} className="bg-white gap-2 border-gray-300 hover:bg-gray-50"><FileText className="w-4 h-4" /> Export CSV</Button>
                 <Button onClick={openCreateDialog} className="bg-black hover:bg-gray-800 text-white gap-2"><PlusCircle className="w-4 h-4" /> Créer un dossier</Button>
                 
+                {/* MODALE AVEC FORMULAIRE CORRIGÉ */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogContent className="max-w-3xl bg-white">
                       <DialogHeader><DialogTitle>{editingId ? "Modifier" : "Ajouter"}</DialogTitle></DialogHeader>
                       <form onSubmit={handleSaveMontage} className="space-y-4 pt-4">
                           <div className="grid grid-cols-3 gap-4">
-                              <div className="col-span-3"><Label>Client</Label><Select onValueChange={setNewClient} value={newClient}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div>
+                              <div className="col-span-3">
+                                  <Label>Client</Label>
+                                  <Select onValueChange={setNewClient} value={newClient}>
+                                      <SelectTrigger className="bg-white"><SelectValue/></SelectTrigger>
+                                      <SelectContent className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent>
+                                  </Select>
+                              </div>
                               <div><Label>Réf.</Label><Input value={newRef} onChange={e=>setNewRef(e.target.value)} required className="bg-white"/></div>
                               <div><Label>Monture</Label><Input value={newFrame} onChange={e=>setNewFrame(e.target.value)} required className="bg-white"/></div>
-                              <div><Label>Urgence</Label><Select onValueChange={setNewUrgency} value={newUrgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                              <div>
+                                  <Label>Urgence</Label>
+                                  <Select onValueChange={setNewUrgency} value={newUrgency}>
+                                      <SelectTrigger className="bg-white"><SelectValue/></SelectTrigger>
+                                      <SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                  </Select>
+                              </div>
                           </div>
                           <hr/>
                           <div className="grid grid-cols-3 gap-4">
@@ -418,7 +421,7 @@ const AdminDashboard = () => {
             </div>
         </div>
 
-        {/* ✅ CARTES CLIQUABLES RÉTABLIES ET SÉCURISÉES */}
+        {/* ✅ CARTES CLIQUABLES RÉTABLIES */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className={`shadow-sm border-l-4 border-l-red-500 cursor-pointer transition-shadow ${statusFilter === 'En attente' ? 'ring-2 ring-red-500' : 'hover:shadow-lg'}`} onClick={() => setStatusFilter(statusFilter === 'En attente' ? null : 'En attente')}>
                 <CardHeader><CardTitle>À traiter</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{pendingCount}</div></CardContent>
@@ -436,7 +439,7 @@ const AdminDashboard = () => {
         <Tabs defaultValue="atelier" className="space-y-6"><TabsList className="bg-white p-1 shadow-sm border h-auto w-full md:w-auto"><TabsTrigger value="atelier" className="px-6 py-2"><Glasses className="w-4 h-4 mr-2" /> Atelier ({filteredMontages.length})</TabsTrigger><TabsTrigger value="clients" className="px-6 py-2"><Users className="w-4 h-4 mr-2" /> Fiches Clients ({filteredClients.length})</TabsTrigger></TabsList>
             
             <TabsContent value="atelier">
-                <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage trouvé avec les filtres actuels.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { 
+                <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { 
                     const firstMontage = items[0] as Montage;
                     const client = clients.find(c => c._id === firstMontage.userId); 
                     const isDisabled = items.length === 0 || !client;

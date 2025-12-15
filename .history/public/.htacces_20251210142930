@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # Si la requête n'est pas un fichier existant (-f)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  # Et n'est pas un dossier existant (-d)
+  RewriteCond %{REQUEST_FILENAME} !-d
+  
+  # Alors, renvoie index.html, quel que soit l'URL demandée
+  RewriteRule ^(.*)$ /index.html [L]
+</IfModule>

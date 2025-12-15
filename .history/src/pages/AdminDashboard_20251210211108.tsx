@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea"; 
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { LayoutDashboard, Glasses, Users, Package, AlertCircle, CheckCircle2, Trash2, Mail, FileText, Calendar, PlusCircle, Pencil, Search, Phone, Receipt, Printer, Send, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store } from "lucide-react";
@@ -23,6 +22,7 @@ const getApiUrl = () => {
       ? "http://localhost:3000" 
       : "https://atelier4.vercel.app";
 };
+
 
 // --- INTERFACES ---
 interface Montage {
@@ -54,7 +54,6 @@ const CATEGORY_COSTS: Record<string, { 1: number, 2: number }> = {
     'Nylor': { 1: 14.90, 2: 12.00 } 
 };
 
-// Correction nom clé pour correspondre au formulaire
 const GLASS_COSTS: Record<string, { 1: number, 2: number }> = { 
     'Verre 4 saisons': { 1: 28.80, 2: 28.80 }, 
     'Verre Dégradé': { 1: 50.00, 2: 48.00 }, 
@@ -83,6 +82,7 @@ const FACTURE_INFO = {
 const calculateSingleMontagePrice = (m: Montage, tier: 1 | 2 = 1): number => {
     let totalBase = 0;
     
+    // On accède au prix via [tier]
     totalBase += CATEGORY_COSTS[m.category || 'Cerclé'][tier] || 0;
     totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'][tier] || 0;
     totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST[tier];
@@ -109,6 +109,8 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const today = new Date();
     const currentYear = today.getFullYear();
     const monthlyMontages = montages.filter(m => { return m.statut === 'Terminé'; });
+    
+    // Récupérer le tarif du client
     const tier = client.pricingTier || 1;
 
     const getMontagePriceDetails = (m: Montage) => {
@@ -188,6 +190,7 @@ const AdminDashboard = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [allInvoices, setAllInvoices] = useState<FactureData[]>([]);
   
+  // États de formulaire
   const [newClient, setNewClient] = useState("");
   const [newRef, setNewRef] = useState("");
   const [newFrame, setNewFrame] = useState("");
@@ -217,11 +220,7 @@ const AdminDashboard = () => {
 
   const URGENCY_OPTIONS = ['Standard', 'Prioritaire -48H', 'Express -24H', 'Urgent -3H'];
   const DIAMONDCUT_OPTIONS = ['Standard', 'Facette Lisse', 'Diamond Ice', 'Facette Twinkle'];
-  // ✅ Correction de la constante Verre pour correspondre au prix
-  const GLASS_OPTIONS = ['Verre 4 saisons', 'Verre Dégradé', 'Verre de stock'];
-
-  // ✅ FILTRE STATUT INITIALISÉ À NULL (TOUT VOIR)
-  const [statusFilter, setStatusFilter] = useState<string | null>(null); 
+  const GLASS_OPTIONS = ['Verre 4 Dégradé saisons', 'Verre Dégradé', 'Verre de stock'];
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -230,12 +229,7 @@ const AdminDashboard = () => {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
         const baseUrl = getApiUrl();
-        // ✅ FETCH SANS FILTRE 'role=admin' POUR ÊTRE SÛR DE TOUT RÉCUPÉRER
-        Promise.all([
-            fetch(`${baseUrl}/api/montages`).then(r => r.json()), 
-            fetch(`${baseUrl}/api/users`).then(r => r.json()), 
-            fetch(`${baseUrl}/api/factures`).then(r => r.json())
-        ]).then(([mData, cData, iData]) => {
+        Promise.all([fetch(`${baseUrl}/api/montages?role=admin`).then(r => r.json()), fetch(`${baseUrl}/api/users`).then(r => r.json()), fetch(`${baseUrl}/api/factures`).then(r => r.json())]).then(([mData, cData, iData]) => {
             if (mData.success) setMontages(mData.montages);
             if (cData.success) { setClients(cData.users); if(cData.users.length) setNewClient(cData.users[0]._id); }
             if (iData.success) { setAllInvoices(iData.factures.map((f: any) => ({ id: f._id, userId: f.userId, clientName: f.clientName, invoiceNumber: f.invoiceNumber, totalTTC: f.totalTTC, dateEmission: f.dateEmission, pdfUrl: f.pdfUrl, montagesReferences: f.montagesReferences, amountPaid: f.amountPaid, paymentStatus: f.paymentStatus }))); }
@@ -244,61 +238,27 @@ const AdminDashboard = () => {
     } catch (e) { navigate("/"); }
   }, [navigate]);
 
-  // ✅ FETCH RECHARGEMENT SANS FILTRE
-  const fetchMontages = async () => { 
-      const baseUrl = getApiUrl(); 
-      const res = await fetch(`${baseUrl}/api/montages`); 
-      const data = await res.json(); 
-      if (data.success) setMontages(data.montages); 
-  };
-
+  const fetchMontages = async () => { const baseUrl = getApiUrl(); const res = await fetch(`${baseUrl}/api/montages?role=admin`); const data = await res.json(); if (data.success) setMontages(data.montages); };
   const handleDeleteInvoice = async (id: string) => { const baseUrl = getApiUrl(); const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { toast.success("Facture supprimée"); setAllInvoices(prev => prev.filter(f => f.id !== id)); setCurrentClientInvoices(prev => prev.filter(f => f.id !== id)); } else toast.error("Erreur suppression"); };
   const handlePaymentUpdate = async (id: string, amount: number) => { const baseUrl = getApiUrl(); try { const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: amount }) }); const data = await res.json(); if (data.success) { toast.success("Paiement mis à jour !"); const updatedInv = data.facture; setAllInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); setCurrentClientInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); } } catch (e) { toast.error("Erreur mise à jour paiement"); } };
 
   const handlePhotoUpload = async (montageId: string, file: File) => {
       if (!file) return;
-      const formData = new FormData(); formData.append('photo', file); toast.loading("Envoi...", { id: 'photo-upload' });
+      if (file.size > 5 * 1024 * 1024) { toast.error("L'image est trop volumineuse (Max 5MB)"); return; }
+      if (!file.type.startsWith('image/')) { toast.error("Le fichier doit être une image."); return; }
+      const formData = new FormData(); formData.append('photo', file); toast.loading("Envoi de la photo...", { id: 'photo-upload' });
       const baseUrl = getApiUrl();
       try {
           const res = await fetch(`${baseUrl}/api/montages/${montageId}/photo`, { method: 'POST', body: formData });
           const data = await res.json();
-          if (data.success) { toast.success("Photo ajoutée !", { id: 'photo-upload' }); setMontages(prev => prev.map(m => m._id === montageId ? { ...m, photoUrl: data.montage.photoUrl } : m)); } 
-          else { toast.error("Erreur upload", { id: 'photo-upload' }); }
-      } catch (error) { toast.error("Erreur connexion", { id: 'photo-upload' }); }
+          if (data.success) { toast.success("Photo ajoutée avec succès !", { id: 'photo-upload' }); setMontages(prev => prev.map(m => m._id === montageId ? { ...m, photoUrl: data.montage.photoUrl } : m)); } 
+          else { toast.error(`Erreur upload: ${data.message}`, { id: 'photo-upload' }); }
+      } catch (error) { toast.error("Erreur de connexion lors de l'upload.", { id: 'photo-upload' }); }
   };
 
-  const handleSaveMontage = async (e: React.FormEvent) => { 
-      e.preventDefault(); 
-      setIsSubmitting(true); 
-      const baseUrl = getApiUrl(); 
-      const method = editingId ? "PUT" : "POST"; 
-      const url = editingId ? `${baseUrl}/api/montages/${editingId}` : `${baseUrl}/api/montages`; 
-      
-      const basePayload = { 
-          reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, 
-          urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin" 
-      };
-      const payload = method === "POST" ? { ...basePayload, userId: newClient } : basePayload; 
-      
-      try { 
-          const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); 
-          const data = await res.json(); 
-          if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } 
-      } catch (error) { toast.error("Erreur API"); } 
-      finally { setIsSubmitting(false); } 
-  };
-  
-  const openCreateDialog = () => { 
-    setEditingId(null); setNewRef(""); setNewFrame(""); setNewCategory("Cerclé"); setNewGlassType([]); 
-    setNewUrgency("Standard"); setNewDiamondCutType("Standard"); setNewEngravingCount(0); setNewShapeChange(false); setNewDesc(""); setIsDialogOpen(true); 
-  };
-  
-  const openEditDialog = (m: Montage) => { 
-    setEditingId(m._id); setNewRef(m.reference||""); setNewFrame(m.frame||""); setNewCategory(m.category||"Cerclé"); 
-    setNewGlassType(m.glassType||[]); setNewUrgency(m.urgency||"Standard"); setNewDiamondCutType(m.diamondCutType||"Standard"); 
-    setNewEngravingCount(m.engravingCount||0); setNewShapeChange(m.shapeChange||false); setNewDesc(m.description||""); setNewClient(m.userId); setIsDialogOpen(true); 
-  };
-  
+  const handleSaveMontage = async (e: React.FormEvent) => { e.preventDefault(); setIsSubmitting(true); const baseUrl = getApiUrl(); const method = editingId ? "PUT" : "POST"; const url = editingId ? `${baseUrl}/api/montages/${editingId}` : `${baseUrl}/api/montages`; try { const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: newClient, reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin" }) }); const data = await res.json(); if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } } catch (error) { toast.error("Erreur API"); } finally { setIsSubmitting(false); } };
+  const openCreateDialog = () => { setEditingId(null); setNewRef(""); setNewFrame(""); setNewCategory("Cerclé"); setNewGlassType([]); setNewUrgency("Standard"); setNewDiamondCutType("Standard"); setNewEngravingCount(0); setNewShapeChange(false); setNewDesc(""); setIsDialogOpen(true); };
+  const openEditDialog = (m: Montage) => { setEditingId(m._id); setNewRef(m.reference||""); setNewFrame(m.frame||""); setNewCategory(m.category||"Cerclé"); setNewGlassType(m.glassType||[]); setNewUrgency(m.urgency||"Standard"); setNewDiamondCutType(m.diamondCutType||"Standard"); setNewEngravingCount(m.engravingCount||0); setNewShapeChange(m.shapeChange||false); setNewDesc(m.description||""); setIsDialogOpen(true); };
   const handleStatusChange = async (id: string, newStatus: string) => { const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/montages/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: newStatus }) }); fetchMontages(); toast.success(`Statut: ${newStatus}`); };
   const handleDelete = async (id: string) => { const baseUrl = getApiUrl(); if(confirm("Supprimer ?")) { await fetch(`${baseUrl}/api/montages/${id}`, { method: 'DELETE' }); fetchMontages(); toast.success("Supprimé"); } };
   const handleGenerateInvoice = (client: Client, items: Montage[]) => { setCurrentClientToInvoice(client); setMontagesToInvoice(items); setIsInvoiceOpen(true); };
@@ -307,20 +267,26 @@ const AdminDashboard = () => {
   const handleGlassTypeChange = (type: string, checked: boolean) => { setNewGlassType(prev => checked ? [...prev, type] : prev.filter(t => t !== type)); };
   const getStatusColor = (statut: string) => { if(statut==='Terminé') return 'border-green-500'; if(statut==='En cours') return 'border-orange-500'; if(statut==='Reçu') return 'border-blue-500'; return 'border-gray-300'; };
   
+  // ✅ CORRECTION 2 : Masquer la gravure si elle est à 0 ou non définie
   const renderMontageDetails = (m: Montage) => ( 
       <div className="flex flex-wrap items-center gap-2">
           {m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}
           {m.diamondCutType !== 'Standard' && <Badge className="bg-blue-100 text-blue-800">{m.diamondCutType}</Badge>}
-          {/* ✅ CORRECTION: Masquer si 0 */}
-          {m.engravingCount !== undefined && m.engravingCount > 0 && <Badge className="bg-purple-100 text-purple-800">✍️ {m.engravingCount} Gravure(s)</Badge>}
+          
+          {m.engravingCount !== undefined && m.engravingCount > 0 && 
+              <Badge className="bg-purple-100 text-purple-800">✍️ {m.engravingCount} Gravure(s)</Badge>
+          }
+          
           {m.glassType && m.glassType.map(g => <Badge key={g} className="bg-green-100 text-green-800">{g.replace('Verre ', '')}</Badge>)} 
           {m.shapeChange && <Badge className="bg-yellow-100 text-yellow-800">📐 Changement Forme</Badge>}
       </div>
   );
 
+  // Modale Manager
   const openShopAssign = (manager: Client) => { setSelectedManager(manager); const existingIds = manager.assignedShops?.map((s: any) => typeof s === 'string' ? s : s._id) || []; setTempAssignedShops(existingIds); setIsShopAssignOpen(true); };
   const saveAssignedShops = async () => { if (!selectedManager) return; try { const baseUrl = getApiUrl(); const res = await fetch(`${baseUrl}/api/users/${selectedManager._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedShops: tempAssignedShops }) }); const data = await res.json(); if (data.success) { toast.success("Magasins assignés !"); setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c)); setIsShopAssignOpen(false); } else { toast.error("Erreur sauvegarde."); } } catch (e) { toast.error("Erreur technique."); } };
 
+  // Export CSV
   const handleExportCSV = () => {
     const headers = ["Date Reception", "Client", "Reference", "Monture", "Categorie", "Statut", "Prix HT", "Cree Par"];
     const csvContent = [headers.join(";"), ...montages.map(m => {
@@ -333,39 +299,23 @@ const AdminDashboard = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.setAttribute("download", `export_atelier_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  const filteredMontages = montages.filter(m => {
-      const search = normalize(searchTerm);
-      const ref = normalize(m.reference) || "";
-      const client = normalize(m.clientName) || ""; 
-      const searchMatch = (ref + client).includes(search);
-      
-      let statusMatch = true;
-      if (statusFilter === 'En production') {
-          statusMatch = (m.statut === 'En cours' || m.statut === 'Reçu');
-      } else if (statusFilter) {
-          statusMatch = m.statut === statusFilter;
-      }
-      return searchMatch && statusMatch;
-  });
-  
-  const groupedByMonthAndShop = filteredMontages.reduce((acc: any, m) => { 
+  const filteredMontages = montages.filter(m => normalize(m.reference + m.clientName).includes(normalize(searchTerm)));
+  // L'objet 'clients' est déjà chargé dans l'état, on peut donc l'utiliser.
+const groupedByMonthAndShop = filteredMontages.reduce((acc: any, m) => { 
+      // 1. Cherche l'objet client dans la liste des clients chargés
       const clientFound = clients.find(c => c._id === m.userId);
+      
+      // 2. Utilise le nom de la société mis à jour (clientFound.nomSociete) ou un nom de secours
       const clientNameKey = clientFound?.nomSociete || m.clientName || `ID Inconnu: ${m.userId.substring(0, 4)}`;
       
-      // ✅ SÉCURITÉ DATES POUR ÉVITER LE CRASH SUR LES ANCIENS MONTAGES
-      let monthName = "Date Inconnue";
-      try {
-          if (m.dateReception) {
-              monthName = new Date(m.dateReception).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-          }
-      } catch (e) { console.error("Erreur date sur montage", m._id); }
-
+      const monthName = new Date(m.dateReception).toLocaleDateString('fr-FR', {month:'long', year:'numeric'}); 
+      
       if(!acc[monthName]) acc[monthName] = {}; 
       if(!acc[monthName][clientNameKey]) acc[monthName][clientNameKey] = []; 
+      
       acc[monthName][clientNameKey].push(m); 
       return acc; 
   }, {});
-  
   const filteredClients = clients.filter(c => normalize(c.nomSociete).includes(normalize(searchTerm)));
   const pendingCount = montages.filter(m => m.statut === 'En attente').length;
   const inProgressCount = montages.filter(m => m.statut === 'En cours' || m.statut === 'Reçu').length;
@@ -376,84 +326,65 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-100/50 flex flex-col">
       <Navigation />
       <div className="flex-grow pt-24 pb-10 px-6 container mx-auto max-w-7xl">
-        {/* ✅ DEBUG BARRE: SI 0 MONTAGES CHARGÉS, ON LE SAIT TOUT DE SUITE */}
-        <div className="text-xs text-gray-400 mb-2">Total montages chargés : {montages.length}</div>
-
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div><h1 className="text-3xl font-bold text-gray-900 tracking-tight">Tableau de Bord</h1><p className="text-gray-500">Gestion de l'atelier et suivi de production.</p></div>
             <div className="flex gap-3">
                 <Button variant="outline" onClick={handleExportCSV} className="bg-white gap-2 border-gray-300 hover:bg-gray-50"><FileText className="w-4 h-4" /> Export CSV</Button>
                 <Button onClick={openCreateDialog} className="bg-black hover:bg-gray-800 text-white gap-2"><PlusCircle className="w-4 h-4" /> Créer un dossier</Button>
-                
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogContent className="max-w-3xl bg-white">
-                      <DialogHeader><DialogTitle>{editingId ? "Modifier" : "Ajouter"}</DialogTitle></DialogHeader>
-                      <form onSubmit={handleSaveMontage} className="space-y-4 pt-4">
-                          <div className="grid grid-cols-3 gap-4">
-                              <div className="col-span-3"><Label>Client</Label><Select onValueChange={setNewClient} value={newClient}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div>
-                              <div><Label>Réf.</Label><Input value={newRef} onChange={e=>setNewRef(e.target.value)} required className="bg-white"/></div>
-                              <div><Label>Monture</Label><Input value={newFrame} onChange={e=>setNewFrame(e.target.value)} required className="bg-white"/></div>
-                              <div><Label>Urgence</Label><Select onValueChange={setNewUrgency} value={newUrgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                          </div>
-                          <hr/>
-                          <div className="grid grid-cols-3 gap-4">
-                              <div><Label>Type</Label><Select onValueChange={setNewCategory} value={newCategory}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem></SelectContent></Select></div>
-                              <div><Label>Diamond Cut</Label><Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                              <div><Label>Gravure</Label><Input type="number" value={newEngravingCount} onChange={e=>setNewEngravingCount(parseInt(e.target.value))} className="bg-white"/></div>
-                          </div>
-                          <div className="p-3 bg-white rounded border space-y-3">
-                              <Label className="font-semibold">Options Verres & Autres</Label>
-                              <div className="flex flex-wrap gap-4">
-                                  {GLASS_OPTIONS.map(o=>(<div key={o} className="flex items-center space-x-2"><Checkbox id={o} checked={newGlassType.includes(o)} onCheckedChange={(c)=>handleGlassTypeChange(o, c as boolean)}/><label htmlFor={o} className="text-sm cursor-pointer">{o}</label></div>))}
-                                  <div className="flex items-center space-x-2 border-l pl-4 ml-2"><Checkbox id="sc" checked={newShapeChange} onCheckedChange={(c)=>setNewShapeChange(c as boolean)}/><label htmlFor="sc" className="text-sm font-medium cursor-pointer">Changement de Forme</label></div>
-                              </div>
-                          </div>
-                          <div><Label htmlFor="description">Commentaire / Description (visible par le client)</Label><Textarea id="description" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Indiquer ici toute information spécifique..." className="bg-white"/></div>
-                          <Button type="submit" className="w-full">{editingId?"Modifier":"Créer"}</Button>
-                      </form>
-                  </DialogContent>
-                </Dialog>
-                
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}><DialogContent className="max-w-3xl bg-white"><DialogHeader><DialogTitle>{editingId ? "Modifier" : "Ajouter"}</DialogTitle></DialogHeader><form onSubmit={handleSaveMontage} className="space-y-4 pt-4"><div className="grid grid-cols-3 gap-4"><div className="col-span-3"><Label>Client</Label><Select onValueChange={setNewClient} value={newClient}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div><div><Label>Réf.</Label><Input value={newRef} onChange={e=>setNewRef(e.target.value)} required className="bg-white"/></div><div><Label>Monture</Label><Input value={newFrame} onChange={e=>setNewFrame(e.target.value)} required className="bg-white"/></div><div><Label>Urgence</Label><Select onValueChange={setNewUrgency} value={newUrgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div></div><hr/><div className="grid grid-cols-3 gap-4"><div><Label>Type</Label><Select onValueChange={setNewCategory} value={newCategory}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem></SelectContent></Select></div><div><Label>Diamond Cut</Label><Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div><div><Label>Gravure</Label><Input type="number" value={newEngravingCount} onChange={e=>setNewEngravingCount(parseInt(e.target.value))} className="bg-white"/></div></div>
+                {/* ✅ CORRECTION 1 : AJOUT DU BLOC DES OPTIONS (Changement de Forme inclus) */}
+                <div className="p-3 bg-white rounded border space-y-3">
+                    <Label className="font-semibold">Options Verres & Autres</Label>
+                    <div className="flex flex-wrap gap-4">
+                        {GLASS_OPTIONS.map(o=>(
+                            <div key={o} className="flex items-center space-x-2">
+                                <Checkbox id={o} checked={newGlassType.includes(o)} onCheckedChange={(c)=>handleGlassTypeChange(o, c as boolean)}/>
+                                <label htmlFor={o} className="text-sm cursor-pointer">{o}</label>
+                            </div>
+                        ))}
+                        <div className="flex items-center space-x-2 border-l pl-4 ml-2">
+                            <Checkbox id="sc" checked={newShapeChange} onCheckedChange={(c)=>setNewShapeChange(c as boolean)}/>
+                            <label htmlFor="sc" className="text-sm font-medium cursor-pointer">Changement de Forme</label>
+                        </div>
+                    </div>
+                </div>
+                {/* FIN DU BLOC DES OPTIONS */}
+                <Button type="submit" className="w-full">{editingId?"Modifier":"Créer"}</Button></form></DialogContent></Dialog>
                 <Button variant="outline" className="bg-white border-red-200 text-red-600 hover:bg-red-50" onClick={() => { localStorage.clear(); navigate("/"); }}>Déconnexion</Button>
             </div>
         </div>
 
-        {/* ✅ CARTES CLIQUABLES RÉTABLIES ET SÉCURISÉES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className={`shadow-sm border-l-4 border-l-red-500 cursor-pointer transition-shadow ${statusFilter === 'En attente' ? 'ring-2 ring-red-500' : 'hover:shadow-lg'}`} onClick={() => setStatusFilter(statusFilter === 'En attente' ? null : 'En attente')}>
-                <CardHeader><CardTitle>À traiter</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{pendingCount}</div></CardContent>
-            </Card>
-            <Card className={`shadow-sm border-l-4 border-l-blue-500 cursor-pointer transition-shadow ${statusFilter === 'En production' ? 'ring-2 ring-blue-500' : 'hover:shadow-lg'}`} onClick={() => setStatusFilter(statusFilter === 'En production' ? null : 'En production')}>
-                <CardHeader><CardTitle>En Production</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{inProgressCount}</div></CardContent>
-            </Card>
-            <Card className="shadow-sm border-l-4 border-l-green-500"><CardHeader><CardTitle>Clients</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{clients.length}</div></CardContent></Card>
-        </div>
-        
-        {statusFilter && (<div className="mb-4"><Button variant="outline" size="sm" onClick={() => setStatusFilter(null)} className="gap-2">Filtre actif : {statusFilter} (Cliquez pour annuler)<X className="w-4 h-4" /></Button></div>)}
-        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card className="shadow-sm border-l-4 border-l-red-500"><CardHeader><CardTitle>À traiter</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{pendingCount}</div></CardContent></Card><Card className="shadow-sm border-l-4 border-l-blue-500"><CardHeader><CardTitle>En Production</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{inProgressCount}</div></CardContent></Card><Card className="shadow-sm border-l-4 border-l-green-500"><CardHeader><CardTitle>Clients</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{clients.length}</div></CardContent></Card></div>
         <div className="mb-6 relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" /><Input className="pl-10 bg-white shadow-sm h-12" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
 
         <Tabs defaultValue="atelier" className="space-y-6"><TabsList className="bg-white p-1 shadow-sm border h-auto w-full md:w-auto"><TabsTrigger value="atelier" className="px-6 py-2"><Glasses className="w-4 h-4 mr-2" /> Atelier ({filteredMontages.length})</TabsTrigger><TabsTrigger value="clients" className="px-6 py-2"><Users className="w-4 h-4 mr-2" /> Fiches Clients ({filteredClients.length})</TabsTrigger></TabsList>
             
             <TabsContent value="atelier">
-                <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage trouvé avec les filtres actuels.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { 
+                <Card className="shadow-md border-0"><CardHeader className="bg-white border-b"><CardTitle>Flux de Production</CardTitle></CardHeader><CardContent className="p-6 bg-gray-50/50 min-h-[400px]">{Object.keys(groupedByMonthAndShop).length === 0 ? <div className="text-center py-20 text-gray-400">Aucun montage.</div> : (<Accordion type="multiple" className="space-y-4">{Object.entries(groupedByMonthAndShop).sort().reverse().map(([monthName, shopGroups]: any) => (<AccordionItem key={monthName} value={monthName} className="bg-white border rounded-lg shadow-xl px-4"><AccordionTrigger className="hover:no-underline py-4 bg-gray-100/70 hover:bg-gray-100 rounded-lg -mx-4 px-4"><div className="flex items-center gap-4 w-full pr-4"><Calendar className="w-5 h-5 text-blue-600" /><span className="text-xl font-extrabold text-gray-900 capitalize">{monthName}</span></div></AccordionTrigger><AccordionContent className="pt-4 pb-6 space-y-4"><Accordion type="multiple" className="space-y-2">{Object.entries(shopGroups).map(([shopName, items]: any) => { 
+                    
+                    // Récupération client par ID
                     const firstMontage = items[0] as Montage;
                     const client = clients.find(c => c._id === firstMontage.userId); 
                     const isDisabled = items.length === 0 || !client;
+                    
                     return (<AccordionItem key={shopName} value={shopName} className="bg-white border rounded-lg shadow-sm px-4"><AccordionTrigger className="hover:no-underline py-4"><div className="flex items-center gap-4 w-full pr-4"><span className="text-lg font-bold text-gray-800">{shopName}</span><span className="text-xs text-gray-400">({items.length})</span><Button variant="outline" size="sm" className="ml-auto flex items-center gap-1 text-xs bg-black text-white hover:bg-gray-800" onClick={(e) => { e.stopPropagation(); handleGenerateInvoice(client as Client, items); }} disabled={isDisabled}><Receipt className="w-4 h-4" /> Facturer</Button></div></AccordionTrigger><AccordionContent className="pt-2 pb-6 space-y-3">{items.map((m: Montage) => {
+                    // ✅ AJOUT DE LA LOGIQUE DE CALCUL DYNAMIQUE ICI
                     const clientTier = client?.pricingTier || 1;
                     const price = calculateSingleMontagePrice(m, clientTier);
+
                     return (
                         <div key={m._id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-lg border border-gray-100 gap-4 transition-all hover:bg-white hover:shadow-md">
                             <div className="flex-1">
                                 <div className="mb-2 flex items-center gap-3 flex-wrap"> 
-                                    <span className="font-bold text-xl text-gray-900">{m.reference}</span><span className="text-gray-400 mx-2">|</span><span className="font-semibold text-gray-700">{m.frame}</span>
+                                    <span className="font-bold text-xl text-gray-900">{m.reference}</span>
+                                    <span className="text-gray-400 mx-2">|</span>
+                                    <span className="font-semibold text-gray-700">{m.frame}</span>
                                     {m.createdBy && m.createdBy.includes("Manager") && <Badge className="bg-blue-100 text-blue-800 border-blue-200">Ajout Manager</Badge>}
                                     <span className="text-sm text-gray-500 ml-3">Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
+                                    {/* AFFICHE LE PRIX CALCULÉ */}
                                     <Badge variant="outline" className="ml-auto sm:ml-4 text-sm font-medium px-2 py-0.5 border-green-600 text-green-700 bg-green-50">{price.toFixed(2)} € HT</Badge>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mb-2"><Badge variant="outline" className="bg-white">{m.category}</Badge>{renderMontageDetails(m)}</div>
-                                {m.description && m.description.length > 0 && (<p className="text-xs text-gray-600 mt-1 mb-2 italic border-l-2 border-gray-200 pl-2 max-w-full overflow-hidden whitespace-normal">Note: {m.description}</p>)}
                             </div>
                             <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                                 <Select defaultValue={m.statut} onValueChange={(val) => handleStatusChange(m._id, val)}><SelectTrigger className={`w-[160px] bg-white border-2 ${getStatusColor(m.statut)}`}><SelectValue /></SelectTrigger><SelectContent className="bg-white"><SelectItem value="En attente">🔴 En attente</SelectItem><SelectItem value="Reçu">🔵 Reçu</SelectItem><SelectItem value="En cours">🟠 En cours</SelectItem><SelectItem value="Terminé">🟢 Terminé</SelectItem></SelectContent></Select>
@@ -474,20 +405,55 @@ const AdminDashboard = () => {
                 {filteredClients.map(c => (
                     <div key={c._id} className="p-4 border-b last:border-0 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50 hover:bg-gray-100 transition-colors gap-4">
                         <div className="flex-1 cursor-pointer" onClick={() => openClientInvoices(c)}>
-                            <div className="flex items-center gap-2"><p className="font-bold text-lg">{c.nomSociete}</p>{c.role === 'manager' && <Badge className="bg-blue-100 text-blue-700 border-blue-200">Manager</Badge>}{c.isVerified ? (<Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100"><CheckCircle2 className="w-3 h-3 mr-1"/> Validé</Badge>) : (<Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100"><AlertCircle className="w-3 h-3 mr-1"/> En attente</Badge>)}</div>
+                            <div className="flex items-center gap-2">
+                                <p className="font-bold text-lg">{c.nomSociete}</p>
+                                {c.role === 'manager' && <Badge className="bg-blue-100 text-blue-700 border-blue-200">Manager</Badge>}
+                                {c.isVerified ? (<Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100"><CheckCircle2 className="w-3 h-3 mr-1"/> Validé</Badge>) : (<Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100"><AlertCircle className="w-3 h-3 mr-1"/> En attente</Badge>)}
+                            </div>
                             <p className="text-sm text-gray-500">{c.email} | SIRET: {c.siret}</p>
                             <p className="text-xs text-gray-400">{c.address} {c.zipCity}</p>
                         </div>
+                        {/* ✅ SÉLECTEUR DE TARIF AJOUTÉ */}
                         <div className="flex items-center gap-2 mr-4">
                             <Label className="text-xs text-gray-500">Tarif :</Label>
-                            <Select value={c.pricingTier?.toString() || "1"} onValueChange={async (val) => { const newTier = parseInt(val); const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pricingTier: newTier }) }); toast.success(`Tarif ${newTier} appliqué à ${c.nomSociete}`); setClients(prev => prev.map(cli => cli._id === c._id ? { ...cli, pricingTier: newTier as 1|2 } : cli)); }}>
-                                <SelectTrigger className="w-[100px] h-8 text-xs bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Tarif 1 (Std)</SelectItem><SelectItem value="2">Tarif 2 (VIP)</SelectItem></SelectContent>
+                            <Select 
+                                value={c.pricingTier?.toString() || "1"} 
+                                onValueChange={async (val) => {
+                                    const newTier = parseInt(val);
+                                    const baseUrl = getApiUrl();
+                                    await fetch(`${baseUrl}/api/users/${c._id}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ pricingTier: newTier })
+                                    });
+                                    toast.success(`Tarif ${newTier} appliqué à ${c.nomSociete}`);
+                                    setClients(prev => prev.map(cli => cli._id === c._id ? { ...cli, pricingTier: newTier as 1|2 } : cli));
+                                }}
+                            >
+                                <SelectTrigger className="w-[100px] h-8 text-xs bg-white">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1">Tarif 1 (Std)</SelectItem>
+                                    <SelectItem value="2">Tarif 2 (VIP)</SelectItem>
+                                </SelectContent>
                             </Select>
                         </div>
+
                         <div className="flex items-center gap-3">
-                            {c.role === 'manager' && (<Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); openShopAssign(c); }}><Store className="w-4 h-4 mr-2" /> Gérer Magasins</Button>)}
-                            {!c.isVerified && (<Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}><CheckCircle2 className="w-4 h-4 mr-2" /> Valider</Button>)}
-                            <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 bg-white" onClick={(e) => { e.stopPropagation(); openClientInvoices(c); }}><Receipt className="w-4 h-4 mr-2" /> Factures</Button>
+                            {c.role === 'manager' && (
+                                <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); openShopAssign(c); }}>
+                                    <Store className="w-4 h-4 mr-2" /> Gérer Magasins
+                                </Button>
+                            )}
+                            {!c.isVerified && (
+                                <Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}>
+                                    <CheckCircle2 className="w-4 h-4 mr-2" /> Valider
+                                </Button>
+                            )}
+                            <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 bg-white" onClick={(e) => { e.stopPropagation(); openClientInvoices(c); }}>
+                                <Receipt className="w-4 h-4 mr-2" /> Factures
+                            </Button>
                         </div>
                     </div>
                 ))}
