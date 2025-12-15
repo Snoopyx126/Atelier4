@@ -334,13 +334,6 @@ app.get("/api/montages", async (req, res) => {
         res.json({ success: true, montages: optimizedMontages });
     } catch (e) { res.status(500).json({ success: false }); }
 });
-// Route pour récupérer un montage complet (avec la vraie photo) par son ID
-app.get("/api/montages/:id", async (req, res) => {
-    try {
-        const m = await Montage.findById(req.params.id);
-        res.json({ success: true, montage: m });
-    } catch (e) { res.status(500).json({ success: false }); }
-});
 
 // MISE À JOUR MONTAGE (Email auto)
 app.put("/api/montages/:id", async (req, res) => {
