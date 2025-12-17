@@ -55,7 +55,7 @@ const CATEGORY_COSTS: Record<string, { 1: number, 2: number }> = {
 };
 
 const GLASS_COSTS: Record<string, { 1: number, 2: number }> = { 
-    'Verre Dégradé 4 saisons': { 1: 28.80, 2: 28.80 }, 
+    'Verre 4 saisons': { 1: 28.80, 2: 28.80 }, 
     'Verre Dégradé': { 1: 50.00, 2: 48.00 }, 
     'Verre de stock': { 1: 0.00, 2: 0.00 } 
 };

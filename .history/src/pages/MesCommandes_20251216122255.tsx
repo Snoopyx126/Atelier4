@@ -48,7 +48,7 @@ const CATEGORY_COSTS: Record<string, { 1: number, 2: number }> = {
 };
 
 const GLASS_COSTS: Record<string, { 1: number, 2: number }> = { 
-    'Verre Dégradé 4 saisons': { 1: 28.80, 2: 28.80 }, 
+    'Verre 4 Dégradé saisons': { 1: 28.80, 2: 28.80 }, 
     'Verre Dégradé': { 1: 50.00, 2: 48.00 }, 
     'Verre de stock': { 1: 0.00, 2: 0.00 } 
 };
@@ -93,7 +93,7 @@ const calculateSingleMontagePrice = (m: Montage, tier: 1 | 2 = 1): number => {
 // --- CONSTANTES FORMULAIRE ---
 const URGENCY_OPTIONS = ['Standard', 'Prioritaire -48H', 'Express -24H', 'Urgent -3H'];
 const DIAMONDCUT_OPTIONS = ['Standard', 'Facette Lisse', 'Diamond Ice', 'Facette Twinkle'];
-const GLASS_OPTIONS = ['Verre Dégradé 4 saisons', 'Verre Dégradé', 'Verre de stock'];
+const GLASS_OPTIONS = ['Verre 4 Dégradé saisons', 'Verre Dégradé', 'Verre de stock'];
 
 const MesCommandes = () => {
   const navigate = useNavigate();
@@ -218,7 +218,7 @@ const MesCommandes = () => {
     }
   };
   const getStatusIcon = (statut: string) => { switch (statut) { case 'En attente': return <AlertCircle className="w-4 h-4 mr-1"/>; case 'En cours': return <Clock className="w-4 h-4 mr-1"/>; case 'Terminé': return <CheckCircle2 className="w-4 h-4 mr-1"/>; case 'Expédié': return <Package className="w-4 h-4 mr-1"/>; default: return null; } };
-  const renderMontageDetails = (m: Montage) => ( <div className="flex flex-wrap items-center gap-2 mt-2">{m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}{m.diamondCutType !== 'Standard' && <Badge className="bg-blue-100 text-blue-800">{m.diamondCutType}</Badge>}{m.engravingCount && m.engravingCount > 0 ? <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">✍️ {m.engravingCount} Gravure(s)</Badge> : null}{m.glassType && m.glassType.map(g => <Badge key={g} className="bg-green-100 text-green-800">{g.replace(' ', '')}</Badge>)} {m.shapeChange && <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">📐 Changement Forme</Badge>}</div>);
+  const renderMontageDetails = (m: Montage) => ( <div className="flex flex-wrap items-center gap-2 mt-2">{m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}{m.diamondCutType !== 'Standard' && <Badge className="bg-blue-100 text-blue-800">{m.diamondCutType}</Badge>}{m.engravingCount && m.engravingCount > 0 ? <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">✍️ {m.engravingCount} Gravure(s)</Badge> : null}{m.glassType && m.glassType.map(g => <Badge key={g} className="bg-green-100 text-green-800">{g.replace('Verre ', '')}</Badge>)} {m.shapeChange && <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">📐 Changement Forme</Badge>}</div>);
 
   // Groupement logique selon rôle
   const filteredMontages = montages.filter(m => normalize(m.reference + m.frame).includes(normalize(searchTerm)));
