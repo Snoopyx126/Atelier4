@@ -35,7 +35,7 @@ interface Client {
   _id: string; nomSociete: string; email: string; siret: string; phone?: string; 
   address?: string; zipCity?: string; createdAt: string; 
   isVerified?: boolean; role: string; assignedShops?: any[];
-  pricingTier?: number; // ✅ Accepte maintenant 1, 2, 3, 4, etc.
+  pricingTier?: 1 | 2;
 }
 
 interface FactureData { 
@@ -124,51 +124,41 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     if (!isOpen) return null;
     const today = new Date();
     const currentYear = today.getFullYear();
-    
-    // ✅ CORRECTION 1 : On prend TOUS les montages (plus de filtre "Terminé")
-    const monthlyMontages = montages; 
-    
+    const monthlyMontages = montages;
     const tier = client.pricingTier || 1;
 
-    // ✅ CORRECTION 2 : Calcul des prix ultra-sécurisé (anti-crash)
     const getMontagePriceDetails = (m: Montage) => {
-        const lookupTier = (tier === 1 || tier === 2) ? tier : 1; 
-        const safeLookupTier = lookupTier as 1 | 2;
         let totalBase = 0; let details: string[] = [];
         
-        // Sécurité : si la catégorie n'existe pas, on met 0 par défaut au lieu de crasher
-        const catCosts = CATEGORY_COSTS[m.category || 'Cerclé'] || { 1: 0, 2: 0 };
-        const montagePrice = catCosts[safeLookupTier] || 0; 
-        totalBase += montagePrice; details.push(`${m.category || 'Standard'} (${montagePrice.toFixed(2)}€)`);
+        const montagePrice = CATEGORY_COSTS[m.category || 'Cerclé'][tier] || 0; 
+        totalBase += montagePrice; 
+        details.push(`${m.category} (${montagePrice.toFixed(2)}€)`);
 
-        const dcCosts = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'] || { 1: 0, 2: 0 };
-        const dcPrice = dcCosts[safeLookupTier] || 0; 
+        const dcPrice = DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'][tier] || 0; 
         if (dcPrice > 0) { totalBase += dcPrice; details.push(`Diamond Cut ${m.diamondCutType} (+${dcPrice.toFixed(2)}€)`); }
 
-        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST[safeLookupTier]; 
+        const engravingPrice = (m.engravingCount || 0) * ENGRAVING_UNIT_COST[tier]; 
         if (engravingPrice > 0) { totalBase += engravingPrice; details.push(`${m.engravingCount} Gravure(s) (+${engravingPrice.toFixed(2)}€)`); }
 
         if (m.glassType) { 
             m.glassType.forEach(type => { 
-                const glassCosts = GLASS_COSTS[type] || { 1: 0, 2: 0 };
-                const price = glassCosts[safeLookupTier] || 0; 
+                const price = GLASS_COSTS[type] ? GLASS_COSTS[type][tier] : 0; 
                 if (price > 0) { totalBase += price; details.push(`${type.replace('Verre ', '')} (+${price.toFixed(2)}€)`); } 
             }); 
         }
 
         if (m.shapeChange) { 
-            const scPrice = SHAPE_CHANGE_COST[safeLookupTier];
-            totalBase += scPrice; details.push(`Changement de forme (+${scPrice.toFixed(2)}€)`); 
+            const scPrice = SHAPE_CHANGE_COST[tier];
+            totalBase += scPrice; 
+            details.push(`Changement de forme (+${scPrice.toFixed(2)}€)`); 
         }
-
-        if (tier === 3) { totalBase = totalBase * 0.90; details.push(`Remise Globale (-10%)`); } 
-        else if (tier === 4) { totalBase = totalBase * 0.85; details.push(`Remise Globale (-15%)`); }
 
         const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0; 
         const surcharge = totalBase * urgencyRate;
         if (surcharge > 0) { const rate = urgencyRate * 100; details.push(`Urgence (${rate.toFixed(0)}% Surcharge: +${surcharge.toFixed(2)}€)`); }
         
-        return { total: totalBase + surcharge, details };
+        const finalTotal = totalBase + surcharge;
+        return { total: finalTotal, details };
     };
 
     const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0); 
@@ -180,120 +170,97 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const handlePublishAndSend = async () => {
         const input = document.getElementById('invoice-content'); 
         if (!input) { toast.error("Erreur PDF"); return; } 
+        
         setIsPublishing(true);
-        toast.loading("Génération du document...", { id: 'pdf-gen' });
+        toast.loading("Génération du PDF multi-pages...", { id: 'pdf-gen' });
 
         try {
             const canvas = await html2canvas(input, { 
-                scale: 2, useCORS: true, scrollY: 0, windowWidth: input.scrollWidth, windowHeight: input.scrollHeight,
+                scale: 2, 
+                useCORS: true,
+                scrollY: 0,
+                windowWidth: input.scrollWidth,
+                windowHeight: input.scrollHeight,
                 onclone: (clonedDoc) => {
                     const el = clonedDoc.getElementById('invoice-content');
                     if (el) {
                         el.style.height = 'max-content';
                         let parent = el.parentElement;
                         while (parent && parent.tagName !== 'BODY') {
-                            parent.style.overflow = 'visible'; parent.style.maxHeight = 'none'; parent = parent.parentElement;
+                            parent.style.overflow = 'visible';
+                            parent.style.maxHeight = 'none';
+                            parent = parent.parentElement;
                         }
                     }
                 }
             }); 
             
+            // --- SUITE DE LA FONCTION QUI MANQUAIT ---
             const imgData = canvas.toDataURL('image/jpeg', 0.9);
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); 
+            
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             const imgProps = pdf.getImageProperties(imgData);
             const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
             
-            let heightLeft = imgHeight; let position = 0;
-            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight); heightLeft -= pageHeight;
-            while (heightLeft > 0) { position = heightLeft - imgHeight; pdf.addPage(); pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight); heightLeft -= pageHeight; }
+            let heightLeft = imgHeight;
+            let position = 0;
 
-            const rawPdf = pdf.output('datauristring');
-            const pdfBase64 = rawPdf.includes('base64,') ? rawPdf.split('base64,')[1] : rawPdf;
-            const invoiceDetailsSnapshot = monthlyMontages.map(m => ({ reference: m.reference, details: getMontagePriceDetails(m).details, price: getMontagePriceDetails(m).total }));
-            const payload = { userId: client._id, clientName: client.nomSociete, invoiceNumber: invoiceNumber, totalHT: parseFloat(totalHT.toFixed(2)), totalTTC: parseFloat(totalTTC.toFixed(2)), montagesReferences: montagesReferences, dateEmission: new Date().toISOString(), invoiceData: invoiceDetailsSnapshot, pdfUrl: '#', sendEmail: true, pdfBase64: pdfBase64 };
+            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            const pdfBase64 = pdf.output('datauristring');
+            
+            const invoiceDetailsSnapshot = monthlyMontages.map(m => ({ 
+                reference: m.reference, 
+                details: getMontagePriceDetails(m).details, 
+                price: getMontagePriceDetails(m).total 
+            }));
+            
+            const payload = { 
+                userId: client._id, 
+                clientName: client.nomSociete, 
+                invoiceNumber: invoiceNumber, 
+                totalHT: parseFloat(totalHT.toFixed(2)), 
+                totalTTC: parseFloat(totalTTC.toFixed(2)), 
+                montagesReferences: montagesReferences, 
+                dateEmission: new Date().toISOString(), 
+                invoiceData: invoiceDetailsSnapshot, 
+                pdfUrl: '#', 
+                sendEmail: true, 
+                pdfBase64: pdfBase64 
+            };
             
             const baseUrl = getApiUrl();
-            const res = await fetch(`${baseUrl}/api/factures`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            const data = await res.json();
+            const res = await fetch(`${baseUrl}/api/factures`, { 
+                method: "POST", 
+                headers: { "Content-Type": "application/json" }, 
+                body: JSON.stringify(payload) 
+            });
             
+            const data = await res.json();
             if (data.success) { 
-                toast.success("Document généré !", { id: 'pdf-gen' }); 
+                toast.success("Document généré et enregistré !", { id: 'pdf-gen' }); 
                 pdf.save(`Detail_Facturation_${client.nomSociete}_${new Date().toISOString().split('T')[0]}.pdf`); 
-                onInvoicePublished(data.facture); onClose(); 
-            } else toast.error("Erreur d'envoi", { id: 'pdf-gen' });
-        } catch (error) { toast.error("Erreur technique.", { id: 'pdf-gen' }); } 
-        finally { setIsPublishing(false); }
+                onInvoicePublished(data.facture); 
+                onClose(); 
+            } else {
+                toast.error("Erreur lors de l'envoi", { id: 'pdf-gen' });
+            }
+        } catch (error) { 
+            toast.error("Erreur technique lors de la génération.", { id: 'pdf-gen' }); 
+        } finally { 
+            setIsPublishing(false); 
+        }
     };
-
-    return ( 
-        <Dialog open={isOpen} onOpenChange={onClose}> 
-            <style>{`@media print { .print-hidden { display: none !important; } body > * { visibility: hidden !important; } .invoice-wrapper, .invoice-wrapper * { visibility: visible !important; } .invoice-wrapper { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; } .DialogContent { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; padding: 0 !important; } #invoice-content { box-shadow: none !important; border: none !important; } }`}</style> 
-            <div className="invoice-wrapper"> 
-                <DialogContent className="DialogContent max-w-4xl bg-white p-0 overflow-hidden flex flex-col max-h-[95vh]"> 
-                    <DialogHeader className="p-6 border-b print-hidden"><DialogTitle>Détail Facturation</DialogTitle></DialogHeader> 
-                    <div className="overflow-y-auto p-6 bg-gray-50 flex-grow"> 
-                        <div id="invoice-content" className="p-10 bg-white text-black border shadow-sm mx-auto max-w-[210mm] min-h-[297mm] flex flex-col justify-between"> 
-                            <div> 
-                                <div className="flex justify-between items-start mb-10">
-                                    <div>
-                                        <h1 className="text-3xl font-extrabold text-gray-900 mb-2 uppercase">DÉTAIL DE FACTURATION</h1>
-                                        <p className="text-sm text-gray-400">Date: {today.toLocaleDateString('fr-FR')}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <h2 className="text-xl font-bold text-gray-800">{FACTURE_INFO.name}</h2>
-                                        <p className="text-sm text-gray-600">{FACTURE_INFO.address}</p>
-                                        <p className="text-sm text-gray-600">{FACTURE_INFO.zipCity}</p>
-                                        <p className="text-sm text-gray-600">SIRET: {FACTURE_INFO.siret}</p>
-                                    </div>
-                                </div> 
-                                <div className="border-t-2 border-gray-100 py-6 mb-8">
-                                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Facturé à</h3>
-                                    <p className="text-xl font-bold text-gray-900">{client.nomSociete}</p>
-                                    <p className="text-gray-600">{client.address}</p>
-                                    <p className="text-gray-600">{client.zipCity}</p>
-                                    <p className="text-gray-600 text-sm mt-1">SIRET: {client.siret}</p>
-                                </div> 
-                                <table className="w-full mb-8">
-                                    <thead>
-                                        <tr className="border-b-2 border-gray-800">
-                                            <th className="text-left py-3 font-bold text-gray-900">Description</th>
-                                            <th className="text-left py-3 font-bold text-gray-900">Détails</th>
-                                            <th className="text-right py-3 font-bold text-gray-900">Prix HT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200">
-                                        {monthlyMontages.map((m) => { const { total, details } = getMontagePriceDetails(m); return (<tr key={m._id}><td className="py-4 align-top font-medium text-gray-800">{m.reference}</td><td className="py-4 align-top text-sm text-gray-600">{details.map((d, i) => <div key={i}>{d}</div>)}</td><td className="py-4 align-top text-right font-bold text-gray-900">{total.toFixed(2)} €</td></tr>); })}
-                                    </tbody>
-                                </table> 
-                            </div> 
-                            <div> 
-                                <div className="flex justify-between items-end mb-8">
-                                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg w-1/2 mr-8">
-                                        <h4 className="font-bold text-sm text-gray-900 mb-2">BANQUE</h4>
-                                        <div className="text-xs text-gray-600 space-y-1">
-                                            <p>IBAN : FR76 1820 6002 0065 1045 3419 297</p>
-                                            <p>BIC : AGRIFRPP882</p>
-                                        </div>
-                                    </div>
-                                    <div className="w-1/3 space-y-3">
-                                        <div className="flex justify-between text-gray-600"><span className="font-medium">Total HT</span><span>{totalHT.toFixed(2)} €</span></div>
-                                        <div className="flex justify-between text-gray-600"><span className="font-medium">TVA (20%)</span><span>{tva.toFixed(2)} €</span></div>
-                                        <div className="flex justify-between text-2xl font-extrabold text-gray-900 border-t-2 border-gray-900 pt-3"><span>Net à payer</span><span>{totalTTC.toFixed(2)} €</span></div>
-                                    </div>
-                                </div> 
-                            </div> 
-                        </div> 
-                    </div> 
-                    <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 print-hidden">
-                        <Button variant="outline" onClick={onClose} disabled={isPublishing}>Annuler</Button>
-                        <Button onClick={handlePublishAndSend} disabled={isPublishing || monthlyMontages.length === 0} className="bg-black text-white hover:bg-gray-800">Télécharger PDF</Button>
-                    </div> 
-                </DialogContent> 
-            </div> 
-        </Dialog> 
-    );
 };
 interface ClientInvoicesModalProps { client: Client | null; invoices: FactureData[]; isOpen: boolean; onClose: () => void; onDelete: (id: string) => void; onPaymentUpdate: (id: string, amount: number) => void; }
 const ClientInvoicesModal: React.FC<ClientInvoicesModalProps> = ({ client, invoices, isOpen, onClose, onDelete, onPaymentUpdate }) => {
@@ -337,7 +304,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentClientInvoices, setCurrentClientInvoices] = useState<FactureData[]>([]); 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Modale Manager
   const [isShopAssignOpen, setIsShopAssignOpen] = useState(false);
@@ -351,7 +318,6 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ FILTRE STATUT INITIALISÉ À NULL (TOUT VOIR)
   const [statusFilter, setStatusFilter] = useState<string | null>(null); 
-  const [showAllHistory, setShowAllHistory] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -436,19 +402,6 @@ const [isSubmitting, setIsSubmitting] = useState(false);
       if (statusFilter === 'En production') { statusMatch = (m.statut === 'En cours' || m.statut === 'Reçu'); } else if (statusFilter) { statusMatch = m.statut === statusFilter; }
       return searchMatch && statusMatch;
   });
-
-  const sortedFilteredMontages = [...filteredMontages].sort((a, b) => new Date(b.dateReception).getTime() - new Date(a.dateReception).getTime());
-
-  const montagesToDisplay = showAllHistory ? sortedFilteredMontages : (() => {
-      const counts: Record<string, number> = {};
-      return sortedFilteredMontages.filter(m => {
-          const shopId = m.userId || 'inconnu';
-          counts[shopId] = (counts[shopId] || 0) + 1;
-          return counts[shopId] <= 20;
-      });
-  })();
-
-  const hiddenCount = filteredMontages.length - montagesToDisplay.length;
   
   const groupedByMonthAndShop = filteredMontages.reduce((acc: any, m) => { 
       const clientFound = clients.find(c => c._id === m.userId);
@@ -483,17 +436,17 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                       <DialogHeader><DialogTitle>{editingId ? "Modifier" : "Ajouter"}</DialogTitle></DialogHeader>
                       <form onSubmit={handleSaveMontage} className="space-y-4 pt-4">
                           <div className="grid grid-cols-3 gap-4">
-                              <div className="col-span-3"><Label>Client</Label><Select onValueChange={setNewClient} value={newClient}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div>
+                              <div className="col-span-3"><Label>Client</Label><Select onValueChange={setNewClient} value={newClient}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div>
                               <div><Label>Réf.</Label><Input value={newRef} onChange={e=>setNewRef(e.target.value)} required className="bg-white"/></div>
                               <div><Label>Monture</Label><Input value={newFrame} onChange={e=>setNewFrame(e.target.value)} required className="bg-white"/></div>
-                              <div><Label>Urgence</Label><Select onValueChange={setNewUrgency} value={newUrgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                              <div><Label>Urgence</Label><Select onValueChange={setNewUrgency} value={newUrgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
     <div className="col-span-2 md:col-span-4">
         <Label>Statut du montage</Label>
         <Select onValueChange={setNewStatut} value={newStatut}>
             <SelectTrigger className="bg-white border-blue-300 shadow-sm"><SelectValue/></SelectTrigger>
-            <SelectContent position="popper" className="bg-white">
+            <SelectContent className="bg-white">
                 <SelectItem value="En attente">🔴 En attente</SelectItem>
                 <SelectItem value="Reçu">🔵 Reçu</SelectItem>
                 <SelectItem value="En cours">🟠 En cours</SelectItem>
@@ -504,8 +457,8 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 </div>
                           <hr/>
                           <div className="grid grid-cols-3 gap-4">
-                              <div><Label>Type</Label><Select onValueChange={setNewCategory} value={newCategory}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
-                              <div><Label>Diamond Cut</Label><Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                              <div><Label>Type</Label><Select onValueChange={setNewCategory} value={newCategory}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
+                              <div><Label>Diamond Cut</Label><Select onValueChange={setNewDiamondCutType} value={newDiamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                               <div><Label>Gravure</Label><Input type="number" value={newEngravingCount} onChange={e=>setNewEngravingCount(parseInt(e.target.value))} className="bg-white"/></div>
                           </div>
                           <div className="p-3 bg-white rounded border space-y-3">
@@ -562,7 +515,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                                 {m.description && m.description.length > 0 && (<p className="text-xs text-gray-600 mt-1 mb-2 italic border-l-2 border-gray-200 pl-2 max-w-full overflow-hidden whitespace-normal">Note: {m.description}</p>)}
                             </div>
                             <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                                <Select defaultValue={m.statut} onValueChange={(val) => handleStatusChange(m._id, val)}><SelectTrigger className={`w-[160px] bg-white border-2 ${getStatusColor(m.statut)}`}><SelectValue /></SelectTrigger><SelectContent position="popper" className="bg-white"><SelectItem value="En attente">🔴 En attente</SelectItem><SelectItem value="Reçu">🔵 Reçu</SelectItem><SelectItem value="En cours">🟠 En cours</SelectItem><SelectItem value="Terminé">🟢 Terminé</SelectItem></SelectContent></Select>
+                                <Select defaultValue={m.statut} onValueChange={(val) => handleStatusChange(m._id, val)}><SelectTrigger className={`w-[160px] bg-white border-2 ${getStatusColor(m.statut)}`}><SelectValue /></SelectTrigger><SelectContent className="bg-white"><SelectItem value="En attente">🔴 En attente</SelectItem><SelectItem value="Reçu">🔵 Reçu</SelectItem><SelectItem value="En cours">🟠 En cours</SelectItem><SelectItem value="Terminé">🟢 Terminé</SelectItem></SelectContent></Select>
                                 
                                 {/* ✅ GESTION PHOTO INTELLIGENTE */}
                                 {m.photoUrl ? (
@@ -629,20 +582,6 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                     );
                 })}</AccordionContent></AccordionItem>); })}</Accordion></AccordionContent></AccordionItem>))}
                             </Accordion>)}
-                            {!showAllHistory && hiddenCount > 0 && (
-                                    <div className="mt-8 flex justify-center">
-                                        <Button variant="outline" onClick={() => setShowAllHistory(true)} className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 shadow-sm">
-                                            Charger l'historique ancien ({hiddenCount} dossiers masqués)
-                                        </Button>
-                                    </div>
-                                )}
-                                {showAllHistory && hiddenCount === 0 && filteredMontages.length > 20 && (
-                                    <div className="mt-8 flex justify-center">
-                                        <Button variant="outline" onClick={() => setShowAllHistory(false)} className="bg-white shadow-sm">
-                                            Masquer l'historique ancien
-                                        </Button>
-                                    </div>
-                                )}
                     </CardContent>
                 </Card>
             </TabsContent>

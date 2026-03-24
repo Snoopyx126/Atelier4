@@ -209,8 +209,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
             pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight); heightLeft -= pageHeight;
             while (heightLeft > 0) { position = heightLeft - imgHeight; pdf.addPage(); pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight); heightLeft -= pageHeight; }
 
-            const rawPdf = pdf.output('datauristring');
-            const pdfBase64 = rawPdf.includes('base64,') ? rawPdf.split('base64,')[1] : rawPdf;
+            const pdfBase64 = pdf.output('datauristring');
             const invoiceDetailsSnapshot = monthlyMontages.map(m => ({ reference: m.reference, details: getMontagePriceDetails(m).details, price: getMontagePriceDetails(m).total }));
             const payload = { userId: client._id, clientName: client.nomSociete, invoiceNumber: invoiceNumber, totalHT: parseFloat(totalHT.toFixed(2)), totalTTC: parseFloat(totalTTC.toFixed(2)), montagesReferences: montagesReferences, dateEmission: new Date().toISOString(), invoiceData: invoiceDetailsSnapshot, pdfUrl: '#', sendEmail: true, pdfBase64: pdfBase64 };
             
@@ -436,19 +435,6 @@ const [isSubmitting, setIsSubmitting] = useState(false);
       if (statusFilter === 'En production') { statusMatch = (m.statut === 'En cours' || m.statut === 'Reçu'); } else if (statusFilter) { statusMatch = m.statut === statusFilter; }
       return searchMatch && statusMatch;
   });
-
-  const sortedFilteredMontages = [...filteredMontages].sort((a, b) => new Date(b.dateReception).getTime() - new Date(a.dateReception).getTime());
-
-  const montagesToDisplay = showAllHistory ? sortedFilteredMontages : (() => {
-      const counts: Record<string, number> = {};
-      return sortedFilteredMontages.filter(m => {
-          const shopId = m.userId || 'inconnu';
-          counts[shopId] = (counts[shopId] || 0) + 1;
-          return counts[shopId] <= 20;
-      });
-  })();
-
-  const hiddenCount = filteredMontages.length - montagesToDisplay.length;
   
   const groupedByMonthAndShop = filteredMontages.reduce((acc: any, m) => { 
       const clientFound = clients.find(c => c._id === m.userId);
@@ -629,20 +615,6 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                     );
                 })}</AccordionContent></AccordionItem>); })}</Accordion></AccordionContent></AccordionItem>))}
                             </Accordion>)}
-                            {!showAllHistory && hiddenCount > 0 && (
-                                    <div className="mt-8 flex justify-center">
-                                        <Button variant="outline" onClick={() => setShowAllHistory(true)} className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 shadow-sm">
-                                            Charger l'historique ancien ({hiddenCount} dossiers masqués)
-                                        </Button>
-                                    </div>
-                                )}
-                                {showAllHistory && hiddenCount === 0 && filteredMontages.length > 20 && (
-                                    <div className="mt-8 flex justify-center">
-                                        <Button variant="outline" onClick={() => setShowAllHistory(false)} className="bg-white shadow-sm">
-                                            Masquer l'historique ancien
-                                        </Button>
-                                    </div>
-                                )}
                     </CardContent>
                 </Card>
             </TabsContent>

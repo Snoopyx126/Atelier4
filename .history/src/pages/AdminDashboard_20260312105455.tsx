@@ -209,8 +209,7 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
             pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight); heightLeft -= pageHeight;
             while (heightLeft > 0) { position = heightLeft - imgHeight; pdf.addPage(); pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight); heightLeft -= pageHeight; }
 
-            const rawPdf = pdf.output('datauristring');
-            const pdfBase64 = rawPdf.includes('base64,') ? rawPdf.split('base64,')[1] : rawPdf;
+            const pdfBase64 = pdf.output('datauristring');
             const invoiceDetailsSnapshot = monthlyMontages.map(m => ({ reference: m.reference, details: getMontagePriceDetails(m).details, price: getMontagePriceDetails(m).total }));
             const payload = { userId: client._id, clientName: client.nomSociete, invoiceNumber: invoiceNumber, totalHT: parseFloat(totalHT.toFixed(2)), totalTTC: parseFloat(totalTTC.toFixed(2)), montagesReferences: montagesReferences, dateEmission: new Date().toISOString(), invoiceData: invoiceDetailsSnapshot, pdfUrl: '#', sendEmail: true, pdfBase64: pdfBase64 };
             

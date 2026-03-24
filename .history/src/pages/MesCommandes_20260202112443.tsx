@@ -42,7 +42,6 @@ const normalize = (text: string | undefined): string => {
 
 // --- CONSTANTES PRIX (Double Tarif) ---
 const CATEGORY_COSTS: Record<string, { 1: number, 2: number }> = { 
-    'Sans Montage': { 1: 0.00, 2: 0.00 }, // ✅ Nouvelle option gratuite
     'Cerclé': { 1: 7.00, 2: 3.60 }, 
     'Percé': { 1: 15.90, 2: 12.00 }, 
     'Nylor': { 1: 14.90, 2: 12.00 } 
@@ -68,43 +67,29 @@ const URGENCY_RATES: Record<string, number> = {
 const SHAPE_CHANGE_COST = { 1: 10.00, 2: 3.50 };
 const ENGRAVING_UNIT_COST = { 1: 12.00, 2: 10.00 };
 
-// Remplacez la signature de l'interface UserData/Client pour le pricingTier (si présent) par :
-// pricingTier?: number; 
-
-// --- NOUVELLE FONCTION DE CALCUL ---
-const calculateSingleMontagePrice = (m: Montage, tier: number = 1): number => {
-    // Si le tier est 3 (-10%) ou 4 (-15%), on utilise la base de prix du Tier 1
-    // Si c'est 1 ou 2, on utilise le prix défini dans les tableaux
-    const lookupTier = (tier === 1 || tier === 2) ? tier : 1; 
-    // Type assertion pour satisfaire TypeScript car les objets attendent 1 | 2
-    const safeLookupTier = lookupTier as 1 | 2; 
-
+// --- FONCTION CALCUL PRIX DYNAMIQUE ---
+const calculateSingleMontagePrice = (m: Montage, tier: 1 | 2 = 1): number => {
     let totalBase = 0;
     
-    totalBase += CATEGORY_COSTS[m.category || 'Cerclé'][safeLookupTier] || 0;
-    totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'][safeLookupTier] || 0;
-    totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST[safeLookupTier];
+    // On utilise le tier passé en paramètre
+    totalBase += CATEGORY_COSTS[m.category || 'Cerclé'][tier] || 0;
+    totalBase += DIAMONDCUT_COSTS[m.diamondCutType || 'Standard'][tier] || 0;
+    totalBase += (m.engravingCount || 0) * ENGRAVING_UNIT_COST[tier];
     
     if (m.glassType) { 
         m.glassType.forEach(type => { 
-            totalBase += GLASS_COSTS[type] ? GLASS_COSTS[type][safeLookupTier] : 0; 
+            totalBase += GLASS_COSTS[type] ? GLASS_COSTS[type][tier] : 0; 
         }); 
     }
     
-    if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST[safeLookupTier]; }
-    
-    // --- APPLICATION DES RÉDUCTIONS ---
-    if (tier === 3) {
-        totalBase = totalBase * 0.90; // Réduction de 10%
-    } else if (tier === 4) {
-        totalBase = totalBase * 0.85; // Réduction de 15%
-    }
+    if (m.shapeChange) { totalBase += SHAPE_CHANGE_COST[tier]; }
     
     const urgencyRate = URGENCY_RATES[m.urgency || 'Standard'] || 0;
     const urgencySurcharge = totalBase * urgencyRate;
     
     return totalBase + urgencySurcharge;
 };
+
 // --- CONSTANTES FORMULAIRE ---
 const URGENCY_OPTIONS = ['Standard', 'Prioritaire -48H', 'Express -24H', 'Urgent -3H'];
 const DIAMONDCUT_OPTIONS = ['Standard', 'Facette Lisse', 'Diamond Ice', 'Facette Twinkle'];
@@ -210,58 +195,17 @@ const MesCommandes = () => {
     } catch (error) { toast.error("Erreur envoi."); } 
     finally { setIsSubmitting(false); }
   };
-const handleDownloadClientInvoice = async (facture: Facture) => {
+
+  const handleDownloadClientInvoice = async (facture: Facture) => {
     if (!user) return;
     toast.loading("Génération du PDF...", { id: 'download' });
-    
     const hiddenDiv = document.createElement('div');
-    hiddenDiv.style.width = '800px'; 
-    hiddenDiv.style.padding = '40px'; 
-    hiddenDiv.style.background = 'white';
-    hiddenDiv.style.position = 'absolute'; 
-    hiddenDiv.style.top = '-9999px'; 
-    hiddenDiv.style.left = '-9999px';
+    hiddenDiv.style.width = '800px'; hiddenDiv.style.padding = '40px'; hiddenDiv.style.background = 'white';
+    hiddenDiv.style.position = 'absolute'; hiddenDiv.style.top = '-9999px'; hiddenDiv.style.left = '-9999px';
     document.body.appendChild(hiddenDiv);
-    
-    // Remplacement du titre "FACTURE" par "DÉTAIL DE FACTURATION" et suppression du n° de facture visuel ici aussi
-    hiddenDiv.innerHTML = `<div style="font-family: sans-serif; color: #000; display: flex; flex-direction: column; justify-content: space-between; min-height: 1000px;"><div><div style="display: flex; justify-content: space-between; margin-bottom: 40px;"><div><h1 style="font-size: 30px; font-weight: bold; margin-bottom: 10px;">DÉTAIL DE FACTURATION</h1><p style="color: #999;">Date: ${new Date(facture.dateEmission).toLocaleDateString('fr-FR')}</p></div><div style="text-align: right;"><h2 style="font-size: 18px; font-weight: bold;">L'Atelier des Arts</h2><p style="color: #666; font-size: 12px;">178 Avenue Daumesnil, 75012 Paris</p><p style="color: #666; font-size: 12px;">SIRET: 98095501700010</p></div></div><div style="border-top: 2px solid #eee; padding-top: 20px; margin-bottom: 30px;"><h3 style="font-size: 12px; font-weight: bold; color: #999; text-transform: uppercase;">Facturé à</h3><p style="font-size: 18px; font-weight: bold;">${user.nomSociete}</p><p style="color: #666;">${user.address || ''}</p><p style="color: #666;">${user.zipCity || ''}</p><p style="color: #666;">${user.siret}</p></div><table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;"><thead><tr style="border-bottom: 2px solid #000;"><th style="text-align: left; padding: 10px 0;">Référence</th><th style="text-align: left; padding: 10px 0;">Détails</th><th style="text-align: right; padding: 10px 0;">Prix HT</th></tr></thead><tbody>${facture.invoiceData.map((item: any) => `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px 0; vertical-align: top;">${item.reference || '-'}</td><td style="padding: 10px 0; font-size: 12px; color: #666;">${item.details.join('<br/>')}</td><td style="padding: 10px 0; text-align: right; font-weight: bold;">${item.price.toFixed(2)} €</td></tr>`).join('')}</tbody></table></div><div><div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;"><div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; width: 45%;"><p style="font-weight: bold; font-size: 12px; margin-bottom: 5px;">COORDONNÉES BANCAIRES</p><p style="font-size: 11px; color: #666;">Banque: L'ATELIER DES ARTS</p><p style="font-size: 11px; color: #666; margin-top: 5px;">IBAN :</p><p style="font-family: monospace; font-size: 13px; font-weight: bold; color: #333;">FR76 1820 6002 0065 1045 3419 297</p><p style="font-size: 11px; color: #666; margin-top: 5px;">BIC :</p><p style="font-family: monospace; font-size: 13px; font-weight: bold; color: #333;">AGRIFRPP882</p></div><div style="text-align: right;"><p style="margin: 5px 0;">Total HT: ${facture.totalHT?.toFixed(2)} €</p><p style="margin: 5px 0;">TVA (20%): ${(facture.totalTTC - (facture.totalHT || 0)).toFixed(2)} €</p><h2 style="font-size: 24px; font-weight: bold; margin-top: 10px;">Net à payer: ${facture.totalTTC.toFixed(2)} €</h2></div></div><div style="border-top: 1px solid #eee; padding-top: 15px; text-align: center; font-size: 9px; color: #999; line-height: 1.4;"><p>Conditions de règlement : Paiement à réception. Aucun escompte pour paiement anticipé.</p><p>En cas de retard de paiement : indemnité forfaitaire pour frais de recouvrement de 40€ + pénalités de retard (3x taux d'intérêt légal).</p><p style="margin-top: 5px; font-weight: bold;">L'Atelier des Arts - SIRET 98095501700010 - 178 Avenue Daumesnil 75012 Paris</p></div></div></div>`;
-    
-    try { 
-        const canvas = await html2canvas(hiddenDiv, { 
-            scale: 2,
-            windowWidth: hiddenDiv.scrollWidth,
-            windowHeight: hiddenDiv.scrollHeight 
-        }); 
-        const imgData = canvas.toDataURL('image/jpeg', 1.0); 
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); 
-        
-        // --- LOGIQUE MULTI-PAGES CÔTÉ CLIENT ---
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-        // ----------------------------------------
-        
-        pdf.save(`Detail_Facturation_${facture.invoiceNumber}.pdf`); 
-        toast.success("Document téléchargé !", { id: 'download' }); 
-    } catch (err) { 
-        toast.error("Erreur téléchargement.", { id: 'download' }); 
-    } finally { 
-        document.body.removeChild(hiddenDiv); 
-    }
-};
+    hiddenDiv.innerHTML = `<div style="font-family: sans-serif; color: #000; display: flex; flex-direction: column; justify-content: space-between; min-height: 1000px;"><div><div style="display: flex; justify-content: space-between; margin-bottom: 40px;"><div><h1 style="font-size: 30px; font-weight: bold; margin-bottom: 10px;">FACTURE</h1><p style="color: #666;">N° ${facture.invoiceNumber}</p><p style="color: #999;">Date: ${new Date(facture.dateEmission).toLocaleDateString('fr-FR')}</p></div><div style="text-align: right;"><h2 style="font-size: 18px; font-weight: bold;">L'Atelier des Arts</h2><p style="color: #666; font-size: 12px;">178 Avenue Daumesnil, 75012 Paris</p><p style="color: #666; font-size: 12px;">SIRET: 98095501700010</p></div></div><div style="border-top: 2px solid #eee; padding-top: 20px; margin-bottom: 30px;"><h3 style="font-size: 12px; font-weight: bold; color: #999; text-transform: uppercase;">Facturé à</h3><p style="font-size: 18px; font-weight: bold;">${user.nomSociete}</p><p style="color: #666;">${user.address || ''}</p><p style="color: #666;">${user.zipCity || ''}</p><p style="color: #666;">${user.siret}</p></div><table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;"><thead><tr style="border-bottom: 2px solid #000;"><th style="text-align: left; padding: 10px 0;">Référence</th><th style="text-align: left; padding: 10px 0;">Détails</th><th style="text-align: right; padding: 10px 0;">Prix HT</th></tr></thead><tbody>${facture.invoiceData.map((item: any) => `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px 0; vertical-align: top;">${item.reference || '-'}</td><td style="padding: 10px 0; font-size: 12px; color: #666;">${item.details.join('<br/>')}</td><td style="padding: 10px 0; text-align: right; font-weight: bold;">${item.price.toFixed(2)} €</td></tr>`).join('')}</tbody></table></div><div><div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;"><div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; width: 45%;"><p style="font-weight: bold; font-size: 12px; margin-bottom: 5px;">COORDONNÉES BANCAIRES</p><p style="font-size: 11px; color: #666;">Banque: L'ATELIER DES ARTS</p><p style="font-size: 11px; color: #666; margin-top: 5px;">IBAN :</p><p style="font-family: monospace; font-size: 13px; font-weight: bold; color: #333;">FR76 1820 6002 0065 1045 3419 297</p><p style="font-size: 11px; color: #666; margin-top: 5px;">BIC :</p><p style="font-family: monospace; font-size: 13px; font-weight: bold; color: #333;">AGRIFRPP882</p></div><div style="text-align: right;"><p style="margin: 5px 0;">Total HT: ${facture.totalHT?.toFixed(2)} €</p><p style="margin: 5px 0;">TVA (20%): ${(facture.totalTTC - (facture.totalHT || 0)).toFixed(2)} €</p><h2 style="font-size: 24px; font-weight: bold; margin-top: 10px;">Net à payer: ${facture.totalTTC.toFixed(2)} €</h2></div></div><div style="border-top: 1px solid #eee; padding-top: 15px; text-align: center; font-size: 9px; color: #999; line-height: 1.4;"><p>Conditions de règlement : Paiement à réception. Aucun escompte pour paiement anticipé.</p><p>En cas de retard de paiement : indemnité forfaitaire pour frais de recouvrement de 40€ + pénalités de retard (3x taux d'intérêt légal).</p><p style="margin-top: 5px; font-weight: bold;">L'Atelier des Arts - SIRET 98095501700010 - 178 Avenue Daumesnil 75012 Paris</p></div></div></div>`;
+    try { const canvas = await html2canvas(hiddenDiv, { scale: 2 }); const imgData = canvas.toDataURL('image/jpeg', 1.0); const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); pdf.addImage(imgData, 'JPEG', 0, 0, 210, (canvas.height * 210) / canvas.width); pdf.save(`Facture_${facture.invoiceNumber}.pdf`); toast.success("Facture téléchargée !", { id: 'download' }); } catch (err) { toast.error("Erreur téléchargement.", { id: 'download' }); } finally { document.body.removeChild(hiddenDiv); }
+  };
 
   const getStatusColor = (statut: string) => {
     switch (statut) {
@@ -325,7 +269,7 @@ const handleDownloadClientInvoice = async (facture: Facture) => {
                                     <Label className="text-blue-800 font-bold mb-2 block">Pour le compte de quel magasin ?</Label>
                                     <Select onValueChange={setSelectedTargetClient} value={selectedTargetClient}>
                                         <SelectTrigger className="bg-white border-blue-300"><SelectValue placeholder="Choisir un client..." /></SelectTrigger>
-                                        <SelectContent position="popper" className="bg-white max-h-60">
+                                        <SelectContent className="bg-white max-h-60">
                                             {clientsList.map((c: any) => (<SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>))}
                                         </SelectContent>
                                     </Select>
@@ -335,11 +279,11 @@ const handleDownloadClientInvoice = async (facture: Facture) => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2"><Label>Référence Dossier *</Label><Input placeholder="Ex: REF-123" value={reference} onChange={e => setReference(e.target.value)} required className="bg-white"/></div>
                                 <div className="space-y-2"><Label>Modèle Monture *</Label><Input placeholder="Ex: RayBan 450" value={frame} onChange={e => setFrame(e.target.value)} required className="bg-white"/></div>
-                                <div className="space-y-2"><Label>Urgence</Label><Select onValueChange={setUrgency} value={urgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Urgence</Label><Select onValueChange={setUrgency} value={urgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="space-y-2"><Label>Type</Label><Select onValueChange={setCategory} value={category}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
-                                <div className="space-y-2"><Label>Diamond Cut</Label><Select onValueChange={setDiamondCutType} value={diamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Type</Label><Select onValueChange={setCategory} value={category}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem></SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Diamond Cut</Label><Select onValueChange={setDiamondCutType} value={diamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                                 <div className="space-y-2"><Label>Gravure (Qté)</Label><Input type="number" min={0} max={2} value={engravingCount} onChange={e=>setEngravingCount(parseInt(e.target.value))} className="bg-white"/></div>
                             </div>
                             <div className="p-3 bg-white rounded border space-y-3">

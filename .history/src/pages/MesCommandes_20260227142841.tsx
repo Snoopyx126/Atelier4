@@ -325,7 +325,7 @@ const handleDownloadClientInvoice = async (facture: Facture) => {
                                     <Label className="text-blue-800 font-bold mb-2 block">Pour le compte de quel magasin ?</Label>
                                     <Select onValueChange={setSelectedTargetClient} value={selectedTargetClient}>
                                         <SelectTrigger className="bg-white border-blue-300"><SelectValue placeholder="Choisir un client..." /></SelectTrigger>
-                                        <SelectContent position="popper" className="bg-white max-h-60">
+                                        <SelectContent className="bg-white max-h-60">
                                             {clientsList.map((c: any) => (<SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>))}
                                         </SelectContent>
                                     </Select>
@@ -335,11 +335,11 @@ const handleDownloadClientInvoice = async (facture: Facture) => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2"><Label>Référence Dossier *</Label><Input placeholder="Ex: REF-123" value={reference} onChange={e => setReference(e.target.value)} required className="bg-white"/></div>
                                 <div className="space-y-2"><Label>Modèle Monture *</Label><Input placeholder="Ex: RayBan 450" value={frame} onChange={e => setFrame(e.target.value)} required className="bg-white"/></div>
-                                <div className="space-y-2"><Label>Urgence</Label><Select onValueChange={setUrgency} value={urgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Urgence</Label><Select onValueChange={setUrgency} value={urgency}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="space-y-2"><Label>Type</Label><Select onValueChange={setCategory} value={category}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
-                                <div className="space-y-2"><Label>Diamond Cut</Label><Select onValueChange={setDiamondCutType} value={diamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent position="popper" className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Type</Label><Select onValueChange={setCategory} value={category}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Diamond Cut</Label><Select onValueChange={setDiamondCutType} value={diamondCutType}><SelectTrigger className="bg-white"><SelectValue/></SelectTrigger><SelectContent className="bg-white">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                                 <div className="space-y-2"><Label>Gravure (Qté)</Label><Input type="number" min={0} max={2} value={engravingCount} onChange={e=>setEngravingCount(parseInt(e.target.value))} className="bg-white"/></div>
                             </div>
                             <div className="p-3 bg-white rounded border space-y-3">
