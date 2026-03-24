@@ -119,7 +119,7 @@ const calculateSingleMontagePrice = (m: Montage, tier: number = 1): number => {
 
 // --- MODALE FACTURE ---
 interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; onInvoicePublished: (invoiceData: FactureData) => void; }
-const InvoiceModal: React.FC<InvoiceProps> = async ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
+const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
     const [isPublishing, setIsPublishing] = useState(false);
     if (!isOpen) return null;
     const today = new Date();

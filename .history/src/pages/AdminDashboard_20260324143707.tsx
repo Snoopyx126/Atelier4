@@ -119,7 +119,7 @@ const calculateSingleMontagePrice = (m: Montage, tier: number = 1): number => {
 
 // --- MODALE FACTURE ---
 interface InvoiceProps { client: Client; montages: Montage[]; isOpen: boolean; onClose: () => void; onInvoicePublished: (invoiceData: FactureData) => void; }
-const InvoiceModal: React.FC<InvoiceProps> = async ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
+const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClose, onInvoicePublished }) => {
     const [isPublishing, setIsPublishing] = useState(false);
     if (!isOpen) return null;
     const today = new Date();
@@ -421,7 +421,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
   const openEditDialog = (m: Montage) => { setEditingId(m._id); setNewRef(m.reference||""); setNewFrame(m.frame||""); setNewCategory(m.category||"Cerclé"); setNewGlassType(m.glassType||[]); setNewUrgency(m.urgency||"Standard"); setNewDiamondCutType(m.diamondCutType||"Standard"); setNewEngravingCount(m.engravingCount||0); setNewShapeChange(m.shapeChange||false); setNewDesc(m.description||"");setNewStatut(m.statut||"En attente"); setNewClient(m.userId); setIsDialogOpen(true); };
   const handleStatusChange = async (id: string, newStatus: string) => { const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/montages/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: newStatus }) }); fetchMontages(); toast.success(`Statut: ${newStatus}`); };
   const handleDelete = async (id: string) => { const baseUrl = getApiUrl(); if(confirm("Supprimer ?")) { await fetch(`${baseUrl}/api/montages/${id}`, { method: 'DELETE' }); fetchMontages(); toast.success("Supprimé"); } };
-  const handleGenerateInvoice = async (client: Client, items: Montage[]) => { setCurrentClientToInvoice(client); setMontagesToInvoice(items); setIsInvoiceOpen(true); };
+  const handleGenerateInvoice = (client: Client, items: Montage[]) => { setCurrentClientToInvoice(client); setMontagesToInvoice(items); setIsInvoiceOpen(true); };
   const handleInvoicePublished = (newInvoice: FactureData) => { setAllInvoices(prev => [newInvoice, ...prev]); };
   const openClientInvoices = (client: Client) => { setSelectedClient(client); setCurrentClientInvoices(allInvoices.filter(f => f.userId === client._id)); setIsClientInvoicesModalOpen(true); };
   const handleGlassTypeChange = (type: string, checked: boolean) => { setNewGlassType(prev => checked ? [...prev, type] : prev.filter(t => t !== type)); };
