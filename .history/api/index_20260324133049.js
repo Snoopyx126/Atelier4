@@ -191,81 +191,37 @@ app.post("/api/montages", async (req, res) => {
 });
 
 // 2. LISTE OPTIMISÉE (GET) - SÉCURISÉ (Anti-Crash 500)
-// 2. LISTE ULTRA-LÉGÈRE (Spécial Admin - Anti-Crash)
+// 2. LISTE (GET) - VERSION FINALE (On autorise l'affichage des photos)
 app.get("/api/montages", async (req, res) => {
     try {
         const { role, userId, managerId } = req.query;
         let query = {};
-
-        // SÉCURITÉ IDs
+        
         if (role === 'manager' && managerId) {
             if (mongoose.Types.ObjectId.isValid(managerId)) {
                 const manager = await User.findById(managerId);
-                const shopIds = (manager?.assignedShops || [])
-                    .filter(id => mongoose.Types.ObjectId.isValid(id))
-                    .map(id => new mongoose.Types.ObjectId(id));
+                const shopIds = (manager?.assignedShops || []).filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => new mongoose.Types.ObjectId(id));
                 query = { userId: { $in: shopIds } };
             }
         } else if (role !== 'admin' && userId) {
             if (mongoose.Types.ObjectId.isValid(userId)) {
                 query = { userId: new mongoose.Types.ObjectId(userId) };
             } else {
-                return res.json({ success: true, montages: [] });
+                return res.json({ success: true, montages: [] }); 
             }
         }
 
-        const montages = await Montage.aggregate([
-            { $match: query },
-            { $sort: { dateReception: -1 } },
-            {
-                $addFields: {
-                    // Calcul simple : Y a-t-il du contenu dans photoUrl ?
-                    // On ne vérifie même plus si c'est une image valide pour économiser du CPU
-                    // On regarde juste si le champ n'est pas vide.
-                    hasPhoto: { 
-                        $cond: { 
-                            if: { $gt: [{ $strLenCP: { $ifNull: [{ $toString: "$photoUrl" }, ""] } }, 50] }, 
-                            then: true, 
-                            else: false 
-                        }
-                    }
-                }
-            },
-            {
-                // 🚨 DIÈTE RADICALE : On ne garde QUE ce qui est affiché dans le tableau
-                // Tout le reste (descriptions géantes, vieux champs inutiles) est jeté.
-                $project: {
-                    _id: 1,
-                    reference: 1,
-                    clientName: 1,
-                    frame: 1,
-                    category: 1,
-                    statut: 1,
-                    dateReception: 1,
-                    userId: 1,
-                    urgency: 1,
-                    diamondCutType: 1,
-                    engravingCount: 1,
-                    glassType: 1,
-                    shapeChange: 1,
-                    description: 1, // On garde la description, mais attention si elle est énorme
-                    createdBy: 1,
-                    hasPhoto: 1 // On garde notre indicateur calculé
-                    // photoUrl est implicitement EXCLU car pas listé ici
-                }
-            }
-        ]);
+        // On récupère les montages normalement
+        const montages = await Montage.find(query).sort({ dateReception: -1 }).lean();
 
-        // Formatage final pour le frontend
-        const optimizedMontages = montages.map(m => ({
-            ...m,
-            photoUrl: m.hasPhoto ? "DISPONIBLE" : null
-        }));
-
-        res.json({ success: true, montages: optimizedMontages });
-    } catch (e) {
+        // 🚨 C'EST ICI LE CHANGEMENT :
+        // On renvoie la vraie photoUrl (le lien Cloudinary) au lieu de null.
+        // Le frontend pourra donc afficher l'Œil si le lien existe.
+        res.json({ success: true, montages });
+        
+    } catch (e) { 
         console.error("❌ Erreur Liste:", e);
-        res.json({ success: true, montages: [] }); // En cas d'erreur, on renvoie vide pour ne pas planter l'admin
+        res.json({ success: true, montages: [] }); 
     }
 });
 
@@ -306,7 +262,44 @@ app.put("/api/montages/:id", async (req, res) => {
 app.delete("/api/montages/:id", async (req, res) => {
     try { await Montage.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ success: false }); }
 });
+// ✅ ROUTE DE RÉPARATION TOTALE (À mettre dans index.js)
+app.get("/api/fix", async (req, res) => {
+    try {
+        // 1. On récupère tous les montages qui ont des verres
+        const montages = await Montage.find({ glassType: { $exists: true, $ne: [] } });
+        let updatedCount = 0;
 
+        for (let m of montages) {
+            let hasChanged = false;
+            
+            // 2. On transforme chaque élément de la liste des verres
+            const fixedGlassType = m.glassType.map(g => {
+                const name = g.toLowerCase();
+                // Si le nom contient '4' et 'saison', on force le bon nom propre
+                if (name.includes('4') || name.includes('saison')) {
+                    if (g !== "Verre Dégradé 4 saisons") {
+                        hasChanged = true;
+                        return "Verre Dégradé 4 saisons";
+                    }
+                }
+                return g;
+            });
+
+            // 3. Si on a trouvé une erreur, on met à jour la base de données
+            if (hasChanged) {
+                await Montage.findByIdAndUpdate(m._id, { glassType: fixedGlassType });
+                updatedCount++;
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            message: `${updatedCount} anciens dossiers ont été mis à jour avec le nom correct.` 
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 // 6. UPLOAD PHOTO (POST)
 app.post("/api/montages/:id/photo", upload.single('photo'), async (req, res) => {
     if (!req.file) return res.status(400).json({ success: false });
@@ -325,11 +318,29 @@ app.post("/api/factures", async (req, res) => {
         const f = await Facture.create({ ...req.body, paymentStatus: 'Non payé' });
         if (req.body.sendEmail && req.body.pdfBase64) {
             const user = await User.findById(req.body.userId);
-            const buffer = Buffer.from(req.body.pdfBase64.split('base64,')[1], 'base64');
-            await resend.emails.send({ from: EMAIL_SENDER, to: user.email, cc: EMAIL_ADMIN, subject: `Facture ${req.body.invoiceNumber}`, html: `<p>Ci-joint votre facture.</p>`, attachments: [{ filename: `Facture_${req.body.invoiceNumber}.pdf`, content: buffer }] });
+            
+            // ✅ CORRECTION ICI : On vérifie si le texte a besoin d'être coupé ou s'il est déjà propre
+            const base64Data = req.body.pdfBase64.includes('base64,') 
+                ? req.body.pdfBase64.split('base64,')[1] 
+                : req.body.pdfBase64;
+                
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            await resend.emails.send({ 
+                from: EMAIL_SENDER, 
+                to: user.email, 
+                cc: EMAIL_ADMIN, 
+                subject: `Facture ${req.body.invoiceNumber}`, 
+                html: `<p>Ci-joint votre facture de L'Atelier des Arts.</p>`, 
+                attachments: [{ filename: `Facture_${req.body.invoiceNumber}.pdf`, content: buffer }] 
+            });
         }
         res.json({ success: true, facture: f });
-    } catch (e) { res.status(500).json({ success: false }); }
+    } catch (e) { 
+        // ✅ AJOUT D'UN LOG D'ERREUR PRÉCIS
+        console.error("❌ Erreur Envoi Facture :", e); 
+        res.status(500).json({ success: false, message: e.message }); 
+    }
 });
 
 app.get("/api/factures", async (req, res) => {
@@ -371,6 +382,29 @@ app.post("/api/forgot-password", async (req, res) => {
     }
     res.json({ success: true });
   } catch (error) { res.status(500).json({ success: false }); }
+});
+// --- ROUTE DE NETTOYAGE D'URGENCE ---
+// Cette route va supprimer les photos "lourdes" (Base64) mais GARDER les liens Cloudinary
+app.get("/api/clean-database", async (req, res) => {
+    try {
+        console.log("🧹 Démarrage du nettoyage...");
+        
+        // On met à jour tous les montages dont la photo commence par "data:image" (le vieux format lourd)
+        // On ne touche PAS à ceux qui commencent par "http" (Cloudinary)
+        const result = await Montage.updateMany(
+            { photoUrl: { $regex: /^data:image/ } }, 
+            { $set: { photoUrl: null } } 
+        );
+
+        console.log(`✅ Nettoyage terminé : ${result.modifiedCount} photos supprimées.`);
+        res.json({ 
+            success: true, 
+            message: `Nettoyage réussi ! ${result.modifiedCount} anciennes photos lourdes ont été supprimées. Vos liens Cloudinary sont intacts.` 
+        });
+    } catch (e) {
+        console.error("Erreur nettoyage:", e);
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 export default app;

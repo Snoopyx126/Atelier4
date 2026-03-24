@@ -318,11 +318,29 @@ app.post("/api/factures", async (req, res) => {
         const f = await Facture.create({ ...req.body, paymentStatus: 'Non payé' });
         if (req.body.sendEmail && req.body.pdfBase64) {
             const user = await User.findById(req.body.userId);
-            const buffer = Buffer.from(req.body.pdfBase64.split('base64,')[1], 'base64');
-            await resend.emails.send({ from: EMAIL_SENDER, to: user.email, cc: EMAIL_ADMIN, subject: `Facture ${req.body.invoiceNumber}`, html: `<p>Ci-joint votre facture.</p>`, attachments: [{ filename: `Facture_${req.body.invoiceNumber}.pdf`, content: buffer }] });
+            
+            // ✅ CORRECTION ICI : On vérifie si le texte a besoin d'être coupé ou s'il est déjà propre
+            const base64Data = req.body.pdfBase64.includes('base64,') 
+                ? req.body.pdfBase64.split('base64,')[1] 
+                : req.body.pdfBase64;
+                
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            await resend.emails.send({ 
+                from: EMAIL_SENDER, 
+                to: user.email, 
+                cc: EMAIL_ADMIN, 
+                subject: `Facture ${req.body.invoiceNumber}`, 
+                html: `<p>Ci-joint votre facture de L'Atelier des Arts.</p>`, 
+                attachments: [{ filename: `Facture_${req.body.invoiceNumber}.pdf`, content: buffer }] 
+            });
         }
         res.json({ success: true, facture: f });
-    } catch (e) { res.status(500).json({ success: false }); }
+    } catch (e) { 
+        // ✅ AJOUT D'UN LOG D'ERREUR PRÉCIS
+        console.error("❌ Erreur Envoi Facture :", e); 
+        res.status(500).json({ success: false, message: e.message }); 
+    }
 });
 
 app.get("/api/factures", async (req, res) => {
