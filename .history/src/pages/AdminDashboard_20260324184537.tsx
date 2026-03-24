@@ -174,31 +174,29 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
     const totalHT = monthlyMontages.reduce((sum, m) => sum + getMontagePriceDetails(m).total, 0); 
     const tva = totalHT * FACTURE_INFO.tvaRate; 
     const totalTTC = totalHT + tva;
+    const nomsMois = [
+      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+    ];
+    const moisActuel = nomsMois[today.getMonth()];
+
+    const resFactures = await fetch('https://atelier4.vercel.app/api/factures');
+    const dataFactures = await resFactures.json();
+    const totalExistantes = (dataFactures.factures && dataFactures.factures.length) ? dataFactures.factures.length : 0;
+
+    // Format : "FACTURE MARS 2026 - NOM DU MAGASIN"
+    const invoiceNumber = `Facture ${moisActuel} ${currentYear} - ${client.nomSociete}`.toUpperCase();
+    // ----------------------------------
+
     const montagesReferences = monthlyMontages.map(m => m.reference).filter(ref => ref) as string[];
 
     const handlePublishAndSend = async () => {
         const input = document.getElementById('invoice-content'); 
         if (!input) { toast.error("Erreur PDF"); return; } 
-        
         setIsPublishing(true);
-        toast.loading("Génération du numéro et du document...", { id: 'pdf-gen' });
+        toast.loading("Génération du document...", { id: 'pdf-gen' });
 
         try {
-            // --- ÉTAPE 1 : GÉNÉRATION DU NUMÉRO (Déplacé ici pour éviter l'erreur async) ---
-            const nomsMois = [
-                "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-            ];
-            const moisActuel = nomsMois[today.getMonth()];
-            
-            const resFactures = await fetch('https://atelier4.vercel.app/api/factures');
-            const dataFactures = await resFactures.json();
-            const totalExistantes = (dataFactures.factures && dataFactures.factures.length) ? dataFactures.factures.length : 0;
-
-            // Format : "FACTURE MARS 2026 - NOM DU MAGASIN"
-            const invoiceNumber = `Facture ${moisActuel} ${currentYear} - ${client.nomSociete}`.toUpperCase();
-            // ---------------------------------------------------------------------------
-
             const canvas = await html2canvas(input, { 
                 scale: 1, useCORS: true, scrollY: 0, windowWidth: input.scrollWidth, windowHeight: input.scrollHeight,
                 onclone: (clonedDoc) => {
@@ -211,7 +209,8 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
                         }
                     }
                 }
-            });
+            }); 
+            
             const imgData = canvas.toDataURL('image/jpeg', 0.3);
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); 
             const pdfWidth = pdf.internal.pageSize.getWidth();
