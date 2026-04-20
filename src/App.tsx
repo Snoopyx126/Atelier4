@@ -11,6 +11,7 @@ import ForgotPassword from "./pages/forgotpassword";
 import Profil from "./pages/profil";
 import CommentCaMarche from "./pages/commentcamarche";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminStats from "./pages/AdminStats";
 import MesCommandes from "./pages/MesCommandes";
 import Configurateur from "./pages/configurateur";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -30,37 +31,15 @@ const App = () => {
               <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
               <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
 
-              {/* Routes protégées — nécessitent d'être connecté */}
-              <Route path="/dashboardpro" element={
-                <ProtectedRoute>
-                  <DashboardPro />
-                </ProtectedRoute>
-              } />
-              <Route path="/profil" element={
-                <ProtectedRoute>
-                  <Profil />
-                </ProtectedRoute>
-              } />
-              <Route path="/mes-commandes" element={
-                <ProtectedRoute>
-                  <MesCommandes />
-                </ProtectedRoute>
-              } />
-              <Route path="/configurateur" element={
-                <ProtectedRoute>
-                  <Configurateur />
-                </ProtectedRoute>
-              } />
+              <Route path="/dashboardpro" element={<ProtectedRoute><DashboardPro /></ProtectedRoute>} />
+              <Route path="/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
+              <Route path="/mes-commandes" element={<ProtectedRoute><MesCommandes /></ProtectedRoute>} />
+              <Route path="/configurateur" element={<ProtectedRoute><Configurateur /></ProtectedRoute>} />
 
-              {/* Route admin — nécessite le rôle admin */}
-              <Route path="/admin" element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
+              <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/stats" element={<ProtectedRoute requiredRole="admin"><AdminStats /></ProtectedRoute>} />
             </Routes>
           </BrowserRouter>
-          {/* Toaster affiché une seule fois, hors du Router */}
           <Toaster />
         </TooltipProvider>
       </ToastProvider>
