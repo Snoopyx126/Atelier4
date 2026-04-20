@@ -164,7 +164,6 @@ export default function AdminDashboard(){
   const[allInvoices,setAllInvoices]=useState<FactureData[]>([]);
   const[statusFilter,setStatusFilter]=useState<string|null>(null);
   const[showAll,setShowAll]=useState(false);
-  const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
   const[invOpen,setInvOpen]=useState(false);
   const[invClient,setInvClient]=useState<Client|null>(null);
   const[invMontages,setInvMontages]=useState<Montage[]>([]);
@@ -266,7 +265,10 @@ export default function AdminDashboard(){
         </div>
 
         {/* Tabs manuels */}
-        <div className="space-y-6">
+        {(()=>{
+          const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
+          return(
+            <div className="space-y-6">
               <div className="bg-white border border-[#EDE8DF] rounded-2xl p-1 inline-flex shadow-sm">
                 {(['atelier','clients'] as const).map(t=>(
                   <button key={t} onClick={()=>setTab(t)}
@@ -404,6 +406,8 @@ export default function AdminDashboard(){
                 </div>
               )}
             </div>
+          );
+        })()}
 
         {/* Modales */}
         <Dialog open={shopOpen} onOpenChange={setShopOpen}>
