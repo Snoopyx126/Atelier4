@@ -94,6 +94,7 @@ export default function AdminStats() {
   const [factures, setFactures]   = useState<Facture[]>([]);
   const [loading,  setLoading]    = useState(true);
   const [period,   setPeriod]     = useState<'30'|'90'|'365'|'all'>('30');
+  const [sortBy,   setSortBy]     = useState<'count'|'ca'>('count');
   const base = API_URL.replace('/api','');
 
   useEffect(()=>{
@@ -148,6 +149,12 @@ export default function AdminStats() {
   const maxUrg=Math.max(...Object.values(urgCount),1);
   const urgColors: Record<string,string>={'Urgent -3H':'#E24B4A','Express -24H':'#F97316','Prioritaire -48H':'#FBBF24','Standard':'#C9A96E'};
 
+  // ---- DIAMOND CUT ----
+  const dcCount: Record<string,number>={};
+  fm.forEach(m=>{const d=m.diamondCutType||'Standard';dcCount[d]=(dcCount[d]||0)+1;});
+  const dcTotal=Object.values(dcCount).reduce((s,v)=>s+v,0);
+  const dcColors: Record<string,string>={'Facette Lisse':'#C9A96E','Facette Twinkle':'#0F0E0C','Diamond Ice':'#9A7A45','Standard':'#D1CFC9'};
+
   // ---- CLIENTS ----
   const clientVol: Record<string,{name:string;count:number;ca:number;last?:string}> = {};
   fm.forEach(m=>{
@@ -159,7 +166,7 @@ export default function AdminStats() {
     const d=m.dateReception;
     if(!clientVol[m.userId].last||d>clientVol[m.userId].last!) clientVol[m.userId].last=d;
   });
-  const sortedClients=Object.entries(clientVol).sort((a,b)=>b[1].count-a[1].count);
+  const sortedClients=Object.entries(clientVol).sort((a,b)=>sortBy==='ca'?b[1].ca-a[1].ca:b[1].count-a[1].count);
 
   if(loading) return (
     <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center">
@@ -265,6 +272,24 @@ export default function AdminStats() {
           </div>
         </div>
 
+        {/* DIAMOND CUT */}
+        <div className={S.card+" p-6 mb-6"}>
+          <p className={S.label}>Options premium</p>
+          <h2 className="font-playfair text-lg font-normal text-[#0F0E0C] mb-5">Diamond Cut</h2>
+          {Object.keys(dcCount).length===0
+            ? <p className="text-sm text-gray-300">Aucun Diamond Cut sur cette période</p>
+            : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(dcCount).sort((a,b)=>b[1]-a[1]).map(([dc,n])=>(
+                  <ProgressBar key={dc} label={dc} value={n} max={dcTotal}
+                    sub={`${n} dossier${n>1?'s':''} — ${dcTotal>0?((n/dcTotal)*100).toFixed(0):0}%`}
+                    color={dcColors[dc]||'#C9A96E'}/>
+                ))}
+              </div>
+            )
+          }
+        </div>
+
         {/* TABLEAU CLIENTS */}
         <div className={S.card+" overflow-hidden"}>
           <div className="px-6 py-4 border-b border-[#EDE8DF]">
@@ -276,7 +301,17 @@ export default function AdminStats() {
               <thead>
                 <tr className="bg-[#F7F4EE] border-b border-[#EDE8DF]">
                   {['Client','Dossiers','CA HT estimé','Dernière activité','Tarif','Statut'].map(h=>(
-                    <th key={h} className="text-left px-5 py-3 text-[9px] tracking-[0.2em] uppercase text-[#C9A96E] font-normal">{h}</th>
+                    <th key={h} className="text-left px-5 py-3 text-[9px] tracking-[0.2em] uppercase font-normal">
+                      {h==='Dossiers'?(
+                        <button onClick={()=>setSortBy('count')} className={`flex items-center gap-1 transition-colors ${sortBy==='count'?'text-[#0F0E0C]':'text-[#C9A96E] hover:text-[#9A7A45]'}`}>
+                          {h}{sortBy==='count'&&<span>↓</span>}
+                        </button>
+                      ):h==='CA HT estimé'?(
+                        <button onClick={()=>setSortBy('ca')} className={`flex items-center gap-1 transition-colors ${sortBy==='ca'?'text-[#0F0E0C]':'text-[#C9A96E] hover:text-[#9A7A45]'}`}>
+                          {h}{sortBy==='ca'&&<span>↓</span>}
+                        </button>
+                      ):<span className="text-[#C9A96E]">{h}</span>}
+                    </th>
                   ))}
                 </tr>
               </thead>
