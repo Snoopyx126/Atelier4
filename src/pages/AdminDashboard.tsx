@@ -214,11 +214,43 @@ export default function AdminDashboard(){
   const saveShops=async()=>{if(!shopMgr)return;try{const r=await authFetch(`${getBase()}/api/users/${shopMgr._id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedShops:tmpShops})});const d=await r.json();if(d.success){toast.success("Magasins assignés !");setClients(p=>p.map(c=>c._id===shopMgr._id?{...c,assignedShops:d.user.assignedShops}:c));setShopOpen(false);}else toast.error("Erreur sauvegarde.");}catch{toast.error("Erreur technique.");}};
 
   const fm=montages.filter(m=>{const s=normalize(search);const ok=(normalize(m.reference)+normalize(m.clientName)).includes(s);let st=true;if(statusFilter==='En production')st=m.statut==='En cours'||m.statut==='Reçu';else if(statusFilter)st=m.statut===statusFilter;return ok&&st;});
-  const sorted=[...fm].sort((a,b)=>new Date(b.dateReception).getTime()-new Date(a.dateReception).getTime());
-  const cnts: Record<string,number>={};
-  const displayed=showAll?sorted:sorted.filter(m=>{cnts[m.userId]=(cnts[m.userId]||0)+1;return cnts[m.userId]<=20;});
-  const hidden=fm.length-displayed.length;
-  const grouped=fm.reduce((acc:any,m)=>{const c=clients.find(cl=>cl._id===m.userId);const cn=c?.nomSociete||m.clientName||`?`;let mo="?";try{if(m.dateReception)mo=new Date(m.dateReception).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}catch{}if(!acc[mo])acc[mo]={};if(!acc[mo][cn])acc[mo][cn]=[];acc[mo][cn].push(m);return acc;},{});
+
+  // ---- Clé de mois avec tri chronologique réel ----
+  // Format: "YYYY-MM" pour trier + label "mois YYYY" pour afficher
+  const getMonthKey=(date:string)=>{
+    try{const d=new Date(date);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+    catch{return'0000-00';}
+  };
+  const getMonthLabel=(key:string)=>{
+    try{const[y,m]=key.split('-');const d=new Date(parseInt(y),parseInt(m)-1,1);return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}
+    catch{return key;}
+  };
+
+  // Mois en cours et mois précédent
+  const now=new Date();
+  const currentMonthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevMonthKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+  const visibleMonthKeys=new Set([currentMonthKey,prevMonthKey]);
+
+  // Groupement par mois trié du plus récent au plus ancien
+  const grouped=fm.reduce((acc:any,m)=>{
+    const c=clients.find(cl=>cl._id===m.userId);
+    const cn=c?.nomSociete||m.clientName||'?';
+    const mk=getMonthKey(m.dateReception);
+    if(!acc[mk])acc[mk]={};
+    if(!acc[mk][cn])acc[mk][cn]=[];
+    acc[mk][cn].push(m);
+    return acc;
+  },{});
+
+  // Tous les mois triés du plus récent au plus ancien
+  const allMonthKeys=Object.keys(grouped).sort().reverse();
+  // Mois visibles par défaut = mois en cours + mois précédent
+  // Si showAll = tous les mois
+  const visibleKeys=showAll?allMonthKeys:allMonthKeys.filter(k=>visibleMonthKeys.has(k));
+  const hiddenMonths=allMonthKeys.filter(k=>!visibleMonthKeys.has(k));
+  const hidden=hiddenMonths.length;
   const filteredClients=clients.filter(c=>normalize(c.nomSociete).includes(normalize(search)));
   const pending=montages.filter(m=>m.statut==='En attente').length;
   const inProd=montages.filter(m=>m.statut==='En cours'||m.statut==='Reçu').length;
@@ -285,8 +317,8 @@ export default function AdminDashboard(){
                   <div className="p-6 min-h-64">
                     {Object.keys(grouped).length===0?<div className="text-center py-16 text-gray-300 text-sm">Aucun montage avec les filtres actuels.</div>:(
                       <Accordion type="multiple" className="space-y-3">
-                        {Object.entries(grouped).sort().reverse().map(([mo,shops]:any)=>(
-                          <AccordionItem key={mo} value={mo} className="bg-white border border-[#EDE8DF] rounded-2xl overflow-hidden">
+                        {visibleKeys.map(mk=>{ const shops=grouped[mk]; const mo=getMonthLabel(mk); return (
+                          <AccordionItem key={mk} value={mk} className="bg-white border border-[#EDE8DF] rounded-2xl overflow-hidden">
                             <AccordionTrigger className="hover:no-underline px-5 py-4 hover:bg-[#F7F4EE] transition-colors">
                               <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-base font-normal text-[#0F0E0C] capitalize">{mo}</span></div>
                             </AccordionTrigger>
@@ -339,13 +371,13 @@ export default function AdminDashboard(){
                                                   </SelectContent>
                                                 </Select>
                                                 {m.photoUrl?(
-                                                  <button className={S.btnO+" h-8 w-8 p-0"} onClick={async e=>{e.stopPropagation();toast.loading("Chargement...",{id:'p'});try{const r=await authFetch(`${getBase()}/api/montages/${m._id}`);const d=await r.json();if(d.success&&d.montage.photoUrl){setPhotoUrl(d.montage.photoUrl);toast.dismiss('p');}else toast.error("Image introuvable",{id:'p'});}catch{toast.error("Erreur",{id:'p'});}}}>
+                                                  <button className={S.btnO+" h-8 w-8 p-0"} onClick={async(e:React.MouseEvent)=>{e.stopPropagation();toast.loading("Chargement...",{id:'p'});try{const r=await authFetch(`${getBase()}/api/montages/${m._id}`);const photoData=await r.json();if(photoData.success&&photoData.montage.photoUrl){setPhotoUrl(photoData.montage.photoUrl);toast.dismiss('p');}else toast.error("Image introuvable",{id:'p'});}catch{toast.error("Erreur",{id:'p'});}}}>
                                                     <ImageIcon className="w-3.5 h-3.5 text-[#C9A96E]"/>
                                                   </button>
                                                 ):(
                                                   <>
                                                     <input type="file" accept="image/*" style={{display:'none'}} ref={el=>fileRefs.current[m._id]=el} onChange={e=>{if(e.target.files?.[0])uploadPhoto(m._id,e.target.files[0]);}}/>
-                                                    <button className={S.btnO+" h-8 w-8 p-0"} onClick={e=>{e.stopPropagation();fileRefs.current[m._id]?.click();}}><Camera className="w-3.5 h-3.5"/></button>
+                                                    <button className={S.btnO+" h-8 w-8 p-0"} onClick={(e:React.MouseEvent)=>{e.stopPropagation();fileRefs.current[m._id]?.click();}}><Camera className="w-3.5 h-3.5"/></button>
                                                   </>
                                                 )}
                                                 <button className={S.btnO+" h-8 w-8 p-0"} onClick={()=>openEdit(m)}><Pencil className="w-3.5 h-3.5"/></button>
@@ -361,10 +393,24 @@ export default function AdminDashboard(){
                               </Accordion>
                             </AccordionContent>
                           </AccordionItem>
-                        ))}
+                        );})}
                       </Accordion>
                     )}
-                    {!showAll&&hidden>0&&(<div className="mt-8 flex justify-center"><button onClick={()=>setShowAll(true)} className="text-xs tracking-wide text-[#C9A96E] border border-[#C9A96E]/30 rounded-full px-6 py-2.5 hover:bg-[#C9A96E]/5 transition-colors">Charger l'historique ({hidden} dossiers masqués)</button></div>)}
+                    {!showAll&&hidden>0&&(
+                      <div className="mt-8 flex justify-center">
+                        <button onClick={()=>setShowAll(true)} className="text-xs tracking-wide text-[#C9A96E] border border-[#C9A96E]/30 rounded-full px-6 py-2.5 hover:bg-[#C9A96E]/5 transition-colors flex items-center gap-2">
+                          Charger {hidden} mois supplémentaire{hidden>1?'s':''}
+                          <span className="text-[9px] bg-[#C9A96E]/10 rounded-full px-2 py-0.5">{fm.filter(m=>hiddenMonths.includes(getMonthKey(m.dateReception))).length} dossiers</span>
+                        </button>
+                      </div>
+                    )}
+                    {showAll&&hidden>0&&(
+                      <div className="mt-4 flex justify-center">
+                        <button onClick={()=>setShowAll(false)} className="text-[10px] tracking-wide text-gray-400 hover:text-[#0F0E0C] transition-colors">
+                          Réduire l'historique
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
