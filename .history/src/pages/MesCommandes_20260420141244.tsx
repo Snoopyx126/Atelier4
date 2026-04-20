@@ -143,17 +143,17 @@ const MesCommandes = () => {
       try {
         const userData: UserData = JSON.parse(userDataString);
         setUser(userData);
-        const  API_URL = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+        const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
         
         let query = `?userId=${userData.id}`;
         if (userData.role === 'manager') query = `?role=manager&managerId=${userData.id}`;
         
-        authFetch(`${ API_URL}/api/montages${query}`).then(r=>r.json()).then(d=>{if(d.success)setMontages(d.montages)});
-        authFetch(`${ API_URL}/api/factures?userId=${userData.id}`).then(r=>r.json()).then(d=>{if(d.success)setFactures(d.factures.map((f:any)=>({id:f._id,invoiceNumber:f.invoiceNumber,montageReference:f.montagesReferences?.join(', ')||'N/A',dateEmission:f.dateEmission,totalHT:f.totalHT,totalTTC:f.totalTTC,invoiceData:f.invoiceData||[],amountPaid:f.amountPaid,paymentStatus:f.paymentStatus})));});
+        fetch(`${baseUrl}/api/montages${query}`).then(r=>r.json()).then(d=>{if(d.success)setMontages(d.montages)});
+        fetch(`${baseUrl}/api/factures?userId=${userData.id}`).then(r=>r.json()).then(d=>{if(d.success)setFactures(d.factures.map((f:any)=>({id:f._id,invoiceNumber:f.invoiceNumber,montageReference:f.montagesReferences?.join(', ')||'N/A',dateEmission:f.dateEmission,totalHT:f.totalHT,totalTTC:f.totalTTC,invoiceData:f.invoiceData||[],amountPaid:f.amountPaid,paymentStatus:f.paymentStatus})));});
 
         if (userData.role === 'manager') {
             // Le manager récupère la liste des clients via l'API pour avoir les infos à jour (dont le pricingTier)
-            authFetch(`${ API_URL}/api/users`).then(r => r.json()).then(d => {
+            fetch(`${baseUrl}/api/users`).then(r => r.json()).then(d => {
                 if (d.success) {
                     setClientsList(d.users);
                     // On pré-sélectionne le premier magasin assigné s'il y en a
@@ -175,11 +175,11 @@ const MesCommandes = () => {
   const fetchMontages = async () => {
     if (!user) return;
     try {
-      const  API_URL = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+      const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
       let query = `?userId=${user.id}`;
       if (user.role === 'manager') query = `?role=manager&managerId=${user.id}`;
       
-      const response = await authFetch(`${ API_URL}/api/montages${query}`);
+      const response = await fetch(`${baseUrl}/api/montages${query}`);
       const data = await response.json();
       if (data.success && Array.isArray(data.montages)) setMontages(data.montages);
     } catch (error) { console.error(error); }
@@ -195,9 +195,9 @@ const MesCommandes = () => {
     const targetId = user.role === 'manager' ? selectedTargetClient : user.id;
     if (!targetId) { toast.error("Veuillez sélectionner un magasin."); return; }
     setIsSubmitting(true);
-    const  API_URL = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
+    const baseUrl = window.location.hostname === "localhost" ? "http://localhost:3000" : "https://atelier4.vercel.app";
     try {
-        const res = await authFetch(`${ API_URL}/api/montages`, {
+        const res = await fetch(`${baseUrl}/api/montages`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: targetId, reference, frame, description, category, glassType, urgency, diamondCutType, engravingCount, shapeChange, createdBy: user.role === 'manager' ? `Manager (${user.nomSociete})` : 'Client' })

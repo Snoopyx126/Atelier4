@@ -1,106 +1,226 @@
+/* ⚠️ @import DOIT être avant @tailwind */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --------------------------------------
-   DESIGN SYSTEM — L'Atelier des Arts
-   Palette Noir & Blanc équilibrée
---------------------------------------- */
+/* ============================================
+   TOKENS GLOBAUX
+   ============================================ */
 
-@layer base {
-  :root {
-    --background: 0 0% 98%; /* Blanc cassé */
-    --foreground: 0 0% 10%; /* Noir doux */
+:root {
+  --background: 40 30% 97%;
+  --foreground: 20 8% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 8% 8%;
+  --primary: 20 8% 8%;
+  --primary-foreground: 40 30% 95%;
+  --secondary: 40 20% 93%;
+  --secondary-foreground: 20 8% 8%;
+  --accent: 38 40% 55%;
+  --accent-foreground: 20 8% 6%;
+  --muted: 40 15% 88%;
+  --muted-foreground: 20 5% 42%;
+  --border: 40 15% 85%;
+  --input: 40 15% 85%;
+  --ring: 38 40% 55%;
+  --radius: 0.25rem;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-
-    --primary: 0 0% 0%; /* Noir profond */
-    --primary-foreground: 0 0% 100%; /* Blanc pur */
-
-    --secondary: 0 0% 95%; /* Gris clair pour les blocs */
-    --secondary-foreground: 0 0% 10%;
-
-    --accent: 0 0% 25%; /* Gris anthracite */
-    --accent-foreground: 0 0% 100%;
-
-    --muted: 0 0% 85%;
-    --muted-foreground: 0 0% 35%;
-
-    --border: 0 0% 85%;
-    --input: 0 0% 80%;
-    --ring: 0 0% 0%;
-
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    --background: 0 0% 5%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 95%;
-    --primary: 0 0% 100%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 95%;
-    --accent: 0 0% 50%;
-    --accent-foreground: 0 0% 100%;
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 0 0% 60%;
-  }
-
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-  }
+  --gold:        #C9A96E;
+  --gold-light:  #E2C99A;
+  --gold-dark:   #9A7A45;
+  --noir:        #0F0E0C;
+  --noir-soft:   #1C1A17;
+  --ivoire:      #F7F4EE;
+  --ivoire-dark: #EDE8DF;
 }
 
-/* --------------------------------------
-   COMPONENTS — Style minimaliste et pro
---------------------------------------- */
+/* ============================================
+   BASE
+   ============================================ */
+
+@layer base {
+  * { box-sizing: border-box; border-color: hsl(var(--border)); }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .font-playfair  { font-family: 'Playfair Display', serif !important; }
+  .font-cormorant { font-family: 'Cormorant Garamond', serif !important; }
+  .font-sans-dm   { font-family: 'DM Sans', sans-serif !important; }
+}
+
+/* ============================================
+   COMPOSANTS
+   ============================================ */
 
 @layer components {
-  /* ✅ Bouton principal : fond noir, texte blanc visible */
-  .btn-primary {
-    @apply bg-black text-white font-medium tracking-wide px-6 py-2 rounded-md shadow-md hover:bg-neutral-800 transition-all duration-300;
+
+  /* Bouton or */
+  .btn-gold {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.875rem 2rem;
+    transition: color 0.4s ease;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+  }
+  .btn-gold::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gold);
+    transform: translateX(-101%);
+    transition: transform 0.4s ease;
+    z-index: 0;
+  }
+  .btn-gold:hover::before { transform: translateX(0); }
+  .btn-gold:hover         { color: var(--noir); }
+  .btn-gold span          { position: relative; z-index: 1; }
+
+  /* Bouton sombre */
+  .btn-dark {
+    display: inline-block;
+    background: var(--noir);
+    color: var(--ivoire) !important;
+    border: 1px solid var(--noir);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.875rem 2rem;
+    transition: background 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+  }
+  .btn-dark:hover { background: var(--noir-soft); }
+
+  /* Bouton fantôme */
+  .btn-ghost {
+    display: inline-block;
+    background: transparent;
+    color: var(--noir) !important;
+    border: 1px solid var(--noir);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.875rem 2rem;
+    transition: background 0.3s ease, color 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+  }
+  .btn-ghost:hover { background: var(--noir); color: var(--ivoire) !important; }
+
+  /* Label chapeau */
+  .section-label {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 400;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.75rem;
   }
 
-  /* ✅ Bouton secondaire : contour noir, lisible sur fond clair */
-  .btn-outline {
-    @apply border border-black text-black font-medium px-6 py-2 rounded-md hover:bg-black hover:text-white transition-all duration-300;
+  /* Titres */
+  .section-title-lg {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: hsl(var(--foreground));
   }
 
-  /* ✅ Bouton inversé : utile sur fond image (Hero) */
-  .btn-light {
-    @apply bg-white text-black font-medium px-6 py-2 rounded-md shadow-sm hover:bg-neutral-200 transition-all duration-300;
+  /* Séparateurs */
+  .gold-divider      { width: 3rem; height: 1px; background: var(--gold); margin: 1.5rem auto; }
+  .gold-divider-left { width: 3rem; height: 1px; background: var(--gold); margin: 1.5rem 0; }
+
+  /* Input souligné */
+  .input-premium {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid hsl(var(--border));
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 300;
+    padding: 0.75rem 0;
+    color: hsl(var(--foreground));
+    transition: border-color 0.3s ease;
+    display: block;
+  }
+  .input-premium::placeholder { color: hsl(var(--muted-foreground)); opacity: 1; }
+  .input-premium:focus        { border-bottom-color: var(--gold); }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@layer utilities {
+  .animate-fade-up { animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) both; }
+  .animate-fade-in { animation: fadeIn 0.6s ease both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
-  /* ✅ Liens navigation sobres */
-  .nav-link {
-    @apply text-foreground hover:text-neutral-500 transition-colors duration-300;
-  }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
+  .delay-700 { animation-delay: 700ms; }
+  .delay-800 { animation-delay: 800ms; }
 
-  /* ✅ Titres */
-  .section-title {
-    @apply font-playfair text-4xl md:text-5xl text-black mb-8;
-  }
+  ::-webkit-scrollbar       { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
+  ::selection { background: var(--gold); color: var(--noir); }
+}
 
-  /* ✅ Slogan Hero */
-  .subtitle {
-    @apply font-playfair italic text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-black leading-snug tracking-tight;
-  }
+/* ============================================
+   HERO
+   ============================================ */
 
-  /* ✅ Texte secondaire */
-  .text-muted {
-    @apply text-neutral-600;
-  }
+.hero-gradient {
+  background: linear-gradient(
+    to bottom,
+    rgba(5,4,3,0.55) 0%,
+    rgba(5,4,3,0.2)  50%,
+    rgba(5,4,3,0.7)  100%
+  );
+}
 
-  /* ✅ Cartes / blocs */
-  .card {
-    @apply bg-white text-foreground border border-neutral-200 rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md;
-  }
+.product-overlay {
+  background: linear-gradient(to top, rgba(5,4,3,0.85) 0%, transparent 65%);
 }

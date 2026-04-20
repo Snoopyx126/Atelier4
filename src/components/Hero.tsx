@@ -1,120 +1,137 @@
-import { Button } from "@/components/ui/button";
+// src/components/Hero.tsx
 import { ArrowDown } from "lucide-react";
 import heroImage from "@/assets/hero-eyewear.jpg";
 import { useEffect, useState } from "react";
 
 declare global {
-  interface Window {
-    Calendly?: any;
-  }
+  interface Window { Calendly?: any; }
 }
 
 const Hero = () => {
   const [calendlyReady, setCalendlyReady] = useState(false);
 
-  // ✅ Charge Calendly dynamiquement si pas déjà chargé
   useEffect(() => {
-    const existingScript = document.querySelector(
-      'script[src="https://assets.calendly.com/assets/external/widget.js"]'
-    );
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://assets.calendly.com/assets/external/widget.js";
-      script.async = true;
-      script.onload = () => setCalendlyReady(true);
-      document.body.appendChild(script);
+    const existing = document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]');
+    if (!existing) {
+      const s = document.createElement("script");
+      s.src = "https://assets.calendly.com/assets/external/widget.js";
+      s.async = true;
+      s.onload = () => setCalendlyReady(true);
+      document.body.appendChild(s);
     } else {
       setCalendlyReady(true);
     }
-
-    // ✅ Réactive le scroll si Calendly le bloque
-    const restoreScroll = (e: MessageEvent) => {
-      if (
-        e.data?.event === "calendly.event_scheduled" ||
-        e.data?.event === "calendly.closePopupWidget"
-      ) {
-        document.body.style.overflow = "auto";
-        document.documentElement.style.overflow = "auto";
-      }
+    const restore = (e: MessageEvent) => {
+      if (e.data?.event?.includes("calendly")) document.body.style.overflow = "auto";
     };
-    window.addEventListener("message", restoreScroll);
-    return () => window.removeEventListener("message", restoreScroll);
+    window.addEventListener("message", restore);
+    return () => window.removeEventListener("message", restore);
   }, []);
 
-  // ✅ Fonction pour ouvrir le popup Calendly
   const openCalendly = () => {
-    if (window.Calendly && calendlyReady) {
-      window.Calendly.initPopupWidget({
-        url: "https://calendly.com/rubens-leturque/30min",
-      });
-      return false;
-    } else {
-      console.warn("Calendly n’est pas encore prêt");
-    }
+    if (window.Calendly && calendlyReady)
+      window.Calendly.initPopupWidget({ url: "https://calendly.com/rubens-leturque/30min" });
   };
 
-  // ✅ Scroll to collection
   const scrollToCollection = () => {
-    const element = document.getElementById("collection");
-    if (element) element.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    <section
-      id="home"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 bg-black"
-    >
-      {/* ✅ Background image + assombrissement */}
+    <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
+
+      {/* Image de fond + overlays */}
       <div className="absolute inset-0 z-0">
         <img
           src={heroImage}
-          alt="Luxury eyewear"
-          className="w-full h-full object-cover opacity-60"
+          alt="Lunetterie de luxe"
+          className="w-full h-full object-cover"
+          style={{ transform: "scale(1.04)" }}
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.50)" }} />
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.60) 100%)"
+        }} />
       </div>
 
-      {/* ✅ Contenu */}
-      <div className="relative z-10 container mx-auto px-6 text-center text-white">
-        <h1 className="font-playfair text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold mb-4 sm:mb-6 tracking-tight leading-tight"></h1>
-        <p className="font-playfair text-3xl sm:text-5xl italic mb-10 leading-snug tracking-wide text-gray-200">
-          Signez votre regard
-        </p>
+      {/* Ligne décorative gauche */}
+      <div className="absolute left-8 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center gap-4 z-10">
+        <div className="w-px h-20 bg-white/20" />
+        <span className="font-sans-dm text-[9px] tracking-[0.3em] uppercase text-white/40 rotate-90 whitespace-nowrap">
+          Paris · Lunetterie sur mesure
+        </span>
+        <div className="w-px h-20 bg-white/20" />
+      </div>
 
-        <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed">
-          Découvrez l’art de la lunetterie sur mesure. Chaque monture est conçue
-          pour refléter votre style et votre vision uniques.
-        </p>
+      {/* Contenu */}
+      <div className="relative z-10 container mx-auto px-6 text-center">
 
-        {/* ✅ Boutons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={scrollToCollection}
-            className="text-base sm:text-lg px-8 py-6 bg-white text-black hover:bg-gray-200 transition-colors"
+        {/* Label chapeau */}
+        <div className="animate-fade-up delay-100 mb-10">
+          <span className="font-sans-dm text-[10px] tracking-[0.35em] uppercase text-white/85 border border-white/25 px-5 py-2">
+            Artisan lunettier · Paris 12ème
+          </span>
+        </div>
+
+        {/* Titre — "Signez" en blanc, "votre regard" en doré */}
+        <div className="animate-fade-up delay-200 mb-8">
+          <h1
+            className="font-playfair text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-tight tracking-tight"
+            style={{ textShadow: "0 2px 20px rgba(0,0,0,0.4)" }}
           >
-            Découvrez la collection
-          </Button>
+            Signez
+          </h1>
+          <h1
+            className="font-playfair text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold italic leading-tight tracking-tight"
+            style={{
+              color: "#E2C99A",
+              textShadow: "0 2px 24px rgba(0,0,0,0.5)",
+            }}
+          >
+            votre regard
+          </h1>
+        </div>
 
-          <Button
-            variant="outline"
-            size="lg"
+        {/* Séparateur */}
+        <div className="animate-fade-up delay-300 flex items-center justify-center gap-4 mb-8">
+          <div className="w-16 h-px bg-white/25" />
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#C9A96E" }} />
+          <div className="w-16 h-px bg-white/25" />
+        </div>
+
+        {/* Sous-titre */}
+        <p
+          className="animate-fade-up delay-400 font-sans-dm text-base sm:text-lg text-white/85 max-w-lg mx-auto leading-relaxed mb-12 font-normal"
+          style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}
+        >
+          Chaque monture est conçue pour refléter votre style et votre vision uniques.
+        </p>
+
+        {/* Boutons */}
+        <div className="animate-fade-up delay-500 flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <button onClick={scrollToCollection} className="btn-gold py-4 px-10 text-[11px]">
+            <span>Découvrir la collection</span>
+          </button>
+          <button
             onClick={openCalendly}
-            className="text-base sm:text-lg px-8 py-6 border-white text-white hover:bg-white hover:text-black transition-colors"
+            className="font-sans-dm text-[11px] tracking-[0.18em] uppercase text-white/80 hover:text-white transition-colors flex items-center gap-3"
           >
-            Planifier une consultation
-          </Button>
+            <span className="w-6 h-px bg-white/40" />
+            Prendre rendez-vous
+          </button>
         </div>
       </div>
 
-      {/* ✅ Flèche animée */}
+      {/* Flèche scroll */}
       <button
         onClick={scrollToCollection}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 text-white hover:text-gray-300 transition-colors animate-bounce"
-        aria-label="Scroll down"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 group"
+        aria-label="Défiler"
       >
-        <ArrowDown size={32} />
+        <span className="font-sans-dm text-[9px] tracking-[0.25em] uppercase text-white/50 group-hover:text-white transition-colors">
+          Découvrir
+        </span>
+        <ArrowDown size={16} className="text-white/50 group-hover:text-white transition-colors animate-bounce" />
       </button>
     </section>
   );

@@ -1,10 +1,9 @@
-
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom"; // ✅ Import des composants de routage
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "@/pages/Index";
-import EspacePro from "@/pages/espacepro"; // Assurez-vous d'avoir bien créé ce fichier
+import EspacePro from "@/pages/espacepro";
 import Inscription from "@/pages/inscription";
 import { Toaster } from "@/components/ui/sonner";
 import DashboardPro from "./pages/dashboardpro";
@@ -13,7 +12,8 @@ import Profil from "./pages/profil";
 import CommentCaMarche from "./pages/commentcamarche";
 import AdminDashboard from "./pages/AdminDashboard";
 import MesCommandes from "./pages/MesCommandes";
-import Configurateur from "./pages/configurateur"; // ✅ Import
+import Configurateur from "./pages/configurateur";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -22,30 +22,48 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <TooltipProvider>
-          {/* ✅ DÉBUT DU ROUTER : Tout composant enfant aura accès aux fonctions de navigation (Link, useNavigate) */}
           <BrowserRouter>
             <Routes>
-              {/* 1. Route pour la page d'accueil. L'Index est rendu UNIQUEMENT ici. */}
               <Route path="/" element={<Index />} />
-              
-              {/* 2. Route pour la page de connexion Espace Pro. */}
               <Route path="/espace-pro" element={<EspacePro />} />
-
               <Route path="/inscription" element={<Inscription />} />
-              <Route path="/dashboardpro" element={<DashboardPro />} /> // Page après connexion
               <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
-              <Route path="/profil" element={<Profil/>} />
               <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/mes-commandes" element={<MesCommandes />} />
-              <Route path="/configurateur" element={<Configurateur />} /> {/* ✅ Nouvelle route */}
+
+              {/* Routes protégées — nécessitent d'être connecté */}
+              <Route path="/dashboardpro" element={
+                <ProtectedRoute>
+                  <DashboardPro />
+                </ProtectedRoute>
+              } />
+              <Route path="/profil" element={
+                <ProtectedRoute>
+                  <Profil />
+                </ProtectedRoute>
+              } />
+              <Route path="/mes-commandes" element={
+                <ProtectedRoute>
+                  <MesCommandes />
+                </ProtectedRoute>
+              } />
+              <Route path="/configurateur" element={
+                <ProtectedRoute>
+                  <Configurateur />
+                </ProtectedRoute>
+              } />
+
+              {/* Route admin — nécessite le rôle admin */}
+              <Route path="/admin" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
             </Routes>
           </BrowserRouter>
-          {/* ❌ L'appel d'Index a été supprimé ici car il était en double et hors du routeur. */}
+          {/* Toaster affiché une seule fois, hors du Router */}
           <Toaster />
         </TooltipProvider>
       </ToastProvider>
-      <Toaster />
     </QueryClientProvider>
   );
 };

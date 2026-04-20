@@ -1,50 +1,52 @@
 // src/components/Navigation.tsx
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link, useNavigate, useLocation } from "react-router-dom"; 
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 declare global {
-  interface Window {
-    Calendly?: any;
-  }
+  interface Window { Calendly?: any; }
 }
 
 const Navigation = () => {
   const navigate = useNavigate();
-  const location = useLocation(); 
-  
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [calendlyReady, setCalendlyReady] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); 
-  const [isAdmin, setIsAdmin] = useState(false); // ✅ État Admin
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const checkLoginStatus = () => {
-      const userStr = localStorage.getItem('user');
+    const checkLogin = () => {
+      const userStr = localStorage.getItem("user");
       if (userStr) {
-          const user = JSON.parse(userStr);
-          setIsLoggedIn(true);
-          setIsAdmin(user.role === 'admin'); // ✅ Vérification du rôle
+        const user = JSON.parse(userStr);
+        setIsLoggedIn(true);
+        setIsAdmin(user.role === "admin");
       } else {
-          setIsLoggedIn(false);
-          setIsAdmin(false);
+        setIsLoggedIn(false);
+        setIsAdmin(false);
       }
     };
-
-    checkLoginStatus(); 
-    window.addEventListener('storage', checkLoginStatus);
-    return () => window.removeEventListener('storage', checkLoginStatus);
+    checkLogin();
+    window.addEventListener("storage", checkLogin);
+    return () => window.removeEventListener("storage", checkLogin);
   }, []);
 
   useEffect(() => {
-    const existingScript = document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]');
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://assets.calendly.com/assets/external/widget.js";
-      script.async = true;
-      script.onload = () => setCalendlyReady(true);
-      document.body.appendChild(script);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const existing = document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]');
+    if (!existing) {
+      const s = document.createElement("script");
+      s.src = "https://assets.calendly.com/assets/external/widget.js";
+      s.async = true;
+      s.onload = () => setCalendlyReady(true);
+      document.body.appendChild(s);
     } else {
       setCalendlyReady(true);
     }
@@ -59,58 +61,105 @@ const Navigation = () => {
   const handleScrollTo = (id: string) => {
     if (location.pathname !== "/") {
       navigate("/");
-      setTimeout(() => {
-        const element = document.getElementById(id);
-        if (element) element.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }), 120);
     } else {
-      const element = document.getElementById(id);
-      if (element) element.scrollIntoView({ behavior: "smooth" });
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     }
     setIsMenuOpen(false);
   };
-  
-  // ✅ LOGIQUE DE REDIRECTION INTELLIGENTE
+
   const targetPath = !isLoggedIn ? "/espace-pro" : (isAdmin ? "/admin" : "/dashboardpro");
-  const linkText = !isLoggedIn ? "Espace Pro" : (isAdmin ? "Admin" : "Mon Tableau de Bord");
+  const linkText = !isLoggedIn ? "Espace Pro" : (isAdmin ? "Admin" : "Tableau de bord");
+
+  const navBg = scrolled
+    ? "bg-[#0F0E0C]/95 backdrop-blur-md shadow-[0_1px_0_rgba(201,169,110,0.15)]"
+    : location.pathname === "/"
+      ? "bg-transparent"
+      : "bg-[#0F0E0C]/95 backdrop-blur-md";
+
+  const textColor = scrolled || location.pathname !== "/" ? "text-[#F7F4EE]" : "text-white";
+  const logoColor = scrolled || location.pathname !== "/" ? "text-[#F7F4EE]" : "text-white";
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${navBg}`}>
+      <div className="container mx-auto px-6 lg:px-10">
         <div className="flex items-center justify-between h-20">
-          <div className="flex-shrink-0 cursor-pointer" onClick={() => navigate("/")}>
-            <span className="font-playfair text-2xl italic tracking-tight text-black">L’Atelier des Arts</span>
+
+          {/* Logo */}
+          <div className="cursor-pointer flex-shrink-0" onClick={() => navigate("/")}>
+            <span className={`font-playfair text-xl italic tracking-wide ${logoColor} transition-colors duration-300`}>
+              L'Atelier des Arts
+            </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-8">
-            <button onClick={() => handleScrollTo("home")} className="hover:text-accent transition">Accueil</button>
-            <button onClick={() => handleScrollTo("collection")} className="hover:text-accent transition">Collection</button>
-            <Link to={targetPath} className="hover:text-accent transition font-medium">{linkText}</Link>
-            <Link to="/configurateur" className="text-foreground/80 hover:text-foreground font-medium transition-colors flex items-center gap-2">
-    <span className="bg-black text-white text-xs px-2 py-0.5 rounded-full">Bientot</span>
-    Atelier 3D
-</Link>
-            <button onClick={() => handleScrollTo("about")} className="hover:text-accent transition">À propos</button>
-            <button onClick={() => handleScrollTo("contact")} className="hover:text-accent transition">Contact</button>
-            <Button variant="light" size="lg" onClick={openCalendly}>Planifier une consultation</Button>
-          </div>
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-10">
+            {[
+              { label: "Accueil", id: "home" },
+              { label: "Collection", id: "collection" },
+              { label: "À propos", id: "about" },
+              { label: "Contact", id: "contact" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleScrollTo(item.id)}
+                className={`font-sans-dm text-xs tracking-[0.15em] uppercase transition-colors duration-300 hover:text-[#C9A96E] ${textColor}`}
+              >
+                {item.label}
+              </button>
+            ))}
 
-          <div className="md:hidden">
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="hover:text-accent transition">
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            <Link
+              to="/configurateur"
+              className={`font-sans-dm text-xs tracking-[0.15em] uppercase transition-colors duration-300 hover:text-[#C9A96E] ${textColor} flex items-center gap-2`}
+            >
+              <span className="text-[8px] tracking-widest bg-[#C9A96E] text-[#0F0E0C] px-2 py-0.5">Bientôt</span>
+              Atelier 3D
+            </Link>
+
+            <Link
+              to={targetPath}
+              className={`font-sans-dm text-xs tracking-[0.15em] uppercase transition-colors duration-300 hover:text-[#C9A96E] ${textColor}`}
+            >
+              {linkText}
+            </Link>
+
+            <button
+              onClick={openCalendly}
+              className="btn-gold text-[10px] py-2.5 px-6"
+            >
+              <span>Prendre rendez-vous</span>
             </button>
           </div>
+
+          {/* Mobile toggle */}
+          <button
+            className={`md:hidden transition-colors ${textColor} hover:text-[#C9A96E]`}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
 
+        {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 animate-fade-in bg-background">
-            <div className="flex flex-col gap-4">
-              <button onClick={() => handleScrollTo("home")} className="text-right py-2 hover:text-accent">Accueil</button>
-              <button onClick={() => handleScrollTo("collection")} className="text-right py-2 hover:text-accent">Collection</button>
-              <button onClick={() => handleScrollTo("about")} className="text-right py-2 hover:text-accent">À propos</button>
-              <button onClick={() => handleScrollTo("contact")} className="text-right py-2 hover:text-accent">Contactez-nous</button>
-              <Link to={targetPath} onClick={() => setIsMenuOpen(false)} className="text-right py-2 hover:text-accent font-medium">{linkText}</Link>
-              <Button variant="light" size="lg" className="w-full" onClick={openCalendly}>Planifier une consultation</Button>
+          <div className="md:hidden bg-[#0F0E0C] border-t border-[#C9A96E]/20 py-6 animate-fade-in">
+            <div className="flex flex-col gap-5 px-2">
+              {["home", "collection", "about", "contact"].map((id) => (
+                <button
+                  key={id}
+                  onClick={() => handleScrollTo(id)}
+                  className="text-left font-sans-dm text-xs tracking-[0.2em] uppercase text-[#F7F4EE] hover:text-[#C9A96E] transition-colors py-1"
+                >
+                  {id === "home" ? "Accueil" : id === "collection" ? "Collection" : id === "about" ? "À propos" : "Contact"}
+                </button>
+              ))}
+              <Link to={targetPath} onClick={() => setIsMenuOpen(false)} className="font-sans-dm text-xs tracking-[0.2em] uppercase text-[#F7F4EE] hover:text-[#C9A96E] transition-colors py-1">
+                {linkText}
+              </Link>
+              <button onClick={openCalendly} className="btn-gold text-[10px] mt-2 w-full">
+                <span>Prendre rendez-vous</span>
+              </button>
             </div>
           </div>
         )}

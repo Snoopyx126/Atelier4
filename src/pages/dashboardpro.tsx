@@ -1,19 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import Navigation from "@/components/Navigation"; 
-import { Button } from "@/components/ui/button"; 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; 
-// Import des icônes supplémentaires
-import { Phone, Mail, FileText, ShoppingCart, Receipt, MapPin, Users, Glasses } from "lucide-react"; 
+// src/pages/dashboardpro.tsx
+import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import Navigation from "@/components/Navigation";
+import { Phone, Mail, FileText, ShoppingCart, Receipt, MapPin } from "lucide-react";
 
 interface UserData {
-  id: string;
-  nomSociete: string;
-  email: string;
-  siret: string;
-  phone?: string; 
-  address?: string; // ✅ AJOUT
-  zipCity?: string; // ✅ AJOUT
+  id: string; nomSociete: string; email: string; siret: string;
+  phone?: string; address?: string; zipCity?: string;
 }
 
 const DashboardPro = () => {
@@ -22,23 +15,10 @@ const DashboardPro = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userDataString = localStorage.getItem("user");
-    if (userDataString) {
-      try {
-        const userData: UserData = JSON.parse(userDataString);
-        
-        // Assurez-vous que les champs d'adresse sont présents pour l'affichage
-        const userWithAddress = {
-            ...userData,
-            address: userData.address || "Adresse non renseignée", 
-            zipCity: userData.zipCity || "Code postal et ville N/A" 
-        };
-        
-        setUser(userWithAddress);
-        
-      } catch (e) {
-        handleLogout(); 
-      }
+    const str = localStorage.getItem("user");
+    if (str) {
+      try { setUser(JSON.parse(str)); }
+      catch { localStorage.removeItem("user"); navigate("/espace-pro"); }
     } else {
       navigate("/espace-pro");
     }
@@ -47,107 +27,147 @@ const DashboardPro = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    navigate("/"); 
-  };
-  
-  const handleEditProfile = () => {
-    navigate("/profil"); 
+    navigate("/");
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-8 h-px bg-[#C9A96E] animate-pulse" />
+        <span className="font-sans-dm text-[10px] tracking-[0.3em] uppercase text-muted-foreground">Chargement</span>
+      </div>
+    </div>
+  );
   if (!user) return null;
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navigation />
-      <div className="flex-grow pt-24 pb-10 px-6 container mx-auto max-w-6xl">
-        <h1 className="text-4xl font-bold text-gray-900 mb-6">Bonjour, {user.nomSociete}</h1>
-        <p className="text-lg text-gray-600 mb-10">Bienvenue sur votre espace professionnel. Gérez vos commandes et accédez à vos documents.</p>
+  const tiles = [
+    {
+      label: "Production",
+      title: "Suivi de mes montages",
+      desc: "Créez et suivez l'avancement de vos dossiers en temps réel.",
+      icon: ShoppingCart,
+      action: () => navigate("/mes-commandes"),
+      accent: "border-[#C9A96E]/30 hover:border-[#C9A96E]",
+      badge: "Commandes",
+    },
+    {
+      label: "Documents",
+      title: "Mes factures",
+      desc: "Consultez et téléchargez vos documents de facturation.",
+      icon: Receipt,
+      action: () => navigate("/mes-commandes?tab=factures"),
+      accent: "border-[#EDE8DF] hover:border-[#0F0E0C]",
+      badge: "Factures",
+    },
+  ];
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Col 1: Profil & Actions */}
-          <div className="md:col-span-1 space-y-6">
-            {/* Infos de Profil */}
-            <Card className="shadow-lg border-l-4 border-l-black">
-              <CardHeader>
-                <CardTitle>Mon Profil</CardTitle>
-                <CardDescription>Vos informations de contact et de facturation.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center text-sm text-gray-700 gap-2"><Mail className="w-4 h-4 text-black" /> {user.email}</div>
-                {user.phone && <div className="flex items-center text-sm text-gray-700 gap-2"><Phone className="w-4 h-4 text-black" /> {user.phone}</div>}
-                <div className="flex items-center text-sm text-gray-700 gap-2"><FileText className="w-4 h-4 text-black" /> SIRET: {user.siret}</div>
-                
-                {/* ✅ AFFICHAGE ADRESSE */}
-                <div className="flex items-start text-sm text-gray-700 gap-2">
-                    <MapPin className="w-4 h-4 text-black mt-1" />
-                    <span>
-                        {user.address}
-                        {user.zipCity && <br />}
-                        {user.zipCity}
-                    </span>
+  return (
+    <div className="min-h-screen bg-[#F7F4EE] flex flex-col">
+      <Navigation />
+
+      <div className="flex-grow pt-28 pb-16 px-6 container mx-auto max-w-5xl">
+
+        {/* En-tête */}
+        <div className="mb-14 animate-fade-up">
+          <span className="section-label">Espace professionnel</span>
+          <h1 className="font-playfair text-4xl md:text-5xl font-normal text-foreground leading-tight">
+            Bonjour,<br />
+            <span className="italic text-[#9A7A45]">{user.nomSociete}</span>
+          </h1>
+          <div className="gold-divider-left" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Carte profil */}
+          <div className="animate-fade-up delay-100">
+            <div className="border border-[#EDE8DF] bg-white p-8">
+              <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E] block mb-6">
+                Mon profil
+              </span>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0" />
+                  <span className="font-sans-dm text-xs text-foreground font-light break-all">{user.email}</span>
                 </div>
-                
-                <Button onClick={handleEditProfile} className="w-full bg-black hover:bg-gray-800 text-white mt-4">
-                  Modifier mon profil
-                </Button>
-              </CardContent>
-            </Card>
-            
-            {/* Actions */}
-            <Card className="shadow-lg border-l-4 border-l-black">
-              <CardHeader>
-                <CardTitle className="text-black">Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Link to="/comment-ca-marche" className="w-full block">
-                  <Button className="w-full bg-black hover:bg-gray-800 text-white">
-                    Comment ça marche ?
-                  </Button>
+                {user.phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0" />
+                    <span className="font-sans-dm text-xs text-foreground font-light">{user.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <FileText className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0" />
+                  <span className="font-sans-dm text-xs text-muted-foreground font-light">SIRET : {user.siret}</span>
+                </div>
+                {(user.address || user.zipCity) && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0 mt-0.5" />
+                    <span className="font-sans-dm text-xs text-muted-foreground font-light leading-relaxed">
+                      {user.address}{user.address && user.zipCity && <br />}{user.zipCity}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-[#EDE8DF] space-y-3">
+                <button
+                  onClick={() => navigate("/profil")}
+                  className="w-full btn-ghost text-[9px] py-2.5"
+                >
+                  Modifier le profil
+                </button>
+                <Link to="/comment-ca-marche" className="w-full btn-ghost text-[9px] py-2.5 block text-center tracking-[0.12em] uppercase border border-foreground/20 hover:bg-foreground hover:text-[#F7F4EE] transition-all duration-300 font-sans-dm">
+                  Comment ça marche ?
                 </Link>
-                <Button onClick={handleLogout} className="w-full bg-black hover:bg-gray-800 text-white">
+                <button
+                  onClick={handleLogout}
+                  className="w-full font-sans-dm text-[9px] tracking-[0.12em] uppercase text-muted-foreground hover:text-foreground transition-colors py-2"
+                >
                   Déconnexion
-                </Button>
-              </CardContent>
-            </Card>
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Col 2 & 3: Commandes et Factures */}
-          <div className="md:col-span-2 space-y-6">
-            
-            {/* Accès aux Commandes */}
-            <Card 
-              className="shadow-lg border-l-4 border-l-blue-400 hover:shadow-xl transition-shadow cursor-pointer" 
-              onClick={() => navigate("/mes-commandes")}
-            >
-              <CardHeader>
-                <CardTitle>Suivi de Production</CardTitle>
-                <CardDescription>Gérez vos montages et suivez leur avancement.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <p className="text-gray-600">Accédez à l'historique complet et créez de nouvelles demandes.</p>
-                <Button className="bg-blue-400 hover:bg-gray-800 text-white px-8">
-                  <ShoppingCart className="w-4 h-4 mr-2"/> Mes Commandes →
-                </Button>
-              </CardContent>
-            </Card>
+          {/* Tuiles actions */}
+          <div className="lg:col-span-2 space-y-5">
+            {tiles.map((tile, i) => {
+              const Icon = tile.icon;
+              return (
+                <div
+                  key={i}
+                  onClick={tile.action}
+                  className={`group border bg-white p-8 cursor-pointer transition-all duration-400 animate-fade-up ${tile.accent}`}
+                  style={{ animationDelay: `${(i + 2) * 100}ms` }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E] block mb-2">
+                        {tile.label}
+                      </span>
+                      <h3 className="font-playfair text-xl font-normal text-foreground mb-3">
+                        {tile.title}
+                      </h3>
+                      <p className="font-sans-dm text-xs text-muted-foreground font-light leading-relaxed">
+                        {tile.desc}
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 border border-[#EDE8DF] group-hover:border-[#C9A96E] flex items-center justify-center transition-colors duration-400 flex-shrink-0">
+                      <Icon className="w-4 h-4 text-[#C9A96E]" />
+                    </div>
+                  </div>
 
-            {/* Accès aux Factures */}
-            <Card 
-              className="shadow-lg border-l-4 border-l-green-400 hover:shadow-xl transition-shadow cursor-pointer" 
-              onClick={() => navigate("/mes-commandes?tab=factures")} // Navigation vers l'onglet Factures
-            >
-              <CardHeader>
-                <CardTitle>Mes Documents</CardTitle>
-                <CardDescription>Consultez et téléchargez vos documents de facturation.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <p className="text-gray-600">Retrouvez l'historique de vos documents de facturation.</p>
-                <Button className="bg-green-400 hover:bg-gray-800 text-white px-8">
-                  <Receipt className="w-4 h-4 mr-2"/> Accéder aux Documents →
-                </Button>
-              </CardContent>
-            </Card>
+                  <div className="mt-6 flex items-center gap-3 text-[#C9A96E] group-hover:gap-5 transition-all duration-400">
+                    <span className="w-6 h-px bg-[#C9A96E]" />
+                    <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase">
+                      Accéder
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

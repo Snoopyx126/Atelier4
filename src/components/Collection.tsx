@@ -1,6 +1,5 @@
+// src/components/Collection.tsx
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import ImageZoomDialog from "@/components/ImageZoomDialog";
 import product1 from "@/assets/product-1.jpg";
 import product2 from "@/assets/product-2.jpg";
@@ -15,186 +14,98 @@ import product10 from "@/assets/product-10.jpg";
 import product11 from "@/assets/product-11.jpg";
 import product12 from "@/assets/product-12.jpg";
 import product13 from "@/assets/product-13.jpg";
-import product14 from"@/assets/product-14.jpg";
-
+import product14 from "@/assets/product-14.jpg";
 
 const products = [
-    {
-    id: 1,
-    name: "Facette Custom",
-    description: "",
-    image: product1,
-    price: "",
-  },
-  {
-    id: 2,
-    name: "Diamond mixte",
-    description: "",
-    image: product2,
-    price: "",
-  },
-  {
-    id: 3,
-    name: "Facette Lisse",
-    description: "",
-    image: product3,
-    price: "",
-  },
-  {
-    id: 4,
-    name: "Facette Twinkle",
-    description: "",
-    image: product4,
-    price: "",
-  },
-  {
-    id: 5,
-    name: "Diamond Line",
-    description: "",
-    image: product5,
-    price: "",
-  },
-  {
-    id: 6,
-    name: "Facette Tornado",
-    description: "",
-    image: product6,
-    price: "",
-  },
-  {
-    id: 7,
-    name: "Diamond Jungle",
-    description: "",
-    image: product7,
-    price: "",
-  },
-  {
-    id: 8,
-    name: "Facette Custom",
-    description: "",
-    image: product8,
-    price: "",
-  },
-  {
-    id: 9,
-    name: "Facette Lisse Interne",
-    description: "",
-    image: product9,
-    price: "",
-  },
-  {
-    id: 10,
-    name: "Facette Art Optic",
-    description: "",
-    image: product10,
-    price: "",
-  },
-  {
-    id: 11,
-    name: "Diamond Jade",
-    description: "",
-    image: product11,
-    price: "",
-  },
-  {
-    id: 12,
-    name: "Diamond Ice",
-    description: "",
-    image: product12,
-    price: "",
-  },
-  {
-    id: 13,
-    name: "Diamond Flower",
-    description: "",
-    image: product13,
-    price: "",
-  },
-{
-    id: 14  ,
-    name: "Diamond Shark",
-    description: "",
-    image: product14,
-    price: "",
-  }
-]
+  { id: 1,  name: "Facette Custom",       image: product1  },
+  { id: 2,  name: "Diamond Mixte",        image: product2  },
+  { id: 3,  name: "Facette Lisse",        image: product3  },
+  { id: 4,  name: "Facette Twinkle",      image: product4  },
+  { id: 5,  name: "Diamond Line",         image: product5  },
+  { id: 6,  name: "Facette Tornado",      image: product6  },
+  { id: 7,  name: "Diamond Jungle",       image: product7  },
+  { id: 8,  name: "Facette Custom II",    image: product8  },
+  { id: 9,  name: "Facette Lisse Int.",   image: product9  },
+  { id: 10, name: "Facette Art Optic",    image: product10 },
+  { id: 11, name: "Diamond Jade",         image: product11 },
+  { id: 12, name: "Diamond Ice",          image: product12 },
+  { id: 13, name: "Diamond Flower",       image: product13 },
+  { id: 14, name: "Diamond Shark",        image: product14 },
+];
 
 const Collection = () => {
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null);
 
   const scrollToContact = () => {
-    const element = document.getElementById("contact");
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-    }
+    document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    <section id="collection" className="py-20 bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 sm:mb-16 animate-fade-in-up">
-          <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight">
+    <section id="collection" className="py-28 bg-[#F7F4EE]">
+      <div className="container mx-auto px-6 lg:px-10">
+
+        {/* En-tête section */}
+        <div className="text-center mb-20 animate-fade-up">
+          <span className="section-label">Savoir-faire</span>
+          <h2 className="section-title-lg">
             Notre Collection
           </h2>
-          <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
-            Chaque pièce de notre collection est conçue pour s'adapter à votre style unique. Choisissez le modèle de base et nous le personnaliserons spécialement pour vous.</p>
+          <div className="gold-divider" />
+          <p className="font-cormorant text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed italic">
+            Chaque pièce est façonnée pour s'adapter à votre style unique.
+            Choisissez votre modèle — nous le personnaliserons pour vous.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12">
+        {/* Grille éditoriale */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-[#EDE8DF] border border-[#EDE8DF]">
           {products.map((product, index) => (
-            <Card 
-              key={product.id} 
-              className="group hover:shadow-luxury transition-all duration-500 border-border overflow-hidden animate-scale-in"
-              style={{ animationDelay: `${index * 100}ms` }}
+            <div
+              key={product.id}
+              className="relative group bg-white overflow-hidden cursor-pointer animate-fade-up"
+              style={{ animationDelay: `${index * 60}ms` }}
+              onClick={() => setZoomedImage({ src: product.image, alt: product.name })}
             >
-              <CardContent className="p-0">
-                <div 
-                  className="relative overflow-hidden aspect-square cursor-pointer"
-                  onClick={() => setZoomedImage({ src: product.image, alt: product.name })}
-                >
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <div className="p-4 sm:p-6 text-right">
-                  <h3 className="font-playfair text-xl sm:text-2xl font-semibold text-foreground mb-2">
-                    {product.name}
-                  </h3>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-4">
-                    {product.description}
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 sm:flex-row-reverse">
-                    <span className="text-accent font-semibold text-base sm:text-lg text-center sm:text-right">
-                      {product.price}
-                    </span>
-                    <Button
-  variant="outline"
-  size="lg"
-  onClick={scrollToContact}
-  className="w-full sm:w-auto"
->
-  Demandez un devis
-</Button>
+              {/* Image */}
+              <div className="aspect-square overflow-hidden">
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-108"
+                  style={{ transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
+                />
+              </div>
 
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Overlay au hover */}
+              <div className="absolute inset-0 product-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex flex-col justify-end p-5">
+                <p className="font-playfair text-white text-base font-normal leading-tight mb-2">
+                  {product.name}
+                </p>
+                <button
+                  onClick={(e) => { e.stopPropagation(); scrollToContact(); }}
+                  className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E] hover:text-white transition-colors flex items-center gap-2"
+                >
+                  <span className="w-4 h-px bg-[#C9A96E]" />
+                  Demander un devis
+                </button>
+              </div>
+
+              {/* Numéro */}
+              <div className="absolute top-3 left-3 font-sans-dm text-[9px] tracking-[0.15em] text-white/50 bg-black/20 px-2 py-1">
+                {String(index + 1).padStart(2, "0")}
+              </div>
+            </div>
           ))}
         </div>
 
-        <div className="text-center px-4">
-          <Button 
-            variant="primary" 
-            size="lg"
-            onClick={scrollToContact}
-            className="text-base sm:text-lg px-6 sm:px-10 py-6 w-full sm:w-auto min-h-[48px] touch-manipulation"
-          >
-            Commencez votre parcours de personnalisation
-          </Button>
+        {/* CTA */}
+        <div className="text-center mt-16 animate-fade-up">
+          <p className="font-cormorant text-lg text-muted-foreground italic mb-6">
+            Une pièce vous inspire ? Contactez-nous pour démarrer votre création.
+          </p>
+          <button onClick={scrollToContact} className="btn-dark">
+            Commencer votre parcours
+          </button>
         </div>
       </div>
 

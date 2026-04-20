@@ -244,8 +244,8 @@ const InvoiceModal: React.FC<InvoiceProps> = ({ client, montages, isOpen, onClos
                 pdfBase64: monthlyMontages.length <= 20 ? pdfBase64 : null 
             };
             
-            const  API_URL = getApiUrl();
-            const res = await authFetch(`${ API_URL}/api/factures`, { 
+            const baseUrl = getApiUrl();
+            const res = await fetch(`${baseUrl}/api/factures`, { 
                 method: "POST", 
                 headers: { "Content-Type": "application/json" }, 
                 body: JSON.stringify(payload) 
@@ -401,13 +401,13 @@ const [isSubmitting, setIsSubmitting] = useState(false);
     try {
         const user = JSON.parse(userStr);
         if (user.role !== 'admin') { navigate("/dashboardpro"); return; }
-        const  API_URL = getApiUrl();
+        const baseUrl = getApiUrl();
         
         // ✅ APPELS API (SANS FILTRES)
         Promise.all([
-            authFetch(`${ API_URL}/api/montages`).then(r => r.json()), 
-            authFetch(`${ API_URL}/api/users`).then(r => r.json()), 
-            authFetch(`${ API_URL}/api/factures`).then(r => r.json())
+            fetch(`${baseUrl}/api/montages`).then(r => r.json()), 
+            fetch(`${baseUrl}/api/users`).then(r => r.json()), 
+            fetch(`${baseUrl}/api/factures`).then(r => r.json())
         ]).then(([mData, cData, iData]) => {
             if (mData.success) setMontages(mData.montages);
             if (cData.success) { setClients(cData.users); if(cData.users.length) setNewClient(cData.users[0]._id); }
@@ -417,16 +417,16 @@ const [isSubmitting, setIsSubmitting] = useState(false);
     } catch (e) { navigate("/"); }
   }, [navigate]);
 
-  const fetchMontages = async () => { const  API_URL = getApiUrl(); const res = await authFetch(`${ API_URL}/api/montages`); const data = await res.json(); if (data.success) setMontages(data.montages); };
-  const handleDeleteInvoice = async (id: string) => { const  API_URL = getApiUrl(); const res = await authFetch(`${ API_URL}/api/factures/${id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { toast.success("Facture supprimée"); setAllInvoices(prev => prev.filter(f => f.id !== id)); setCurrentClientInvoices(prev => prev.filter(f => f.id !== id)); } else toast.error("Erreur suppression"); };
-  const handlePaymentUpdate = async (id: string, amount: number) => { const  API_URL = getApiUrl(); try { const res = await authFetch(`${ API_URL}/api/factures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: amount }) }); const data = await res.json(); if (data.success) { toast.success("Paiement mis à jour !"); const updatedInv = data.facture; setAllInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); setCurrentClientInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); } } catch (e) { toast.error("Erreur mise à jour paiement"); } };
+  const fetchMontages = async () => { const baseUrl = getApiUrl(); const res = await fetch(`${baseUrl}/api/montages`); const data = await res.json(); if (data.success) setMontages(data.montages); };
+  const handleDeleteInvoice = async (id: string) => { const baseUrl = getApiUrl(); const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { toast.success("Facture supprimée"); setAllInvoices(prev => prev.filter(f => f.id !== id)); setCurrentClientInvoices(prev => prev.filter(f => f.id !== id)); } else toast.error("Erreur suppression"); };
+  const handlePaymentUpdate = async (id: string, amount: number) => { const baseUrl = getApiUrl(); try { const res = await fetch(`${baseUrl}/api/factures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: amount }) }); const data = await res.json(); if (data.success) { toast.success("Paiement mis à jour !"); const updatedInv = data.facture; setAllInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); setCurrentClientInvoices(prev => prev.map(f => f.id === id ? { ...f, amountPaid: updatedInv.amountPaid, paymentStatus: updatedInv.paymentStatus } : f)); } } catch (e) { toast.error("Erreur mise à jour paiement"); } };
 
   const handlePhotoUpload = async (montageId: string, file: File) => {
       if (!file) return;
       const formData = new FormData(); formData.append('photo', file); toast.loading("Envoi...", { id: 'photo-upload' });
-      const  API_URL = getApiUrl();
+      const baseUrl = getApiUrl();
       try {
-          const res = await authFetch(`${ API_URL}/api/montages/${montageId}/photo`, { method: 'POST', body: formData });
+          const res = await fetch(`${baseUrl}/api/montages/${montageId}/photo`, { method: 'POST', body: formData });
           const data = await res.json();
           if (data.success) { toast.success("Photo ajoutée !", { id: 'photo-upload' }); fetchMontages(); } 
           else { toast.error("Erreur upload", { id: 'photo-upload' }); }
@@ -435,18 +435,18 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSaveMontage = async (e: React.FormEvent) => { 
       e.preventDefault(); setIsSubmitting(true); 
-      const  API_URL = getApiUrl(); 
+      const baseUrl = getApiUrl(); 
       const method = editingId ? "PUT" : "POST"; 
-      const url = editingId ? `${ API_URL}/api/montages/${editingId}` : `${ API_URL}/api/montages`; 
+      const url = editingId ? `${baseUrl}/api/montages/${editingId}` : `${baseUrl}/api/montages`; 
       const basePayload = { reference: newRef, frame: newFrame, description: newDesc, category: newCategory, glassType: newGlassType, urgency: newUrgency, diamondCutType: newDiamondCutType, engravingCount: newEngravingCount, shapeChange: newShapeChange, createdBy: "Admin",statut: newStatut, };
       const payload = method === "POST" ? { ...basePayload, userId: newClient } : basePayload; 
-      try { const res = await authFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const data = await res.json(); if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } } catch (error) { toast.error("Erreur API"); } finally { setIsSubmitting(false); } 
+      try { const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const data = await res.json(); if (data.success) { toast.success(editingId ? "Modifié !" : "Créé !"); setIsDialogOpen(false); fetchMontages(); } } catch (error) { toast.error("Erreur API"); } finally { setIsSubmitting(false); } 
   };
   
   const openCreateDialog = () => { setEditingId(null); setNewRef(""); setNewFrame(""); setNewCategory("Cerclé"); setNewGlassType([]); setNewUrgency("Standard"); setNewDiamondCutType("Standard"); setNewEngravingCount(0); setNewShapeChange(false); setNewDesc(""); setNewStatut("En attente"); setIsDialogOpen(true); };
   const openEditDialog = (m: Montage) => { setEditingId(m._id); setNewRef(m.reference||""); setNewFrame(m.frame||""); setNewCategory(m.category||"Cerclé"); setNewGlassType(m.glassType||[]); setNewUrgency(m.urgency||"Standard"); setNewDiamondCutType(m.diamondCutType||"Standard"); setNewEngravingCount(m.engravingCount||0); setNewShapeChange(m.shapeChange||false); setNewDesc(m.description||"");setNewStatut(m.statut||"En attente"); setNewClient(m.userId); setIsDialogOpen(true); };
-  const handleStatusChange = async (id: string, newStatus: string) => { const  API_URL = getApiUrl(); await authFetch(`${ API_URL}/api/montages/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: newStatus }) }); fetchMontages(); toast.success(`Statut: ${newStatus}`); };
-  const handleDelete = async (id: string) => { const  API_URL = getApiUrl(); if(confirm("Supprimer ?")) { await authFetch(`${ API_URL}/api/montages/${id}`, { method: 'DELETE' }); fetchMontages(); toast.success("Supprimé"); } };
+  const handleStatusChange = async (id: string, newStatus: string) => { const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/montages/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statut: newStatus }) }); fetchMontages(); toast.success(`Statut: ${newStatus}`); };
+  const handleDelete = async (id: string) => { const baseUrl = getApiUrl(); if(confirm("Supprimer ?")) { await fetch(`${baseUrl}/api/montages/${id}`, { method: 'DELETE' }); fetchMontages(); toast.success("Supprimé"); } };
   const handleGenerateInvoice = async(client: Client, items: Montage[]) => { setCurrentClientToInvoice(client); setMontagesToInvoice(items); setIsInvoiceOpen(true); };
   const handleInvoicePublished = (newInvoice: FactureData) => { setAllInvoices(prev => [newInvoice, ...prev]); };
   const openClientInvoices = (client: Client) => { setSelectedClient(client); setCurrentClientInvoices(allInvoices.filter(f => f.userId === client._id)); setIsClientInvoicesModalOpen(true); };
@@ -455,7 +455,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
   
   const renderMontageDetails = (m: Montage) => ( <div className="flex flex-wrap items-center gap-2">{m.urgency !== 'Standard' && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 {m.urgency?.replace('Urgent -', '')}</Badge>}{m.diamondCutType !== 'Standard' && <Badge className="bg-blue-100 text-blue-800">{m.diamondCutType}</Badge>}{m.engravingCount !== undefined && m.engravingCount > 0 && <Badge className="bg-purple-100 text-purple-800">✍️ {m.engravingCount} Gravure(s)</Badge>}{m.glassType && m.glassType.map(g => <Badge key={g} className="bg-green-100 text-green-800">{g.replace('Verre ', '')}</Badge>)} {m.shapeChange && <Badge className="bg-yellow-100 text-yellow-800">📐 Changement Forme</Badge>}</div>);
   const openShopAssign = (manager: Client) => { setSelectedManager(manager); const existingIds = manager.assignedShops?.map((s: any) => typeof s === 'string' ? s : s._id) || []; setTempAssignedShops(existingIds); setIsShopAssignOpen(true); };
-  const saveAssignedShops = async () => { if (!selectedManager) return; try { const  API_URL = getApiUrl(); const res = await authFetch(`${ API_URL}/api/users/${selectedManager._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedShops: tempAssignedShops }) }); const data = await res.json(); if (data.success) { toast.success("Magasins assignés !"); setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c)); setIsShopAssignOpen(false); } else { toast.error("Erreur sauvegarde."); } } catch (e) { toast.error("Erreur technique."); } };
+  const saveAssignedShops = async () => { if (!selectedManager) return; try { const baseUrl = getApiUrl(); const res = await fetch(`${baseUrl}/api/users/${selectedManager._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedShops: tempAssignedShops }) }); const data = await res.json(); if (data.success) { toast.success("Magasins assignés !"); setClients(prev => prev.map(c => c._id === selectedManager._id ? { ...c, assignedShops: data.user.assignedShops } : c)); setIsShopAssignOpen(false); } else { toast.error("Erreur sauvegarde."); } } catch (e) { toast.error("Erreur technique."); } };
 
   const handleExportCSV = () => {
     const headers = ["Date Reception", "Client", "Reference", "Monture", "Categorie", "Statut", "Prix HT", "Cree Par"];
@@ -618,7 +618,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                                             
                                             try {
                                                 // 1. On appelle la route UNIQUE qui contient la photo lourde
-                                                const res = await authFetch(`${getApiUrl()}/api/montages/${m._id}`);
+                                                const res = await fetch(`${getApiUrl()}/api/montages/${m._id}`);
                                                 const data = await res.json();
                                                 
                                                 // 2. On vérifie si on a bien reçu la photo
@@ -700,14 +700,14 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                         </div>
                         <div className="flex items-center gap-2 mr-4">
                             <Label className="text-xs text-gray-500">Tarif :</Label>
-                            <Select value={c.pricingTier?.toString() || "1"} onValueChange={async (val) => { const newTier = parseInt(val); const  API_URL = getApiUrl(); await authFetch(`${ API_URL}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pricingTier: newTier }) }); toast.success(`Tarif ${newTier} appliqué à ${c.nomSociete}`); setClients(prev => prev.map(cli => cli._id === c._id ? { ...cli, pricingTier: newTier as 1|2 } : cli)); }}>
+                            <Select value={c.pricingTier?.toString() || "1"} onValueChange={async (val) => { const newTier = parseInt(val); const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pricingTier: newTier }) }); toast.success(`Tarif ${newTier} appliqué à ${c.nomSociete}`); setClients(prev => prev.map(cli => cli._id === c._id ? { ...cli, pricingTier: newTier as 1|2 } : cli)); }}>
                                 <SelectTrigger className="w-[100px] h-8 text-xs bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Tarif 1 (Std)</SelectItem><SelectItem value="2">Tarif 2 (VIP)</SelectItem><SelectItem value="3">Tarif -10%</SelectItem>
             <SelectItem value="4">Tarif -15%</SelectItem></SelectContent>
                             </Select>
                         </div>
                         <div className="flex items-center gap-3">
                             {c.role === 'manager' && (<Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); openShopAssign(c); }}><Store className="w-4 h-4 mr-2" /> Gérer Magasins</Button>)}
-                            {!c.isVerified && (<Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const  API_URL = getApiUrl(); await authFetch(`${ API_URL}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}><CheckCircle2 className="w-4 h-4 mr-2" /> Valider</Button>)}
+                            {!c.isVerified && (<Button size="sm" className="bg-black text-white hover:bg-gray-800" onClick={async (e) => { e.stopPropagation(); if(confirm(`Valider le compte de ${c.nomSociete} ?`)) { const baseUrl = getApiUrl(); await fetch(`${baseUrl}/api/users/${c._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isVerified: true }) }); setClients(prev => prev.map(client => client._id === c._id ? {...client, isVerified: true} : client)); } }}><CheckCircle2 className="w-4 h-4 mr-2" /> Valider</Button>)}
                             <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 bg-white" onClick={(e) => { e.stopPropagation(); openClientInvoices(c); }}><Receipt className="w-4 h-4 mr-2" /> Factures</Button>
                         </div>
                     </div>

@@ -1,216 +1,206 @@
+// src/components/Contact.tsx
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
 import { Mail, MapPin, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
-// ❌ L'import emailjs a été supprimé ici !
+import { API_URL } from "@/lib/api";
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    message: "",
-  });
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", objet: "", message: "" });
+  const [sending, setSending] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.name || !formData.email || !formData.message) {
       toast.error("Veuillez remplir tous les champs obligatoires.");
       return;
     }
-
+    setSending(true);
     try {
-      // ✅ APPEL API VERS VOTRE BACKEND (RESEND)
-      const apiUrl = window.location.hostname === "localhost" 
-  ? "http://localhost:3000/api/contact" 
-  : "https://atelier4.vercel.app/api/contact";
-const response = await fetch(apiUrl, {
+      const res = await fetch(`${API_URL}/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
-      if (response.ok) {
-        toast.success("✅ Message envoyé avec succès !");
-        setFormData({ name: "", email: "", phone: "", message: "" });
-      } else {
-        throw new Error("Erreur serveur");
-      }
-
-    } catch (error) {
-      console.error("Erreur Envoi:", error);
-      toast.error("❌ Impossible d'envoyer le message.");
+      if (res.ok) {
+        toast.success("Message envoyé avec succès.");
+        setFormData({ name: "", email: "", phone: "", objet: "", message: "" });
+      } else throw new Error();
+    } catch {
+      toast.error("Impossible d'envoyer le message. Réessayez.");
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const infos = [
+    {
+      icon: Mail,
+      label: "Email",
+      value: "Atelierdesarts.12@gmail.com",
+      href: "mailto:Atelierdesarts.12@gmail.com",
+    },
+    {
+      icon: MessageCircle,
+      label: "Téléphone / WhatsApp",
+      value: "+33 6 98 40 96 87",
+      href: "https://wa.me/+33698409687",
+    },
+    {
+      icon: MapPin,
+      label: "Adresse",
+      value: "178 avenue Daumesnil\n75012 Paris",
+      href: "https://maps.app.goo.gl/W77h7dbrrhhDnLCEA",
+    },
+  ];
 
   return (
-    <section id="contact" className="py-20 bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 sm:mb-16 animate-fade-in-up">
-          <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight">
-            Donnez vie à votre regard
+    <section id="contact" className="py-28 bg-[#F7F4EE]">
+      <div className="container mx-auto px-6 lg:px-10">
+
+        {/* En-tête */}
+        <div className="text-center mb-20 animate-fade-up">
+          <span className="section-label">Nous contacter</span>
+          <h2 className="section-title-lg">
+            Donnez vie<br />
+            <span className="italic text-[#9A7A45]">à votre regard</span>
           </h2>
-          <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
-            Rencontrez nos experts et imaginez une monture façonnée pour refléter votre style et votre personnalité.
+          <div className="gold-divider" />
+          <p className="font-cormorant text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed italic">
+            Rencontrez nos experts et imaginez une monture façonnée pour refléter votre personnalité.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 max-w-6xl mx-auto">
-          {/* Contact Form */}
-          <Card className="shadow-luxury animate-scale-in">
-            <CardContent className="p-6 sm:p-8">
-              <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 max-w-6xl mx-auto">
+
+          {/* Formulaire — 3 colonnes */}
+          <div className="lg:col-span-3 animate-fade-up">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2 text-left">
+                  <label className="font-sans-dm text-[10px] tracking-[0.2em] uppercase text-muted-foreground block mb-2">
                     Nom *
                   </label>
-                  <Input
-                    id="name"
+                  <input
                     name="name"
-                    type="text"
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Votre nom complet"
                     required
-                    className="w-full text-left"
+                    className="input-premium"
                   />
                 </div>
-
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2 text-left">
-                    E-mail *
+                  <label className="font-sans-dm text-[10px] tracking-[0.2em] uppercase text-muted-foreground block mb-2">
+                    Email *
                   </label>
-                  <Input
-                    id="email"
+                  <input
                     name="email"
                     type="email"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="@email.com"
+                    placeholder="votre@email.com"
                     required
-                    className="w-full"
+                    className="input-premium"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2 text-left">
+                  <label className="font-sans-dm text-[10px] tracking-[0.2em] uppercase text-muted-foreground block mb-2">
                     Téléphone
                   </label>
-                  <Input
-                    id="phone"
+                  <input
                     name="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="06.XX.XX.XX.XX"
-                    className="w-full text-left"
+                    placeholder="06 XX XX XX XX"
+                    className="input-premium"
                   />
                 </div>
-
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2 text-left">
-                    Message *
+                  <label className="font-sans-dm text-[10px] tracking-[0.2em] uppercase text-muted-foreground block mb-2">
+                    Objet
                   </label>
-                  <Textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
+                  <input
+                    name="objet"
+                    value={formData.objet}
                     onChange={handleChange}
-                    placeholder="Parlez-nous de vos préférences de style et de ce que vous recherchez..."
-                    required
-                    className="w-full min-h-[150px] text-left"
+                    placeholder="Votre demande"
+                    className="input-premium"
                   />
                 </div>
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  className="w-full text-base sm:text-lg min-h-[48px] touch-manipulation"
-                >
-                  Contactez-nous
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Contact Info (Inchangé) */}
-          <div className="space-y-6 sm:space-y-8 animate-fade-in-up" style={{ animationDelay: "200ms" }}>
-            <div className="text-right">
-              <h3 className="font-playfair text-2xl sm:text-3xl font-semibold text-foreground mb-4 sm:mb-8">
-                Contactez-nous
-              </h3>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-6 sm:mb-8">
-                Nos experts en lunettes sont là pour vous aider à trouver ou à créer la monture idéale.
-              </p>
-            </div>
-
-            <div className="space-y-5 sm:space-y-6">
-              <div className="flex items-start gap-3 sm:gap-4 flex-row-reverse text-right">
-                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                  <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-accent" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-foreground mb-1 text-sm sm:text-base">Mail</h4>
-                  <a
-                    href="mailto:Atelierdesarts.12@gmail.com"
-                    className="text-sm sm:text-base text-muted-foreground hover:text-accent transition-colors break-all"
-                  >
-                    Atelierdesarts.12@gmail.com
-                  </a>
-                </div>
               </div>
 
-              <div className="flex items-start gap-3 sm:gap-4 flex-row-reverse text-right">
-                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                  <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-accent" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-foreground mb-1 text-sm sm:text-base">Téléphone</h4>
-                  <a
-                    href="https://wa.me/+33698409687"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm sm:text-base text-muted-foreground hover:text-accent transition-colors inline-flex items-center gap-2 min-h-[44px]"
-                  >
-                    +33 6 98 40 96 87
-                  </a>
-                </div>
+              <div>
+                <label className="font-sans-dm text-[10px] tracking-[0.2em] uppercase text-muted-foreground block mb-2">
+                  Message *
+                </label>
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  placeholder="Décrivez votre projet, vos préférences de style..."
+                  required
+                  rows={5}
+                  className="input-premium resize-none"
+                />
               </div>
 
-              <div className="flex items-start gap-3 sm:gap-4 flex-row-reverse text-right">
-                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 sm:w-6 sm:h-6 text-accent" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-foreground mb-1 text-sm sm:text-base">Adresse</h4>
-                  <p className="text-sm sm:text-base text-muted-foreground">
-                    178 avenue Daumesnil
-                    <br />
-                    75012 Paris
-                  </p>
-                </div>
-              </div>
-            </div>
+              <button type="submit" disabled={sending} className="btn-dark w-full sm:w-auto">
+                {sending ? "Envoi en cours..." : "Envoyer le message"}
+              </button>
+            </form>
+          </div>
 
-            <div className="mt-8 p-6 rounded-lg bg-secondary/50 border border-border text-right">
-              <p className="text-sm text-muted-foreground">
-                <strong className="text-foreground">Horaire d'ouverture:</strong><br />
-                Lundi-Jeudi: 10:00 - 19:30<br />
-                Vendredi: 10:00 - 15:00<br />
-                Samedi-Dimanche: Fermeture
-              </p>
+          {/* Infos — 2 colonnes */}
+          <div className="lg:col-span-2 space-y-10 animate-fade-up delay-200">
+
+            {infos.map((info, i) => {
+              const Icon = info.icon;
+              return (
+                <div key={i} className="flex gap-5">
+                  <div className="w-9 h-9 border border-[#C9A96E]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon className="w-3.5 h-3.5 text-[#C9A96E]" />
+                  </div>
+                  <div>
+                    <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E] block mb-1">
+                      {info.label}
+                    </span>
+                    <a
+                      href={info.href}
+                      target={info.href.startsWith("http") ? "_blank" : undefined}
+                      rel="noopener noreferrer"
+                      className="font-sans-dm text-sm text-foreground hover:text-[#9A7A45] transition-colors whitespace-pre-line font-light"
+                    >
+                      {info.value}
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="border-t border-[#EDE8DF] pt-8">
+              <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E] block mb-4">
+                Horaires
+              </span>
+              <div className="space-y-2">
+                {[
+                  ["Lundi – Jeudi", "10h00 – 19h30"],
+                  ["Vendredi", "10h00 – 15h00"],
+                  ["Samedi – Dimanche", "Fermé"],
+                ].map(([day, hours]) => (
+                  <div key={day} className="flex justify-between">
+                    <span className="font-sans-dm text-xs text-muted-foreground font-light">{day}</span>
+                    <span className="font-sans-dm text-xs text-foreground font-normal">{hours}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
