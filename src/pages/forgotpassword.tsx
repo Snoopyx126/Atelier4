@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_URL } from "@/lib/api";
 import { toast } from "sonner";
 
 const ForgotPassword = () => {
@@ -25,11 +26,7 @@ const ForgotPassword = () => {
     try {
       // Appel à l'API sécurisée (qui envoie l'email via Resend)
       // ✅ CORRECTION : URL dynamique selon l'environnement
-      const API_BASE_URL = window.location.hostname === "localhost" 
-        ? "http://localhost:3000/api" 
-        : "https://atelier4.vercel.app/api";
-
-      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+      const response = await fetch(`${API_URL}/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

@@ -39,7 +39,7 @@ const statusCfg: Record<string,{dot:string;cls:string}> = {
   'En cours':  {dot:'bg-orange-400',cls:'bg-orange-50 text-orange-700 border-orange-200'},
   'Terminé':   {dot:'bg-emerald-400',cls:'bg-emerald-50 text-emerald-700 border-emerald-200'},
 };
-const StatusPill=({s}:{s:string})=>{const c=statusCfg[s]||{dot:'bg-gray-300',cls:'bg-gray-50 text-gray-600 border-gray-200'};return <span className={`inline-flex items-center gap-1.5 text-[10px] tracking-wide rounded-full px-2.5 py-1 border ${c.cls}`}><span className={`w-1.5 h-1.5 rounded-full ${c.dot}`}/>{s}</span>;};
+const StatusPill=({s}:{s:string})=>{const c=statusCfg[s]||{dot:'bg-gray-300',cls:'bg-gray-50 text-gray-600 border-gray-200'};return <span className={`inline-flex items-center gap-2 text-xs font-semibold rounded-full px-3 py-1.5 border ${c.cls}`}><span className={`w-2 h-2 rounded-full ${c.dot}`}/>{s}</span>;};
 
 const S={
   card:"bg-white rounded-2xl border border-[#EDE8DF] shadow-sm",
@@ -124,9 +124,9 @@ const ClientInvoicesModal=({client,invoices,isOpen,onClose,onDelete,onPaymentUpd
   const [amt,setAmt]=useState(0);
   if(!isOpen||!client)return null;
   const badge=(s:string|undefined,rem:number)=>{
-    if(s==='Payé')return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700">Payé</span>;
-    if(s==='Partiellement payé')return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Reste : {rem.toFixed(2)} €</span>;
-    return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-red-50 border border-red-200 text-red-700">Non payé</span>;
+    if(s==='Payé')return <span className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700">Payé</span>;
+    if(s==='Partiellement payé')return <span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700">Reste : {rem.toFixed(2)} €</span>;
+    return <span className="text-xs rounded-full px-3 py-1 bg-red-50 border border-red-200 text-red-700">Non payé</span>;
   };
   return(
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,8 +164,8 @@ const TimelinePanel = ({m}:{m:Montage}) => {
         <div className="space-y-2.5">
           <div className="flex items-center gap-2 relative">
             <div className="w-2.5 h-2.5 rounded-full bg-[#EDE8DF] border-2 border-white absolute -left-3.5"/>
-            <span className="text-[10px] font-medium text-gray-400 w-20 flex-shrink-0">Créé</span>
-            <span className="text-[9px] text-gray-300">{new Date(m.dateReception).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</span>
+            <span className="text-xs font-semibold text-gray-600 w-24 flex-shrink-0">Créé</span>
+            <span className="text-xs text-gray-500">{new Date(m.dateReception).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</span>
           </div>
           {hist.length>0
             ? hist.map((h:any,i:number)=>{
@@ -174,15 +174,15 @@ const TimelinePanel = ({m}:{m:Montage}) => {
                 return(
                   <div key={i} className="flex items-center gap-2 relative">
                     <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 ${isLast?hcfg.dot:'bg-gray-200'}`}/>
-                    <span className={`text-[10px] font-medium w-20 flex-shrink-0 ${isLast?'text-[#0F0E0C]':'text-gray-400'}`}>{h.statut}</span>
-                    <span className="text-[9px] text-gray-300">{new Date(h.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · {new Date(h.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+                    <span className={`text-xs font-semibold w-24 flex-shrink-0 ${isLast?'text-[#0F0E0C]':'text-gray-600'}`}>{h.statut}</span>
+                    <span className="text-xs text-gray-500">{new Date(h.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · {new Date(h.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
                   </div>
                 );
               })
             : m.statut!=='En attente'&&(
                 <div className="flex items-center gap-2 relative">
                   <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 ${scfg.dot}`}/>
-                  <span className="text-[10px] font-medium text-[#0F0E0C] w-20 flex-shrink-0">{m.statut}</span>
+                  <span className="text-xs font-semibold text-[#0F0E0C] w-24 flex-shrink-0">{m.statut}</span>
                   <span className="text-[9px] text-gray-300 italic">date non enregistrée</span>
                 </div>
               )
@@ -369,12 +369,12 @@ export default function AdminDashboard(){
                     <h2 className="font-playfair text-xl font-normal text-[#0F0E0C]">Flux de Production</h2>
                   </div>
                   <div className="p-6 min-h-64">
-                    {Object.keys(grouped).length===0?<div className="text-center py-16 text-gray-300 text-sm">Aucun montage avec les filtres actuels.</div>:(
+                    {Object.keys(grouped).length===0?<div className="text-center py-16 text-gray-400 text-sm">Aucun montage avec les filtres actuels.</div>:(
                       <Accordion type="multiple" className="space-y-3">
                         {visibleKeys.map(mk=>{ const shops=grouped[mk]; const mo=getMonthLabel(mk); return (
                           <AccordionItem key={mk} value={mk} className="bg-white border border-[#EDE8DF] rounded-2xl overflow-hidden">
                             <AccordionTrigger className="hover:no-underline px-5 py-4 hover:bg-[#F7F4EE] transition-colors">
-                              <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-base font-normal text-[#0F0E0C] capitalize">{mo}</span></div>
+                              <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-xl font-normal text-[#0F0E0C] capitalize">{mo}</span></div>
                             </AccordionTrigger>
                             <AccordionContent className="px-5 pb-5 pt-2">
                               <Accordion type="multiple" className="space-y-2">
@@ -385,8 +385,8 @@ export default function AdminDashboard(){
                                     <AccordionItem key={shopName} value={shopName} className="bg-[#F7F4EE] border border-[#EDE8DF] rounded-xl overflow-hidden">
                                       <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-[#EDE8DF] transition-colors">
                                         <div className="flex items-center gap-3 w-full pr-3">
-                                          <span className="font-medium text-[#0F0E0C] text-sm">{shopName}</span>
-                                          <span className="text-xs text-gray-400">({items.length})</span>
+                                          <span className="font-semibold text-[#0F0E0C] text-base">{shopName}</span>
+                                          <span className="text-xs text-gray-500 font-medium ml-1">({items.length} dossiers)</span>
                                           <button onClick={e=>{e.stopPropagation();if(client){setInvClient(client);setInvMontages(items);setInvOpen(true);}}} disabled={!client}
                                             className={S.btnG+" ml-auto"}>
                                             <Receipt className="w-3 h-3"/> Facturer
@@ -402,22 +402,22 @@ export default function AdminDashboard(){
                                             <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                               <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                                                  <span className="font-semibold text-[#0F0E0C]">{m.reference}</span>
+                                                  <span className="font-bold text-base text-[#0F0E0C] tracking-wide">{m.reference}</span>
                                                   <span className="text-gray-300">·</span>
-                                                  <span className="text-sm text-gray-500">{m.frame}</span>
+                                                  <span className="text-sm font-medium text-gray-600">{m.frame}</span>
                                                   <StatusPill s={m.statut}/>
-                                                  <span className="ml-auto text-xs font-medium text-[#9A7A45]">{price.toFixed(2)} € HT</span>
+                                                  <span className="ml-auto text-sm font-semibold text-[#9A7A45]">{price.toFixed(2)} € HT</span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                  <span className="text-[10px] rounded-full px-2 py-0.5 bg-[#F7F4EE] border border-[#EDE8DF] text-gray-500">{m.category}</span>
-                                                  {m.urgency!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-red-50 border border-red-100 text-red-500">{m.urgency}</span>}
-                                                  {m.diamondCutType!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-500">{m.diamondCutType}</span>}
-                                                  {m.glassType?.map(g=><span key={g} className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600">{g.replace('Verre ','')}</span>)}
-                                                  {(m.engravingCount||0)>0&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-purple-50 border border-purple-100 text-purple-600">{m.engravingCount} gravure(s)</span>}
-                                                  {m.shapeChange&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Changement forme</span>}
-                                                  {m.shapeChange&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Changement forme</span>}
+                                                  <span className="text-xs rounded-full px-3 py-1 bg-[#F7F4EE] border border-[#D5CFC6] text-gray-600 font-medium">{m.category}</span>
+                                                  {m.urgency!=='Standard'&&<span className="text-xs rounded-full px-3 py-1 bg-red-50 border border-red-200 text-red-600 font-medium">{m.urgency}</span>}
+                                                  {m.diamondCutType!=='Standard'&&<span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 font-medium">{m.diamondCutType}</span>}
+                                                  {m.glassType?.map(g=><span key={g} className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600">{g.replace('Verre ','')}</span>)}
+                                                  {(m.engravingCount||0)>0&&<span className="text-xs rounded-full px-3 py-1 bg-purple-50 border border-purple-200 text-purple-700 font-medium">{m.engravingCount} gravure(s)</span>}
+                                                  {m.shapeChange&&<span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 font-medium">Changement forme</span>}
+                                                  {m.shapeChange&&<span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 font-medium">Changement forme</span>}
                                                 </div>
-                                                {m.description&&<p className="text-xs text-gray-400 mt-1.5 italic">{m.description}</p>}
+                                                {m.description&&<p className="text-xs text-gray-600 mt-1.5 border-l-2 border-[#D5CFC6] pl-2.5">{m.description}</p>}
                                               </div>
                                               <div className="flex items-center gap-2 flex-shrink-0">
                                                 <Select defaultValue={m.statut} onValueChange={v=>changeStatus(m._id,v)}>
@@ -447,11 +447,11 @@ export default function AdminDashboard(){
                                               onClick={e=>{e.stopPropagation();setOpenTimeline(openTimeline===m._id?null:m._id);}}
                                             >
                                               <div className="flex items-center gap-1.5">
-                                                <Clock className="w-2.5 h-2.5 text-gray-300"/>
-                                                <span className="text-[9px] text-gray-300">Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
+                                                <Clock className="w-3.5 h-3.5 text-gray-400"/>
+                                                <span className="text-xs text-gray-500 font-medium">Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
                                               </div>
-                                              <div className={`flex items-center gap-1 text-[9px] transition-colors ${openTimeline===m._id?'text-[#C9A96E]':'text-gray-300 hover:text-gray-400'}`}>
-                                                <span className="tracking-[0.1em] uppercase">Historique</span>
+                                              <div className={`flex items-center gap-1 transition-colors ${openTimeline===m._id?'text-[#C9A96E]':'text-gray-500 hover:text-gray-700'}`}>
+                                                <span className="text-xs font-semibold tracking-widest uppercase">Historique</span>
                                                 <svg className={`w-2.5 h-2.5 transition-transform ${openTimeline===m._id?'rotate-180':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
                                               </div>
                                             </div>
@@ -501,8 +501,8 @@ export default function AdminDashboard(){
                         <div className="flex-1 cursor-pointer" onClick={()=>{setCliInvClient(c);setCliInvList(allInvoices.filter(f=>f.userId===c._id));setCliInvOpen(true);}}>
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <p className="font-medium text-[#0F0E0C]">{c.nomSociete}</p>
-                            {c.role==='manager'&&<span className="text-[10px] rounded-full px-2.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-600">Manager</span>}
-                            {c.isVerified?<span className="text-[10px] rounded-full px-2.5 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5"/>Validé</span>:<span className="text-[10px] rounded-full px-2.5 py-0.5 bg-amber-50 border border-amber-100 text-amber-600 flex items-center gap-1"><AlertCircle className="w-2.5 h-2.5"/>En attente</span>}
+                            {c.role==='manager'&&<span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-100 text-blue-600">Manager</span>}
+                            {c.isVerified?<span className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5"/>Validé</span>:<span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-100 text-amber-600 flex items-center gap-1"><AlertCircle className="w-2.5 h-2.5"/>En attente</span>}
                           </div>
                           <p className="text-xs text-gray-400">{c.email} · SIRET : {c.siret}</p>
                         </div>

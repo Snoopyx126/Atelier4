@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom"; 
 // Assurez-vous d'avoir bien importé 'toast' si vous utilisez 'sonner'
-// import { toast } from "sonner"; 
+import { toast } from "sonner";
+import { API_URL } from "@/lib/api";
 
 const Inscription = () => {
   const navigate = useNavigate();
@@ -45,15 +46,15 @@ const Inscription = () => {
 
     // 1. Validation côté client
     if (formData.password !== formData.confirmPassword) {
-      alert("Les mots de passe ne correspondent pas.");
+      toast.error("Les mots de passe ne correspondent pas."); return;
       return;
     }
     if (!formData.siret || formData.siret.length !== 14) {
-      alert("Veuillez entrer un numéro SIRET valide (14 chiffres).");
+      toast.error("Veuillez entrer un numéro SIRET valide (14 chiffres)."); return;
       return;
     }
     if (!formData.pieceJointe) {
-      alert("Veuillez joindre une copie de votre carte d'identité ou Kbis.");
+      toast.error("Veuillez joindre une copie de votre carte d'identité ou Kbis."); return;
       return;
     }
     
@@ -78,11 +79,7 @@ const Inscription = () => {
     // 3. Appel de l'API Backend
     try {
       // URL tirée du fichier index.js et des autres composants :
-      const API_BASE_URL = window.location.hostname === "localhost" 
-  ? "http://localhost:3000/api" 
-  : "https://atelier4.vercel.app/api";
-      
-      const response = await fetch(`${API_BASE_URL}/inscription`, { 
+      const response = await fetch(`${API_URL}/inscription`, { 
         method: "POST",
         // Ne PAS spécifier le Content-Type, le navigateur le gère automatiquement avec FormData
         body: dataToSend, 
@@ -96,13 +93,13 @@ const Inscription = () => {
 
       // 4. Succès : Informer l'utilisateur et rediriger
       // Si vous utilisez Sonner (toast), remplacez 'alert' par 'toast.success'
-      alert("✅ Demande envoyée ! Vous recevrez un email après vérification.");
+      toast.success("Demande envoyée !", { description: "Vous recevrez un email après vérification." });
       navigate("/espace-pro");
       
     } catch (error: any) {
       console.error("Erreur d'inscription:", error);
       // Si vous utilisez Sonner, remplacez 'alert' par 'toast.error'
-      alert(error.message || "Une erreur est survenue lors de l'envoi.");
+      toast.error(error.message || "Une erreur est survenue lors de l'envoi.");
     } finally {
       setIsLoading(false);
     }

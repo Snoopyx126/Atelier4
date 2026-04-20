@@ -175,9 +175,34 @@ app.get("/api/users", async (req, res) => {
 
 app.put("/api/users/:id", async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('assignedShops', 'nomSociete _id zipCity');
-    res.json({ success: true, user });
-  } catch (error) { res.status(500).json({ success: false }); }
+    // Sécurité : interdire la modification du rôle et du mot de passe via cette route
+    const { role, password, ...safeUpdate } = req.body;
+
+    // Si un nouveau mot de passe est fourni (depuis profil), on le hash
+    if (req.body.newPassword && req.body.currentPassword) {
+      const user = await User.findById(req.params.id);
+      if (!user) return res.status(404).json({ success: false, message: "Utilisateur introuvable" });
+      const match = await bcrypt.compare(req.body.currentPassword, user.password);
+      if (!match) return res.status(401).json({ success: false, message: "Mot de passe actuel incorrect" });
+      safeUpdate.password = await bcrypt.hash(req.body.newPassword, SALT_ROUNDS);
+    }
+
+    // Autoriser la modification du rôle uniquement depuis l'admin (x-user-role: admin)
+    if (role && req.headers['x-user-role'] === 'admin') {
+      safeUpdate.role = role;
+    }
+    // Autoriser pricingTier et assignedShops uniquement pour les admins
+    if (!['admin'].includes(req.headers['x-user-role'])) {
+      delete safeUpdate.pricingTier;
+      delete safeUpdate.assignedShops;
+      delete safeUpdate.isVerified;
+    }
+
+    const updated = await User.findByIdAndUpdate(req.params.id, safeUpdate, { new: true })
+      .select('-password')
+      .populate('assignedShops', 'nomSociete _id zipCity');
+    res.json({ success: true, user: updated });
+  } catch (error) { console.error(error); res.status(500).json({ success: false }); }
 });
 
 // --- MONTAGES ---
@@ -301,6 +326,7 @@ app.delete("/api/montages/:id", async (req, res) => {
 });
 // ✅ ROUTE DE RÉPARATION TOTALE (À mettre dans index.js)
 app.get("/api/fix", async (req, res) => {
+    if (req.headers["x-user-role"] !== "admin") return res.status(403).json({ success: false, message: "Accès refusé" });
     try {
         // 1. On récupère tous les montages qui ont des verres
         const montages = await Montage.find({ glassType: { $exists: true, $ne: [] } });
@@ -464,6 +490,7 @@ app.post("/api/forgot-password", async (req, res) => {
 // --- ROUTE DE NETTOYAGE D'URGENCE ---
 // Cette route va supprimer les photos "lourdes" (Base64) mais GARDER les liens Cloudinary
 app.get("/api/clean-database", async (req, res) => {
+    if (req.headers["x-user-role"] !== "admin") return res.status(403).json({ success: false, message: "Accès refusé" });
     try {
         console.log("🧹 Démarrage du nettoyage...");
         

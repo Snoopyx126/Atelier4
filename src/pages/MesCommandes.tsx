@@ -40,7 +40,7 @@ const statusCfg: Record<string,{dot:string;cls:string;line:string}> = {
   'Terminé':   {dot:'bg-emerald-400', cls:'bg-emerald-50 text-emerald-700 border-emerald-200', line:'border-emerald-300'},
   'Expédié':   {dot:'bg-purple-400',  cls:'bg-purple-50 text-purple-700 border-purple-200', line:'border-purple-300'},
 };
-const StatusPill=({s}:{s:string})=>{const c=statusCfg[s]||{dot:'bg-gray-300',cls:'bg-gray-50 text-gray-600 border-gray-200'};return <span className={`inline-flex items-center gap-1.5 text-[10px] tracking-wide rounded-full px-2.5 py-1 border ${c.cls}`}><span className={`w-1.5 h-1.5 rounded-full ${c.dot}`}/>{s}</span>;};
+const StatusPill=({s}:{s:string})=>{const c=statusCfg[s]||{dot:'bg-gray-300',cls:'bg-gray-50 text-gray-600 border-gray-200'};return <span className={`inline-flex items-center gap-1.5 text-xs font-medium tracking-wide rounded-full px-3 py-1 border ${c.cls}`}><span className={`w-2 h-2 rounded-full ${c.dot}`}/>{s}</span>;};
 
 const S={
   card:"bg-white rounded-2xl border border-[#EDE8DF] shadow-sm",
@@ -91,7 +91,7 @@ const QuickView=({m,tier,onClose}:{m:Montage|null;tier:number;onClose:()=>void})
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${done?`${c.dot} border-transparent`:'bg-white border-[#EDE8DF]'}`}>
                       {done&&<span className="w-2 h-2 rounded-full bg-white"/>}
                     </div>
-                    <span className={`text-[8px] tracking-wide text-center leading-tight ${done?'text-[#0F0E0C] font-medium':'text-gray-300'}`}>{s}</span>
+                    <span className={`text-[10px] tracking-wide text-center leading-tight ${done?'text-[#0F0E0C] font-medium':'text-gray-400'}`}>{s}</span>
                   </div>
                 );
               })}
@@ -268,20 +268,20 @@ export default function MesCommandes(){
           <div className="flex-1 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <span className="font-semibold text-[#0F0E0C]">{m.reference}</span>
-                <span className="text-gray-300">·</span>
-                <span className="text-sm text-gray-500">{m.frame}</span>
+                <span className="font-bold text-base text-[#0F0E0C] tracking-wide">{m.reference}</span>
+                <span className="text-gray-400">·</span>
+                <span className="text-sm font-medium text-gray-600">{m.frame}</span>
                 <StatusPill s={m.statut}/>
-                <span className="ml-auto text-xs font-medium text-[#9A7A45]">{price.toFixed(2)} € HT</span>
+                <span className="ml-auto text-sm font-semibold text-[#9A7A45]">{price.toFixed(2)} € HT</span>
               </div>
               {isManager&&m.createdBy?.includes("Manager")&&<div className="inline-flex items-center gap-1.5 text-[10px] text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-0.5 mb-1.5"><UserCog className="w-2.5 h-2.5"/>{m.createdBy}</div>}
               <div className="flex flex-wrap gap-1.5">
-                <span className="text-[10px] rounded-full px-2 py-0.5 bg-[#F7F4EE] border border-[#EDE8DF] text-gray-500">{m.category}</span>
-                {m.urgency!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-red-50 border border-red-100 text-red-500">{m.urgency}</span>}
-                {m.diamondCutType!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-500">{m.diamondCutType}</span>}
-                {m.glassType?.map(g=><span key={g} className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600">{g.replace('Verre ','')}</span>)}
-                {(m.engravingCount||0)>0&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-purple-50 border border-purple-100 text-purple-600">{m.engravingCount} gravure(s)</span>}
-                {m.shapeChange&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Changement forme</span>}
+                <span className="text-xs rounded-full px-2.5 py-0.5 bg-[#F7F4EE] border border-[#D5CFC6] text-gray-600 font-medium">{m.category}</span>
+                {m.urgency!=='Standard'&&<span className="text-xs rounded-full px-2.5 py-0.5 bg-red-50 border border-red-200 text-red-600 font-medium">{m.urgency}</span>}
+                {m.diamondCutType!=='Standard'&&<span className="text-xs rounded-full px-2.5 py-0.5 bg-blue-50 border border-blue-200 text-blue-600 font-medium">{m.diamondCutType}</span>}
+                {m.glassType?.map(g=><span key={g} className="text-xs rounded-full px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium">{g.replace('Verre ','')}</span>)}
+                {(m.engravingCount||0)>0&&<span className="text-xs rounded-full px-2.5 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-medium">{m.engravingCount} gravure(s)</span>}
+                {m.shapeChange&&<span className="text-xs rounded-full px-2.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 font-medium">Changement forme</span>}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -301,11 +301,11 @@ export default function MesCommandes(){
           onClick={e=>{e.stopPropagation();setOpenTimeline(tlOpen?null:m._id);}}
         >
           <div className="flex items-center gap-1.5">
-            <Clock className="w-2.5 h-2.5 text-gray-300"/>
-            <span className="text-[9px] text-gray-300">Envoyé le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
+            <Clock className="w-3 h-3 text-gray-400"/>
+            <span className="text-xs text-gray-500">Envoyé le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
           </div>
-          <div className={`flex items-center gap-1 text-[9px] transition-colors ${tlOpen?'text-[#C9A96E]':'text-gray-300 hover:text-gray-400'}`}>
-            <span className="tracking-[0.1em] uppercase">Historique</span>
+          <div className={`flex items-center gap-1 text-xs font-medium transition-colors ${tlOpen?'text-[#C9A96E]':'text-gray-500 hover:text-gray-700'}`}>
+            <span className="tracking-[0.1em] uppercase text-xs font-medium">Historique</span>
             <svg className={`w-2.5 h-2.5 transition-transform ${tlOpen?'rotate-180':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
           </div>
         </div>
@@ -321,8 +321,8 @@ export default function MesCommandes(){
                 <div className="flex items-start gap-3 relative">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#EDE8DF] border-2 border-white absolute -left-3.5 top-0.5"/>
                   <div>
-                    <span className="text-[10px] font-medium text-gray-500">Dossier créé</span>
-                    <span className="text-[9px] text-gray-300 ml-2">{new Date(m.dateReception).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</span>
+                    <span className="text-xs font-semibold text-gray-600">Dossier créé</span>
+                    <span className="text-xs text-gray-400 ml-2">{new Date(m.dateReception).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</span>
                   </div>
                 </div>
                 {/* Historique réel si disponible */}
@@ -335,7 +335,7 @@ export default function MesCommandes(){
                           <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 top-0.5 ${isLast?hcfg.dot:'bg-gray-200'}`}/>
                           <div>
                             <span className={`text-[10px] font-medium ${isLast?'text-[#0F0E0C]':'text-gray-400'}`}>{h.statut}</span>
-                            <span className="text-[9px] text-gray-300 ml-2">
+                            <span className="text-xs text-gray-400 ml-2">
                               {new Date(h.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}
                               {' · '}
                               {new Date(h.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
@@ -349,7 +349,7 @@ export default function MesCommandes(){
                         <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 top-0.5 ${cfg.dot}`}/>
                         <div>
                           <span className="text-[10px] font-medium text-[#0F0E0C]">{m.statut}</span>
-                          <span className="text-[9px] text-gray-300 ml-2 italic">date non enregistrée</span>
+                          <span className="text-xs text-gray-400 ml-2 italic">date non enregistrée</span>
                         </div>
                       </div>
                     )
@@ -448,13 +448,13 @@ export default function MesCommandes(){
 
             {/* Recherche */}
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4"/>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"/>
               <input className="w-full pl-11 pr-4 py-3 bg-white border border-[#EDE8DF] rounded-2xl text-sm placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#C9A96E] focus:border-[#C9A96E] transition-all" placeholder="Rechercher un dossier..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
 
             {/* Dossiers */}
             {Object.keys(grouped).length===0
-              ? <div className="text-center py-16 text-gray-300 text-sm">Aucune commande{statusFilter?` "${statusFilter}"`:''} trouvée.</div>
+              ? <div className="text-center py-16 text-gray-400 text-sm">Aucune commande{statusFilter?` "${statusFilter}"`:''} trouvée.</div>
               : (
               <Accordion type="multiple" className="space-y-3" defaultValue={[Object.keys(grouped)[0]]}>
                 {Object.entries(grouped).sort().reverse().map(([mo,content]:any)=>(
@@ -462,8 +462,8 @@ export default function MesCommandes(){
                     <AccordionTrigger className="hover:no-underline px-5 py-4 hover:bg-[#F7F4EE] transition-colors">
                       <div className="flex items-center gap-3">
                         <Calendar className="w-4 h-4 text-[#C9A96E]"/>
-                        <span className="font-playfair text-base font-normal text-[#0F0E0C] capitalize">{mo}</span>
-                        <span className="text-[10px] text-gray-400 ml-1">({(Array.isArray(content)?content:Object.values(content).flat()).length})</span>
+                        <span className="font-playfair text-lg font-normal text-[#0F0E0C] capitalize">{mo}</span>
+                        <span className="text-xs text-gray-400 ml-2 font-medium">({(Array.isArray(content)?content:Object.values(content).flat()).length} dossiers)</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-5 pb-5 pt-2">
@@ -490,7 +490,7 @@ export default function MesCommandes(){
         )}
 
         {tab==='factures'&&(
-          factures.length===0?<div className="text-center py-16 text-gray-300 text-sm">Aucune facture disponible.</div>:(
+          factures.length===0?<div className="text-center py-16 text-gray-400 text-sm">Aucune facture disponible.</div>:(
             <div className="space-y-3">
               {factures.map(f=>{
                 const isPaid=f.paymentStatus==='Payé';const isPartial=f.paymentStatus==='Partiellement payé';const rem=f.totalTTC-(f.amountPaid||0);
@@ -509,7 +509,7 @@ export default function MesCommandes(){
                     <div className="flex items-center gap-5">
                       <div className="text-right">
                         <p className="text-[9px] tracking-[0.22em] uppercase text-[#C9A96E] mb-0.5">Montant TTC</p>
-                        <span className="font-playfair text-xl font-normal text-[#0F0E0C]">{f.totalTTC.toFixed(2)} €</span>
+                        <span className="font-playfair text-2xl font-normal text-[#0F0E0C]">{f.totalTTC.toFixed(2)} €</span>
                       </div>
                       <button onClick={()=>downloadPDF(f)} className={S.btnG}><FileText className="w-3.5 h-3.5"/> Télécharger</button>
                     </div>
