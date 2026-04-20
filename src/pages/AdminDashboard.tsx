@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2 } from "lucide-react";
+import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2, Clock } from "lucide-react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { authFetch, API_URL } from "@/lib/api";
@@ -152,6 +152,47 @@ const ClientInvoicesModal=({client,invoices,isOpen,onClose,onDelete,onPaymentUpd
   );
 };
 
+
+// ---- TIMELINE PANEL (composant dédié pour éviter les IIFE dans JSX) ----
+const TimelinePanel = ({m}:{m:Montage}) => {
+  const hist = (m as any).statusHistory || [];
+  const scfg = statusCfg[m.statut] || {dot:'bg-gray-300'};
+  return (
+    <div className="px-5 pb-3 pt-2 bg-[#FAFAF8] border-t border-[#F0EDE7]">
+      <div className="relative pl-4">
+        <div className="absolute left-1.5 top-1 bottom-1 w-px bg-[#EDE8DF]"/>
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2 relative">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#EDE8DF] border-2 border-white absolute -left-3.5"/>
+            <span className="text-[10px] font-medium text-gray-400 w-20 flex-shrink-0">Créé</span>
+            <span className="text-[9px] text-gray-300">{new Date(m.dateReception).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</span>
+          </div>
+          {hist.length>0
+            ? hist.map((h:any,i:number)=>{
+                const hcfg=statusCfg[h.statut]||{dot:'bg-gray-300'};
+                const isLast=i===hist.length-1;
+                return(
+                  <div key={i} className="flex items-center gap-2 relative">
+                    <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 ${isLast?hcfg.dot:'bg-gray-200'}`}/>
+                    <span className={`text-[10px] font-medium w-20 flex-shrink-0 ${isLast?'text-[#0F0E0C]':'text-gray-400'}`}>{h.statut}</span>
+                    <span className="text-[9px] text-gray-300">{new Date(h.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · {new Date(h.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                );
+              })
+            : m.statut!=='En attente'&&(
+                <div className="flex items-center gap-2 relative">
+                  <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 ${scfg.dot}`}/>
+                  <span className="text-[10px] font-medium text-[#0F0E0C] w-20 flex-shrink-0">{m.statut}</span>
+                  <span className="text-[9px] text-gray-300 italic">date non enregistrée</span>
+                </div>
+              )
+          }
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ---- DASHBOARD PRINCIPAL ---- */
 export default function AdminDashboard(){
   const navigate=useNavigate();
@@ -165,6 +206,7 @@ export default function AdminDashboard(){
   const[statusFilter,setStatusFilter]=useState<string|null>(null);
   const[showAll,setShowAll]=useState(false);
   const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
+  const[openTimeline,setOpenTimeline]=useState<string|null>(null);
   const[invOpen,setInvOpen]=useState(false);
   const[invClient,setInvClient]=useState<Client|null>(null);
   const[invMontages,setInvMontages]=useState<Montage[]>([]);
@@ -355,7 +397,9 @@ export default function AdminDashboard(){
                                         {items.map((m:Montage)=>{
                                           const price=calcP(m,client?.pricingTier||1);
                                           return(
-                                            <div key={m._id} className="bg-white border border-[#EDE8DF] rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-sm transition-all">
+                                            <React.Fragment key={m._id}>
+                                            <div className="bg-white border border-[#EDE8DF] rounded-xl overflow-hidden hover:shadow-sm transition-all">
+                                            <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                               <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap mb-2">
                                                   <span className="font-semibold text-[#0F0E0C]">{m.reference}</span>
@@ -397,6 +441,23 @@ export default function AdminDashboard(){
                                                 <button title="Supprimer" className="h-8 w-8 flex items-center justify-center rounded-xl border border-red-200 bg-white hover:bg-red-50 transition-all cursor-pointer" onClick={()=>deleteMontage(m._id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></button>
                                               </div>
                                             </div>
+                                            {/* Pied de carte — timeline dépliable */}
+                                            <div
+                                              className="px-4 py-1.5 flex items-center justify-between border-t border-[#F7F4EE] cursor-pointer hover:bg-[#F7F4EE] transition-colors"
+                                              onClick={e=>{e.stopPropagation();setOpenTimeline(openTimeline===m._id?null:m._id);}}
+                                            >
+                                              <div className="flex items-center gap-1.5">
+                                                <Clock className="w-2.5 h-2.5 text-gray-300"/>
+                                                <span className="text-[9px] text-gray-300">Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
+                                              </div>
+                                              <div className={`flex items-center gap-1 text-[9px] transition-colors ${openTimeline===m._id?'text-[#C9A96E]':'text-gray-300 hover:text-gray-400'}`}>
+                                                <span className="tracking-[0.1em] uppercase">Historique</span>
+                                                <svg className={`w-2.5 h-2.5 transition-transform ${openTimeline===m._id?'rotate-180':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+                                              </div>
+                                            </div>
+                                            {openTimeline===m._id&&<TimelinePanel m={m}/>}
+                                          </div>
+                                            </React.Fragment>
                                           );
                                         })}
                                       </AccordionContent>
