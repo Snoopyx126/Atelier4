@@ -251,41 +251,27 @@ app.put("/api/montages/:id", async (req, res) => {
 
         const statutChanged = req.body.statut && req.body.statut !== existing.statut;
 
-        // Construire l'update
         const update = { ...req.body };
-
-        // Ajouter à statusHistory si le statut change
         if (statutChanged) {
             update.$push = { statusHistory: { statut: req.body.statut, date: new Date() } };
-            delete update.statusHistory; // Éviter conflit avec $push
+            delete update.statusHistory;
         }
 
         const m = await Montage.findByIdAndUpdate(req.params.id, update, { new: true });
 
-        // Envoyer l'email de changement de statut
         if (statutChanged) {
             try {
                 const user = await User.findById(m.userId);
                 if (user && user.email) {
-                    const statusColors = {
-                        'En attente': '#F59E0B',
-                        'Reçu': '#3B82F6',
-                        'En cours': '#F97316',
-                        'Terminé': '#10B981'
-                    };
-                    const color = statusColors[req.body.statut] || '#C9A96E';
-                    const title = `Dossier ${m.reference} — ${req.body.statut}`;
-                    const body = \`
-                        <p style="margin-bottom:16px">Bonjour <strong>\${user.nomSociete}</strong>,</p>
-                        <p>Le statut de votre dossier a été mis à jour :</p>
-                        <div style="margin:24px 0;padding:16px;background:#F7F4EE;border-radius:12px;border-left:4px solid \${color}">
-                            <p style="margin:0;font-size:14px;color:#666">Référence</p>
-                            <p style="margin:4px 0 12px;font-size:18px;font-weight:bold;color:#0F0E0C">\${m.reference}</p>
-                            <p style="margin:0;font-size:14px;color:#666">Nouveau statut</p>
-                            <p style="margin:4px 0 0;font-size:16px;font-weight:bold;color:\${color}">\${req.body.statut}</p>
-                        </div>
-                        \${m.description ? \`<p style="color:#666;font-size:13px;font-style:italic">Note : \${m.description}</p>\` : ''}
-                    \`;
+                    const statusEmoji = { 'En attente': '⏳', 'Reçu': '📦', 'En cours': '🔧', 'Terminé': '✅' };
+                    const emoji = statusEmoji[req.body.statut] || '📋';
+                    const title = `${emoji} Dossier ${m.reference} — ${req.body.statut}`;
+                    const body = `<p>Bonjour <strong>${user.nomSociete}</strong>,</p>
+                        <p>Le statut de votre dossier a été mis à jour.</p>
+                        <table style="margin:20px 0;width:100%;border-collapse:collapse">
+                          <tr><td style="padding:10px;background:#F7F4EE;border-radius:8px 0 0 8px;color:#666;font-size:13px;width:40%">Référence</td><td style="padding:10px;background:#F7F4EE;font-weight:bold;color:#0F0E0C">${m.reference}</td></tr>
+                          <tr><td style="padding:10px;color:#666;font-size:13px">Nouveau statut</td><td style="padding:10px;font-weight:bold;color:#C9A96E">${req.body.statut}</td></tr>
+                        </table>`;
                     await resend.emails.send({
                         from: EMAIL_SENDER,
                         to: user.email,
@@ -438,23 +424,19 @@ app.post("/api/forgot-password", async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (user) {
-        // Générer un mot de passe temporaire lisible (lettres + chiffres, sans ambiguïté)
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         const tempPassword = Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-
         user.password = await bcrypt.hash(tempPassword, SALT_ROUNDS);
         await user.save();
 
-        const body = \`
-            <p style="margin-bottom:16px">Bonjour <strong>\${user.nomSociete || user.email}</strong>,</p>
-            <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
-            <div style="margin:24px 0;padding:20px;background:#F7F4EE;border-radius:12px;text-align:center">
-                <p style="margin:0 0 8px;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:2px">Votre mot de passe temporaire</p>
-                <p style="margin:0;font-size:28px;font-weight:bold;color:#0F0E0C;letter-spacing:4px;font-family:monospace">\${tempPassword}</p>
+        const body = `<p>Bonjour <strong>${user.nomSociete || user.email}</strong>,</p>
+            <p>Voici votre mot de passe temporaire pour vous connecter :</p>
+            <div style="margin:24px 0;padding:24px;background:#F7F4EE;border-radius:12px;text-align:center;border:2px dashed #C9A96E">
+                <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:3px">Mot de passe temporaire</p>
+                <p style="margin:0;font-size:32px;font-weight:bold;color:#0F0E0C;letter-spacing:6px;font-family:Courier,monospace">${tempPassword}</p>
             </div>
-            <p style="color:#888;font-size:13px">Connectez-vous avec ce mot de passe temporaire, puis changez-le dans votre profil.</p>
-            <p style="color:#e53e3e;font-size:12px">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-        \`;
+            <p style="color:#888;font-size:13px">Une fois connecté, changez votre mot de passe dans votre profil.</p>
+            <p style="color:#e53e3e;font-size:12px;margin-top:16px">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`;
 
         await resend.emails.send({
             from: EMAIL_SENDER,
@@ -462,16 +444,12 @@ app.post("/api/forgot-password", async (req, res) => {
             subject: "Votre mot de passe temporaire — L'Atelier des Arts",
             html: getEmailTemplate("Réinitialisation du mot de passe", body, "https://l-atelier-des-arts.com/espace-pro", "Se connecter")
         });
-
-        console.log(\`✅ Email mot de passe envoyé à \${user.email}\`);
-    } else {
-        // Ne pas révéler si l'email existe ou non (sécurité)
-        console.log(\`⚠️ Tentative reset pour email inexistant: \${email}\`);
+        console.log(`✅ Email mot de passe envoyé à ${user.email}`);
     }
     res.json({ success: true });
   } catch (error) {
     console.error("Erreur forgot-password:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false });
   }
 });
 // --- ROUTE DE NETTOYAGE D'URGENCE ---

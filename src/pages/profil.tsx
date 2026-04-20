@@ -1,114 +1,159 @@
-// src/pages/profil.tsx
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { API_URL, authFetch } from "@/lib/api";
+import { Loader2, User, Lock, MapPin } from "lucide-react";
+import { authFetch, API_URL } from "@/lib/api";
+
+const S = {
+  card: "bg-white rounded-2xl border border-[#EDE8DF] shadow-sm",
+  label: "text-[9px] font-normal tracking-[0.22em] uppercase text-[#C9A96E] block mb-1.5",
+  inp: "bg-white border border-[#EDE8DF] rounded-xl text-sm focus:ring-1 focus:ring-[#C9A96E] focus:border-[#C9A96E] transition-all h-10",
+  btnP: "w-full h-10 bg-[#0F0E0C] text-[#F7F4EE] hover:bg-[#1C1A17] rounded-xl text-[10px] tracking-widest uppercase font-normal transition-all cursor-pointer border-0 flex items-center justify-center gap-2",
+};
 
 const Profil = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    id: "", nomSociete: "", email: "", siret: "",
-    phone: "", address: "", zipCity: "",
-    currentPassword: "", newPassword: "",
-  });
+  const [id,          setId]          = useState("");
+  const [nomSociete,  setNomSociete]  = useState("");
+  const [email,       setEmail]       = useState("");
+  const [siret,       setSiret]       = useState("");
+  const [phone,       setPhone]       = useState("");
+  const [address,     setAddress]     = useState("");
+  const [zipCity,     setZipCity]     = useState("");
+  const [currentPwd,  setCurrentPwd]  = useState("");
+  const [newPwd,      setNewPwd]      = useState("");
+  const [submitting,  setSubmitting]  = useState(false);
 
   useEffect(() => {
     const str = localStorage.getItem("user");
     if (str) {
-      const u = JSON.parse(str);
-      setFormData(prev => ({ ...prev, id: u.id, nomSociete: u.nomSociete, email: u.email, siret: u.siret, phone: u.phone || "", address: u.address || "", zipCity: u.zipCity || "" }));
-    } else {
-      navigate("/espace-pro");
+      try {
+        const u = JSON.parse(str);
+        setId(u.id || "");
+        setNomSociete(u.nomSociete || "");
+        setEmail(u.email || "");
+        setSiret(u.siret || "");
+        setPhone(u.phone || "");
+        setAddress(u.address || "");
+        setZipCity(u.zipCity || "");
+      } catch {}
     }
-  }, [navigate]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
-  };
+  }, []);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
-      const res = await authFetch(`${API_URL}/users/${formData.id}`, {
+      const res = await authFetch(`${API_URL}/users/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ nomSociete, email, siret, phone, address, zipCity, currentPassword: currentPwd, newPassword: newPwd }),
       });
       const data = await res.json();
       if (res.ok) {
         localStorage.setItem("user", JSON.stringify(data.user));
-        toast.success("Profil mis à jour.");
-        setFormData(prev => ({ ...prev, currentPassword: "", newPassword: "" }));
+        toast.success("Profil mis à jour !");
+        setCurrentPwd("");
+        setNewPwd("");
       } else {
-        toast.error(data.message || "Erreur de mise à jour.");
+        toast.error(data.message || "Erreur de mise à jour");
       }
-    } catch {
-      toast.error("Erreur serveur.");
-    }
+    } catch { toast.error("Erreur serveur"); }
+    finally { setSubmitting(false); }
   };
-
-  const Field = ({ id, label, type = "text", placeholder }: any) => (
-    <div>
-      <label htmlFor={id} className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-muted-foreground block mb-3">
-        {label}
-      </label>
-      <input
-        id={id} type={type} placeholder={placeholder}
-        value={(formData as any)[id]}
-        onChange={handleChange}
-        className="w-full bg-transparent border-b border-[#EDE8DF] focus:border-[#C9A96E] outline-none text-sm font-light py-3 text-foreground placeholder:text-muted-foreground transition-colors duration-300"
-      />
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[#F7F4EE] flex flex-col">
       <Navigation />
-      <div className="flex-grow pt-28 pb-16 px-6 container mx-auto max-w-xl">
+      <div className="flex-grow pt-24 pb-12 px-6 max-w-xl mx-auto w-full">
 
-        <div className="mb-10 animate-fade-up">
-          <span className="section-label">Compte</span>
-          <h1 className="font-playfair text-3xl font-normal text-foreground">Mon profil</h1>
-          <div className="gold-divider-left" />
+        <div className="mb-8">
+          <span className={S.label}>Compte</span>
+          <h1 className="font-playfair text-3xl font-normal text-[#0F0E0C] tracking-tight">Mon Profil</h1>
         </div>
 
-        <form onSubmit={handleUpdate} className="animate-fade-up delay-100 space-y-10">
+        <form onSubmit={handleUpdate} className="space-y-5">
 
-          <div className="space-y-6">
-            <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]/70 block">
-              Informations société
-            </span>
-            <Field id="nomSociete" label="Nom société" placeholder="Optique Example" />
-            <Field id="email" label="Email" type="email" placeholder="votre@email.com" />
-            <Field id="siret" label="SIRET" placeholder="14 chiffres" />
+          {/* Infos société */}
+          <div className={S.card + " p-6"}>
+            <div className="flex items-center gap-2 mb-5">
+              <User className="w-4 h-4 text-[#C9A96E]"/>
+              <p className={S.label} style={{marginBottom:0}}>Informations</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label className={S.label}>Nom de la société</Label>
+                <Input value={nomSociete} onChange={e => setNomSociete(e.target.value)} className={S.inp}/>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className={S.label}>Email</Label>
+                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className={S.inp}/>
+                </div>
+                <div>
+                  <Label className={S.label}>Téléphone</Label>
+                  <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="06 12 34 56 78" className={S.inp}/>
+                </div>
+              </div>
+              <div>
+                <Label className={S.label}>SIRET</Label>
+                <Input value={siret} onChange={e => setSiret(e.target.value)} className={S.inp}/>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-6 pt-6 border-t border-[#EDE8DF]">
-            <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]/70 block">
-              Contact & Livraison
-            </span>
-            <Field id="phone" label="Téléphone" type="tel" placeholder="06 XX XX XX XX" />
-            <Field id="address" label="Adresse complète" placeholder="12 Rue de l'Optique" />
-            <Field id="zipCity" label="Code postal et ville" placeholder="75001 Paris" />
+          {/* Adresse */}
+          <div className={S.card + " p-6"}>
+            <div className="flex items-center gap-2 mb-5">
+              <MapPin className="w-4 h-4 text-[#C9A96E]"/>
+              <p className={S.label} style={{marginBottom:0}}>Adresse</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label className={S.label}>Adresse complète</Label>
+                <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="12 Rue des Opticiens" className={S.inp}/>
+              </div>
+              <div>
+                <Label className={S.label}>Code postal et ville</Label>
+                <Input value={zipCity} onChange={e => setZipCity(e.target.value)} placeholder="75001 Paris" className={S.inp}/>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-6 pt-6 border-t border-[#EDE8DF]">
-            <span className="font-sans-dm text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]/70 block">
-              Sécurité
-            </span>
-            <Field id="currentPassword" label="Mot de passe actuel" type="password" placeholder="••••••••" />
-            <Field id="newPassword" label="Nouveau mot de passe" type="password" placeholder="Laisser vide si inchangé" />
+          {/* Mot de passe */}
+          <div className={S.card + " p-6"}>
+            <div className="flex items-center gap-2 mb-5">
+              <Lock className="w-4 h-4 text-[#C9A96E]"/>
+              <p className={S.label} style={{marginBottom:0}}>Changer le mot de passe</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label className={S.label}>Mot de passe actuel</Label>
+                <Input
+                  type="password"
+                  value={currentPwd}
+                  onChange={e => setCurrentPwd(e.target.value)}
+                  autoComplete="current-password"
+                  className={S.inp}
+                />
+              </div>
+              <div>
+                <Label className={S.label}>Nouveau mot de passe</Label>
+                <Input
+                  type="password"
+                  value={newPwd}
+                  onChange={e => setNewPwd(e.target.value)}
+                  autoComplete="new-password"
+                  className={S.inp}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button type="submit" className="btn-dark">
-              Enregistrer
-            </button>
-            <button type="button" onClick={() => navigate("/dashboardpro")} className="btn-ghost">
-              Annuler
-            </button>
-          </div>
+          <button type="submit" disabled={submitting} className={S.btnP}>
+            {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Enregistrement...</> : "Mettre à jour le profil"}
+          </button>
         </form>
       </div>
     </div>
