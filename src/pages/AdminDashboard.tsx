@@ -69,7 +69,7 @@ const DIAMONDCUT_COSTS: Record<string, { 1: number, 2: number }> = {
 };
 
 const URGENCY_RATES: Record<string, number> = { 
-    'Urgent -3H': 0.50, 'Urgent -24H': 0.30, 'Urgent -48H': 0.20, 'Standard': 0.00 
+    'Urgent -3H': 0.50, 'Express -24H': 0.30, 'Prioritaire -48H': 0.20, 'Standard': 0.00 
 };
 
 const SHAPE_CHANGE_COST = { 1: 10.00, 2: 3.50 };
