@@ -213,25 +213,37 @@ export default function AdminDashboard(){
   const exportCSV=()=>{const h=["Date","Client","Référence","Monture","Catégorie","Statut","Prix HT","Créé par"];const rows=montages.map(m=>{const c=clients.find(cl=>cl._id===m.userId);return[new Date(m.dateReception).toLocaleDateString(),`"${c?.nomSociete||''}"`,`"${m.reference||''}"`,`"${m.frame||''}"`,m.category,m.statut,calcP(m,c?.pricingTier||1).toFixed(2).replace('.',','),`"${m.createdBy||''}"`].join(";");});const blob=new Blob([[h.join(";"),...rows].join("\n")],{type:'text/csv;charset=utf-8;'});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`export_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);};
   const saveShops=async()=>{if(!shopMgr)return;try{const r=await authFetch(`${getBase()}/api/users/${shopMgr._id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedShops:tmpShops})});const d=await r.json();if(d.success){toast.success("Magasins assignés !");setClients(p=>p.map(c=>c._id===shopMgr._id?{...c,assignedShops:d.user.assignedShops}:c));setShopOpen(false);}else toast.error("Erreur sauvegarde.");}catch{toast.error("Erreur technique.");}};
 
+  // Reset showAll quand on change de filtre ou de recherche
+  React.useEffect(()=>{ setShowAll(false); },[search,statusFilter]);
+
   const fm=montages.filter(m=>{const s=normalize(search);const ok=(normalize(m.reference)+normalize(m.clientName)).includes(s);let st=true;if(statusFilter==='En production')st=m.statut==='En cours'||m.statut==='Reçu';else if(statusFilter)st=m.statut===statusFilter;return ok&&st;});
 
   // ---- Clé de mois avec tri chronologique réel ----
   // Format: "YYYY-MM" pour trier + label "mois YYYY" pour afficher
-  const getMonthKey=(date:string)=>{
-    try{const d=new Date(date);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
-    catch{return'0000-00';}
+  const getMonthKey=(date:string|undefined):string=>{
+    if(!date)return'0000-00';
+    try{
+      const d=new Date(date);
+      if(isNaN(d.getTime()))return'0000-00';
+      return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }catch{return'0000-00';}
   };
-  const getMonthLabel=(key:string)=>{
-    try{const[y,m]=key.split('-');const d=new Date(parseInt(y),parseInt(m)-1,1);return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}
-    catch{return key;}
+  const getMonthLabel=(key:string):string=>{
+    try{
+      const[y,m]=key.split('-');
+      const d=new Date(parseInt(y),parseInt(m)-1,1);
+      const label=d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+      return label.charAt(0).toUpperCase()+label.slice(1);
+    }catch{return key;}
   };
 
-  // Mois en cours et mois précédent
+  // Mois en cours et mois précédent (clés YYYY-MM)
   const now=new Date();
   const currentMonthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
   const prevMonthKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
-  const visibleMonthKeys=new Set([currentMonthKey,prevMonthKey]);
+  // Les 2 mois à afficher par défaut
+  const defaultVisibleKeys=new Set<string>([currentMonthKey,prevMonthKey]);
 
   // Groupement par mois trié du plus récent au plus ancien
   const grouped=fm.reduce((acc:any,m)=>{
@@ -248,8 +260,8 @@ export default function AdminDashboard(){
   const allMonthKeys=Object.keys(grouped).sort().reverse();
   // Mois visibles par défaut = mois en cours + mois précédent
   // Si showAll = tous les mois
-  const visibleKeys=showAll?allMonthKeys:allMonthKeys.filter(k=>visibleMonthKeys.has(k));
-  const hiddenMonths=allMonthKeys.filter(k=>!visibleMonthKeys.has(k));
+  const visibleKeys=showAll?allMonthKeys:allMonthKeys.filter(k=>defaultVisibleKeys.has(k));
+  const hiddenMonths=allMonthKeys.filter(k=>!defaultVisibleKeys.has(k));
   const hidden=hiddenMonths.length;
   const filteredClients=clients.filter(c=>normalize(c.nomSociete).includes(normalize(search)));
   const pending=montages.filter(m=>m.statut==='En attente').length;
@@ -358,6 +370,8 @@ export default function AdminDashboard(){
                                                   {m.diamondCutType!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-500">{m.diamondCutType}</span>}
                                                   {m.glassType?.map(g=><span key={g} className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600">{g.replace('Verre ','')}</span>)}
                                                   {(m.engravingCount||0)>0&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-purple-50 border border-purple-100 text-purple-600">{m.engravingCount} gravure(s)</span>}
+                                                  {m.shapeChange&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Changement forme</span>}
+                                                  {m.shapeChange&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Changement forme</span>}
                                                 </div>
                                                 {m.description&&<p className="text-xs text-gray-400 mt-1.5 italic">{m.description}</p>}
                                               </div>
@@ -371,17 +385,16 @@ export default function AdminDashboard(){
                                                   </SelectContent>
                                                 </Select>
                                                 {m.photoUrl?(
-                                                  <button className={S.btnO+" h-8 w-8 p-0"} onClick={async(e:React.MouseEvent)=>{e.stopPropagation();toast.loading("Chargement...",{id:'p'});try{const r=await authFetch(`${getBase()}/api/montages/${m._id}`);const photoData=await r.json();if(photoData.success&&photoData.montage.photoUrl){setPhotoUrl(photoData.montage.photoUrl);toast.dismiss('p');}else toast.error("Image introuvable",{id:'p'});}catch{toast.error("Erreur",{id:'p'});}}}>
-                                                    <ImageIcon className="w-3.5 h-3.5 text-[#C9A96E]"/>
+                                                  <button title="Voir la photo" className="h-8 w-8 flex items-center justify-center rounded-xl border border-[#C9A96E] bg-[#FBF6EE] hover:bg-[#C9A96E]/20 transition-all cursor-pointer" onClick={async(e:React.MouseEvent)=>{e.stopPropagation();toast.loading("Chargement...",{id:'p'});try{const r=await authFetch(`${getBase()}/api/montages/${m._id}`);const photoData=await r.json();if(photoData.success&&photoData.montage.photoUrl){setPhotoUrl(photoData.montage.photoUrl);toast.dismiss('p');}else toast.error("Image introuvable",{id:'p'});}catch{toast.error("Erreur",{id:'p'});}}}>                                                    <ImageIcon className="w-3.5 h-3.5 text-[#C9A96E]"/>
                                                   </button>
                                                 ):(
                                                   <>
                                                     <input type="file" accept="image/*" style={{display:'none'}} ref={el=>fileRefs.current[m._id]=el} onChange={e=>{if(e.target.files?.[0])uploadPhoto(m._id,e.target.files[0]);}}/>
-                                                    <button className={S.btnO+" h-8 w-8 p-0"} onClick={(e:React.MouseEvent)=>{e.stopPropagation();fileRefs.current[m._id]?.click();}}><Camera className="w-3.5 h-3.5"/></button>
+                                                    <button title="Ajouter une photo" className="h-8 w-8 flex items-center justify-center rounded-xl border border-[#EDE8DF] bg-white hover:border-[#C9A96E] hover:bg-[#FBF6EE] transition-all cursor-pointer" onClick={(e:React.MouseEvent)=>{e.stopPropagation();fileRefs.current[m._id]?.click();}}><Camera className="w-3.5 h-3.5 text-gray-400"/></button>
                                                   </>
                                                 )}
-                                                <button className={S.btnO+" h-8 w-8 p-0"} onClick={()=>openEdit(m)}><Pencil className="w-3.5 h-3.5"/></button>
-                                                <button className={S.btnD} onClick={()=>deleteMontage(m._id)}><Trash2 className="w-3.5 h-3.5"/></button>
+                                                <button title="Modifier" className="h-8 w-8 flex items-center justify-center rounded-xl border border-blue-200 bg-white hover:bg-blue-50 transition-all cursor-pointer" onClick={()=>openEdit(m)}><Pencil className="w-3.5 h-3.5 text-blue-500"/></button>
+                                                <button title="Supprimer" className="h-8 w-8 flex items-center justify-center rounded-xl border border-red-200 bg-white hover:bg-red-50 transition-all cursor-pointer" onClick={()=>deleteMontage(m._id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></button>
                                               </div>
                                             </div>
                                           );
