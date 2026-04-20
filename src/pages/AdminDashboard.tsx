@@ -54,7 +54,6 @@ const S={
 /* ---- MODALE FACTURE ---- */
 const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;montages:Montage[];isOpen:boolean;onClose:()=>void;onPublished:(f:FactureData)=>void})=>{
   const [busy,setBusy]=useState(false);
-  if(!isOpen)return null;
   const tier=client.pricingTier||1;
   const today=new Date();
   const getDetails=(m:Montage)=>{
@@ -121,7 +120,8 @@ const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;
 
 /* ---- MODALE FACTURES CLIENT ---- */
 const ClientInvoicesModal=({client,invoices,isOpen,onClose,onDelete,onPaymentUpdate}:{client:Client|null;invoices:FactureData[];isOpen:boolean;onClose:()=>void;onDelete:(id:string)=>void;onPaymentUpdate:(id:string,amount:number)=>void})=>{
-  const [payInv,setPayInv]=useState<FactureData|null>(null);const[amt,setAmt]=useState(0);
+  const [payInv,setPayInv]=useState<FactureData|null>(null);
+  const [amt,setAmt]=useState(0);
   if(!isOpen||!client)return null;
   const badge=(s:string|undefined,rem:number)=>{
     if(s==='Payé')return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700">Payé</span>;
