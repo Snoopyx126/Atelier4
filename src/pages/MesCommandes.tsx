@@ -210,6 +210,7 @@ export default function MesCommandes() {
   const [clientsList,   setClientsList]   = useState<any[]>([]);
   const [targetClient,  setTargetClient]  = useState("");
   const [openTimeline,  setOpenTimeline]  = useState<string|null>(null);
+  const [showAll,       setShowAll]       = useState(false);
   const [refreshing,    setRefreshing]    = useState(false);
   // Formulaire
   const [ref,  setRef]  = useState("");
@@ -357,6 +358,9 @@ export default function MesCommandes() {
     ['En attente','Reçu','En cours','Terminé'].map(s => [s, montages.filter(m => m.statut===s).length])
   );
 
+  // Reset affichage quand on filtre
+  React.useEffect(() => { setShowAll(false); }, [search, statusFilter]);
+
   const isManager = user?.role === 'manager';
   const getTier = (m: Montage) =>
     isManager ? (clientsList.find((c: any) => c._id===m.userId)?.pricingTier || 1) : (user?.pricingTier || 1);
@@ -387,7 +391,19 @@ export default function MesCommandes() {
     return acc;
   }, {});
 
-  const monthKeys = Object.keys(grouped).sort().reverse();
+  const allMonthKeys = Object.keys(grouped).sort().reverse();
+
+  // Mois en cours + mois précédent visibles par défaut
+  const now = new Date();
+  const currentMk = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const prevDate  = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const prevMk    = `${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+  const defaultVisible = new Set([currentMk, prevMk]);
+
+  const monthKeys  = showAll ? allMonthKeys : allMonthKeys.filter(k => defaultVisible.has(k));
+  const hiddenMks  = allMonthKeys.filter(k => !defaultVisible.has(k));
+  const hiddenCount = hiddenMks.length;
+  const hiddenDossiers = fm.filter(m => hiddenMks.includes(getMonthKey(m.dateReception))).length;
 
   // ─── CARTE MONTAGE ─────────────────────────────────────────────────────────────
   const renderCard = (m: Montage) => {
@@ -647,7 +663,7 @@ export default function MesCommandes() {
             {monthKeys.length === 0
               ? <div className="text-center py-16 text-gray-500 text-sm">Aucune commande{statusFilter ? ` "${statusFilter}"` : ''} trouvée.</div>
               : (
-                <Accordion type="multiple" className="space-y-3" defaultValue={monthKeys.slice(0,2)}>
+                <Accordion type="multiple" className="space-y-3" defaultValue={allMonthKeys.slice(0,2)}>
                   {monthKeys.map(mk => {
                     const content = grouped[mk];
                     const label = getMonthLabel(mk);
