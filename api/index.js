@@ -175,27 +175,24 @@ app.get("/api/users", async (req, res) => {
 
 app.put("/api/users/:id", async (req, res) => {
   try {
-    // Sécurité : interdire la modification du rôle et du mot de passe via cette route
-    const { role, password, ...safeUpdate } = req.body;
+    // Extraire les champs sensibles — ne pas les passer directement à MongoDB
+    const { role, password, newPassword, currentPassword, pricingTier, assignedShops, isVerified, ...safeUpdate } = req.body;
 
-    // Si un nouveau mot de passe est fourni (depuis profil), on le hash
-    if (req.body.newPassword && req.body.currentPassword) {
+    // Changement de mot de passe
+    if (newPassword && currentPassword) {
       const user = await User.findById(req.params.id);
       if (!user) return res.status(404).json({ success: false, message: "Utilisateur introuvable" });
-      const match = await bcrypt.compare(req.body.currentPassword, user.password);
+      const match = await bcrypt.compare(currentPassword, user.password);
       if (!match) return res.status(401).json({ success: false, message: "Mot de passe actuel incorrect" });
-      safeUpdate.password = await bcrypt.hash(req.body.newPassword, SALT_ROUNDS);
+      safeUpdate.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
     }
 
-    // Autoriser la modification du rôle uniquement depuis l'admin (x-user-role: admin)
-    if (role && req.headers['x-user-role'] === 'admin') {
-      safeUpdate.role = role;
-    }
-    // Autoriser pricingTier et assignedShops uniquement pour les admins
-    if (!['admin'].includes(req.headers['x-user-role'])) {
-      delete safeUpdate.pricingTier;
-      delete safeUpdate.assignedShops;
-      delete safeUpdate.isVerified;
+    // Champs réservés aux admins
+    if (req.headers['x-user-role'] === 'admin') {
+      if (role) safeUpdate.role = role;
+      if (pricingTier !== undefined) safeUpdate.pricingTier = pricingTier;
+      if (assignedShops !== undefined) safeUpdate.assignedShops = assignedShops;
+      if (isVerified !== undefined) safeUpdate.isVerified = isVerified;
     }
 
     const updated = await User.findByIdAndUpdate(req.params.id, safeUpdate, { new: true })
