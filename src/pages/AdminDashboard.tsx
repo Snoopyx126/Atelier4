@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2, Clock } from "lucide-react";
+import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2, Clock, Phone, Mail, MapPin, Building2 } from "lucide-react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { authFetch, API_URL } from "@/lib/api";
@@ -207,6 +207,7 @@ export default function AdminDashboard(){
   const[showAll,setShowAll]=useState(false);
   const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
   const[openTimeline,setOpenTimeline]=useState<string|null>(null);
+  const[ficheClient,setFicheClient]=useState<Client|null>(null);
   const[invOpen,setInvOpen]=useState(false);
   const[invClient,setInvClient]=useState<Client|null>(null);
   const[invMontages,setInvMontages]=useState<Montage[]>([]);
@@ -498,7 +499,7 @@ export default function AdminDashboard(){
                   <div className="divide-y divide-[#EDE8DF]">
                     {filteredClients.map(c=>(
                       <div key={c._id} className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-white transition-colors">
-                        <div className="flex-1 cursor-pointer" onClick={()=>{setCliInvClient(c);setCliInvList(allInvoices.filter(f=>f.userId===c._id));setCliInvOpen(true);}}>
+                        <div className="flex-1 cursor-pointer" onClick={()=>setFicheClient(c)}>
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <p className="font-medium text-[#0F0E0C]">{c.nomSociete}</p>
                             {c.role==='manager'&&<span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-100 text-blue-600">Manager</span>}
@@ -526,6 +527,92 @@ export default function AdminDashboard(){
             </div>
 
         {/* Modales */}
+        {/* MODALE FICHE CLIENT */}
+        <Dialog open={!!ficheClient} onOpenChange={()=>setFicheClient(null)}>
+          <DialogContent className="bg-white max-w-md rounded-2xl p-0 overflow-hidden">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#EDE8DF]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#F7F4EE] border border-[#EDE8DF] flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-[#C9A96E]"/>
+                </div>
+                <div>
+                  <span className="text-[9px] tracking-[0.22em] uppercase text-[#C9A96E] block">Fiche client</span>
+                  <DialogTitle className="font-playfair text-xl font-normal text-[#0F0E0C]">{ficheClient?.nomSociete}</DialogTitle>
+                </div>
+              </div>
+            </DialogHeader>
+            {ficheClient && (
+              <div className="px-6 py-5 space-y-4">
+                {/* Statut */}
+                <div className="flex items-center gap-2">
+                  {ficheClient.isVerified
+                    ? <span className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3"/>Compte validé</span>
+                    : <span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 font-semibold flex items-center gap-1.5"><AlertCircle className="w-3 h-3"/>En attente de validation</span>
+                  }
+                  {ficheClient.role === 'manager' && (
+                    <span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 font-semibold">Manager</span>
+                  )}
+                </div>
+                {/* Infos */}
+                <div className="space-y-3 bg-[#F7F4EE] rounded-xl p-4">
+                  {ficheClient.email && (
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-4 h-4 text-[#C9A96E] flex-shrink-0"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">Email</p>
+                        <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.email}</p>
+                      </div>
+                    </div>
+                  )}
+                  {ficheClient.siret && (
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-4 h-4 text-[#C9A96E] flex-shrink-0"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">SIRET</p>
+                        <p className="text-sm font-medium text-[#0F0E0C] font-mono">{ficheClient.siret}</p>
+                      </div>
+                    </div>
+                  )}
+                  {ficheClient.phone && (
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-4 h-4 text-[#C9A96E] flex-shrink-0"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">Téléphone</p>
+                        <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.phone}</p>
+                      </div>
+                    </div>
+                  )}
+                  {(ficheClient.address || ficheClient.zipCity) && (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-4 h-4 text-[#C9A96E] flex-shrink-0 mt-0.5"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">Adresse</p>
+                        {ficheClient.address && <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.address}</p>}
+                        {ficheClient.zipCity && <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.zipCity}</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Tarif */}
+                <div className="flex items-center justify-between p-3 bg-white border border-[#EDE8DF] rounded-xl">
+                  <span className="text-sm text-gray-600">Grille tarifaire</span>
+                  <span className="text-sm font-semibold text-[#0F0E0C]">Tarif {ficheClient.pricingTier || 1}</span>
+                </div>
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    className={S.btnG+" flex-1"}
+                    onClick={()=>{setCliInvClient(ficheClient);setCliInvList(allInvoices.filter(f=>f.userId===ficheClient._id));setCliInvOpen(true);setFicheClient(null);}}
+                  >
+                    <Receipt className="w-4 h-4"/> Voir les factures
+                  </button>
+                  <button className={S.btnO} onClick={()=>setFicheClient(null)}>Fermer</button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={shopOpen} onOpenChange={setShopOpen}>
           <DialogContent className="bg-white max-w-lg rounded-2xl">
             <DialogHeader><DialogTitle className="font-playfair font-normal">Magasins — {shopMgr?.nomSociete}</DialogTitle></DialogHeader>
