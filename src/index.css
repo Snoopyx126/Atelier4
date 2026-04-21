@@ -44,6 +44,16 @@
   * { box-sizing: border-box; border-color: hsl(var(--border)); }
 
   html { scroll-behavior: smooth; }
+  /* ── MOBILE FIXES ─────────────────────────────────────── */
+  /* Empêche le zoom non désiré sur les inputs iOS */
+  input, select, textarea { font-size: 16px; }
+  /* Supprime le tap highlight bleu sur iOS */
+  * { -webkit-tap-highlight-color: transparent; }
+  /* Empêche le débordement horizontal global */
+  body { overflow-x: hidden; }
+  /* Touch action pour les boutons */
+  button { touch-action: manipulation; }
+
 
   body {
     background-color: hsl(var(--background));

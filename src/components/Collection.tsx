@@ -41,11 +41,11 @@ const Collection = () => {
   };
 
   return (
-    <section id="collection" className="py-28 bg-[#F7F4EE]">
+    <section id="collection" className="py-16 sm:py-28 bg-[#F7F4EE]">
       <div className="container mx-auto px-6 lg:px-10">
 
         {/* En-tête section */}
-        <div className="text-center mb-20 animate-fade-up">
+        <div className="text-center mb-10 sm:mb-20 animate-fade-up">
           <span className="section-label">Savoir-faire</span>
           <h2 className="section-title-lg">
             Notre Collection

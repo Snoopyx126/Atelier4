@@ -31,11 +31,11 @@ const CustomLenses = () => {
   const [zoomed, setZoomed] = useState<{ src: string; alt: string } | null>(null);
 
   return (
-    <section id="custom-lenses" className="py-28 bg-[#0F0E0C]">
+    <section id="custom-lenses" className="py-16 sm:py-28 bg-[#0F0E0C]">
       <div className="container mx-auto px-6 lg:px-10">
 
         {/* En-tête */}
-        <div className="text-center mb-20 animate-fade-up">
+        <div className="text-center mb-10 sm:mb-20 animate-fade-up">
           <span className="section-label">Verres sur mesure</span>
           <h2 className="font-playfair text-4xl md:text-5xl font-normal text-[#F7F4EE] leading-[1.15]">
             Verre<br />

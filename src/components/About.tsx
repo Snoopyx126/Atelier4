@@ -21,10 +21,10 @@ const features = [
 
 const About = () => {
   return (
-    <section id="about" className="py-28 bg-[#0F0E0C]">
+    <section id="about" className="py-16 sm:py-28 bg-[#0F0E0C]">
       <div className="container mx-auto px-6 lg:px-10">
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center mb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-20 items-center mb-12 sm:mb-24">
 
           {/* Texte principal */}
           <div className="animate-fade-up">
@@ -49,8 +49,8 @@ const About = () => {
           <div className="animate-fade-up delay-200 relative">
             <div className="absolute -top-4 -left-4 w-12 h-12 border-l-2 border-t-2 border-[#C9A96E]/40" />
             <div className="absolute -bottom-4 -right-4 w-12 h-12 border-r-2 border-b-2 border-[#C9A96E]/40" />
-            <div className="p-10 border border-[#C9A96E]/15 bg-[#1C1A17]">
-              <p className="font-playfair text-2xl italic text-[#F7F4EE]/80 leading-relaxed mb-6">
+            <div className="p-6 sm:p-10 border border-[#C9A96E]/15 bg-[#1C1A17]">
+              <p className="font-playfair text-xl sm:text-2xl italic text-[#F7F4EE]/80 leading-relaxed mb-6">
                 "Vos yeux racontent votre histoire.<br />
                 Laissez-nous vous aider à la mettre en valeur."
               </p>
@@ -71,7 +71,7 @@ const About = () => {
             return (
               <div
                 key={index}
-                className="group p-10 bg-[#0F0E0C] hover:bg-[#1C1A17] transition-colors duration-400 animate-fade-up"
+                className="group p-6 sm:p-10 bg-[#0F0E0C] hover:bg-[#1C1A17] transition-colors duration-400 animate-fade-up"
                 style={{ animationDelay: `${index * 120}ms` }}
               >
                 <div className="mb-6">

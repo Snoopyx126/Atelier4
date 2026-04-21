@@ -143,18 +143,18 @@ const Navigation = () => {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden bg-[#0F0E0C] border-t border-[#C9A96E]/20 py-6 animate-fade-in">
-            <div className="flex flex-col gap-5 px-2">
+          <div className="md:hidden bg-[#0F0E0C] border-t border-[#C9A96E]/20 py-8 animate-fade-in">
+            <div className="flex flex-col gap-6 px-4">
               {["home", "collection", "about", "contact"].map((id) => (
                 <button
                   key={id}
                   onClick={() => handleScrollTo(id)}
-                  className="text-left font-sans-dm text-xs tracking-[0.2em] uppercase text-[#F7F4EE] hover:text-[#C9A96E] transition-colors py-1"
+                  className="text-left font-sans-dm text-sm tracking-[0.15em] uppercase text-[#F7F4EE] hover:text-[#C9A96E] transition-colors py-2"
                 >
                   {id === "home" ? "Accueil" : id === "collection" ? "Collection" : id === "about" ? "À propos" : "Contact"}
                 </button>
               ))}
-              <Link to={targetPath} onClick={() => setIsMenuOpen(false)} className="font-sans-dm text-xs tracking-[0.2em] uppercase text-[#F7F4EE] hover:text-[#C9A96E] transition-colors py-1">
+              <Link to={targetPath} onClick={() => setIsMenuOpen(false)} className="font-sans-dm text-sm tracking-[0.15em] uppercase text-[#F7F4EE] hover:text-[#C9A96E] transition-colors py-2">
                 {linkText}
               </Link>
               <button onClick={openCalendly} className="btn-gold text-[10px] mt-2 w-full">

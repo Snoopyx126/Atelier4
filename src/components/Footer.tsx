@@ -8,7 +8,7 @@ const Footer = () => {
       <div className="container mx-auto px-6 lg:px-10">
 
         {/* Ligne du haut */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12 mb-12">
 
           {/* Marque */}
           <div>

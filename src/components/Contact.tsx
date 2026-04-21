@@ -58,11 +58,11 @@ const Contact = () => {
   ];
 
   return (
-    <section id="contact" className="py-28 bg-[#F7F4EE]">
+    <section id="contact" className="py-16 sm:py-28 bg-[#F7F4EE]">
       <div className="container mx-auto px-6 lg:px-10">
 
         {/* En-tête */}
-        <div className="text-center mb-20 animate-fade-up">
+        <div className="text-center mb-10 sm:mb-20 animate-fade-up">
           <span className="section-label">Nous contacter</span>
           <h2 className="section-title-lg">
             Donnez vie<br />
@@ -74,7 +74,7 @@ const Contact = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 sm:gap-16 max-w-6xl mx-auto">
 
           {/* Formulaire — 3 colonnes */}
           <div className="lg:col-span-3 animate-fade-up">

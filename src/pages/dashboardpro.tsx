@@ -60,11 +60,11 @@ const DashboardPro = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navigation />
-      <div className="flex-grow pt-24 pb-10 px-6 container mx-auto max-w-6xl">
-        <h1 className="text-4xl font-bold text-gray-900 mb-6">Bonjour, {user.nomSociete}</h1>
+      <div className="flex-grow pt-24 pb-10 px-4 sm:px-6 container mx-auto max-w-6xl">
+        <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">Bonjour, {user.nomSociete}</h1>
         <p className="text-lg text-gray-600 mb-10">Bienvenue sur votre espace professionnel. Gérez vos commandes et accédez à vos documents.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Col 1: Profil & Actions */}
           <div className="md:col-span-1 space-y-6">
             {/* Infos de Profil */}
@@ -124,9 +124,9 @@ const DashboardPro = () => {
                 <CardTitle>Suivi de Production</CardTitle>
                 <CardDescription>Gérez vos montages et suivez leur avancement.</CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
+              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between">
                 <p className="text-gray-600">Accédez à l'historique complet et créez de nouvelles demandes.</p>
-                <Button className="bg-blue-400 hover:bg-gray-800 text-white px-8">
+                <Button className="bg-blue-400 hover:bg-gray-800 text-white px-4 sm:px-8 text-sm">
                   <ShoppingCart className="w-4 h-4 mr-2"/> Mes Commandes →
                 </Button>
               </CardContent>
@@ -141,9 +141,9 @@ const DashboardPro = () => {
                 <CardTitle>Mes Documents</CardTitle>
                 <CardDescription>Consultez et téléchargez vos documents de facturation.</CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
+              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between">
                 <p className="text-gray-600">Retrouvez l'historique de vos documents de facturation.</p>
-                <Button className="bg-green-400 hover:bg-gray-800 text-white px-8">
+                <Button className="bg-green-400 hover:bg-gray-800 text-white px-4 sm:px-8 text-sm">
                   <Receipt className="w-4 h-4 mr-2"/> Accéder aux Documents →
                 </Button>
               </CardContent>

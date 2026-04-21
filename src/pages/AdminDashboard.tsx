@@ -315,7 +315,7 @@ export default function AdminDashboard(){
   return(
     <div className="min-h-screen bg-[#F7F4EE] flex flex-col">
       <Navigation/>
-      <div className="flex-grow pt-24 pb-12 px-6 container mx-auto max-w-7xl">
+      <div className="flex-grow pt-24 pb-12 px-4 sm:px-6 container mx-auto max-w-7xl">
 
         {/* En-tête */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
@@ -324,7 +324,7 @@ export default function AdminDashboard(){
             <h1 className="font-playfair text-3xl font-normal text-[#0F0E0C] tracking-tight">Tableau de Bord</h1>
             <p className="text-sm text-gray-400 mt-1 font-light">{montages.length} montages chargés</p>
           </div>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <button onClick={()=>navigate('/stats')} className={S.btnO}><BarChart2 className="w-3.5 h-3.5 text-[#C9A96E]"/> Statistiques</button>
             <button onClick={exportCSV} className={S.btnO}><FileText className="w-3.5 h-3.5"/> Export CSV</button>
             <button onClick={openCreate} className={S.btnP}><PlusCircle className="w-3.5 h-3.5"/> Créer un dossier</button>
@@ -407,7 +407,7 @@ export default function AdminDashboard(){
                                                   <span className="text-gray-300">·</span>
                                                   <span className="text-sm font-medium text-gray-600">{m.frame}</span>
                                                   <StatusPill s={m.statut}/>
-                                                  <span className="ml-auto text-sm font-semibold text-[#9A7A45]">{price.toFixed(2)} € HT</span>
+                                                  <span className="text-sm font-semibold text-[#9A7A45] whitespace-nowrap">{price.toFixed(2)} € HT</span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
                                                   <span className="text-xs rounded-full px-3 py-1 bg-[#F7F4EE] border border-[#D5CFC6] text-gray-600 font-medium">{m.category}</span>
@@ -636,13 +636,13 @@ export default function AdminDashboard(){
             <DialogHeader><DialogTitle className="font-playfair font-normal text-xl">{editId?"Modifier le dossier":"Nouveau dossier"}</DialogTitle></DialogHeader>
             <form onSubmit={saveMontage} className="space-y-5 pt-2">
               <div><Label className={S.label}>Client</Label><Select onValueChange={setNClient} value={nClient}><SelectTrigger className={S.inp+" w-full h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><Label className={S.label}>Réf.</Label><Input value={nRef} onChange={e=>setNRef(e.target.value)} required className={S.inp+" h-10"}/></div>
                 <div><Label className={S.label}>Monture</Label><Input value={nFrame} onChange={e=>setNFrame(e.target.value)} required className={S.inp+" h-10"}/></div>
                 <div><Label className={S.label}>Urgence</Label><Select onValueChange={setNUrg} value={nUrg}><SelectTrigger className={S.inp+" h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
               </div>
               <div><Label className={S.label}>Statut</Label><Select onValueChange={setNStatut} value={nStatut}><SelectTrigger className={S.inp+" h-10 w-full"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{Object.entries(statusCfg).map(([v,c])=><SelectItem key={v} value={v}><span className="flex items-center gap-2 text-sm"><span className={`w-2 h-2 rounded-full ${c.dot}`}/>{v}</span></SelectItem>)}</SelectContent></Select></div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><Label className={S.label}>Type</Label><Select onValueChange={setNCat} value={nCat}><SelectTrigger className={S.inp+" h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
                 <div><Label className={S.label}>Diamond Cut</Label><Select onValueChange={setNDC} value={nDC}><SelectTrigger className={S.inp+" h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label className={S.label}>Gravures</Label><Input type="number" value={nEng} onChange={e=>setNEng(parseInt(e.target.value)||0)} className={S.inp+" h-10"}/></div>

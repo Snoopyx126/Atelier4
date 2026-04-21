@@ -142,7 +142,7 @@ const QuickView = ({m, tier, onClose}: {m:Montage|null; tier:number; onClose:()=
             </div>
           </div>
           {/* Badges */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
             <span className="text-xs rounded-full px-3 py-1 bg-[#F7F4EE] border border-[#D5CFC6] text-gray-700 font-medium">{m.category}</span>
             {m.urgency!=='Standard'&&<span className="text-xs rounded-full px-3 py-1 bg-red-50 border border-red-200 text-red-700 font-medium">{m.urgency}</span>}
             {m.diamondCutType!=='Standard'&&<span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 font-medium">{m.diamondCutType}</span>}
@@ -429,7 +429,7 @@ export default function MesCommandes() {
                 <span className="text-gray-400 font-light">·</span>
                 <span className="text-sm font-medium text-gray-600">{m.frame}</span>
                 <StatusPill s={m.statut}/>
-                <span className="ml-auto text-sm font-semibold text-[#9A7A45]">{price.toFixed(2)} € HT</span>
+                <span className="text-sm font-semibold text-[#9A7A45] whitespace-nowrap">{price.toFixed(2)} € HT</span>
               </div>
               {/* Badge manager */}
               {isManager && m.createdBy?.includes("Manager") && (
@@ -534,7 +534,7 @@ export default function MesCommandes() {
   return (
     <div className="min-h-screen bg-[#F7F4EE] flex flex-col">
       <Navigation/>
-      <div className="flex-grow pt-24 pb-12 px-6 container mx-auto max-w-5xl">
+      <div className="flex-grow pt-24 pb-12 px-4 sm:px-6 container mx-auto max-w-5xl">
 
         {/* En-tête */}
         <div className="flex justify-between items-end mb-10">
@@ -583,7 +583,7 @@ export default function MesCommandes() {
                       </Select>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div><Label className={S.lbl}>Référence *</Label><input placeholder="Ex : REF-123" value={ref} onChange={e=>setRef(e.target.value)} required className={S.inp + " h-10 w-full px-3"}/></div>
                     <div><Label className={S.lbl}>Monture *</Label><input placeholder="Ex : RayBan 450" value={frame} onChange={e=>setFrame(e.target.value)} required className={S.inp + " h-10 w-full px-3"}/></div>
                     <div><Label className={S.lbl}>Urgence</Label>
@@ -593,7 +593,7 @@ export default function MesCommandes() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div><Label className={S.lbl}>Type</Label>
                       <Select onValueChange={setCat} value={cat}>
                         <SelectTrigger className={S.inp + " h-10"}><SelectValue/></SelectTrigger>
@@ -614,7 +614,7 @@ export default function MesCommandes() {
                   </div>
                   <div className="p-4 bg-[#F7F4EE] rounded-xl border border-[#EDE8DF]">
                     <p className={S.lbl}>Options verres & autres</p>
-                    <div className="flex flex-wrap gap-5 mt-2">
+                    <div className="flex flex-wrap gap-4 mt-2">
                       {GLASS_OPTIONS.map(o=>(
                         <div key={o} className="flex items-center gap-2">
                           <Checkbox id={o} checked={glass.includes(o)} onCheckedChange={c=>setGlass(p=>(c as boolean)?[...p,o]:p.filter(t=>t!==o))}/>
@@ -638,7 +638,7 @@ export default function MesCommandes() {
             </div>
 
             {/* Filtres statut */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
               <button onClick={() => setStatusFilter(null)}
                 className={`text-xs font-medium px-4 py-2 rounded-xl border transition-all ${!statusFilter ? 'bg-[#0F0E0C] text-[#F7F4EE] border-[#0F0E0C]' : 'bg-white text-gray-600 border-[#EDE8DF] hover:bg-[#F7F4EE]'}`}>
                 Tous ({montages.length})

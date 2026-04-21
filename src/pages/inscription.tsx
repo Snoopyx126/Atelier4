@@ -110,7 +110,7 @@ const Inscription = () => {
       <Navigation />
       
       <div className="flex-grow flex items-center justify-center pt-20 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-lg space-y-8">
+        <div className="w-full max-w-lg space-y-6 px-1">
           
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-playfair font-bold text-gray-900">

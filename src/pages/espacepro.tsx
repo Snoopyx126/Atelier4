@@ -86,7 +86,7 @@ const EspacePro = () => {
                 required
                 onChange={handleChange}
                 placeholder="votre@email.com"
-                className="w-full bg-transparent border-b border-[#F7F4EE]/15 focus:border-[#C9A96E] outline-none text-sm font-light py-3 text-[#F7F4EE] placeholder:text-[#F7F4EE]/25 transition-colors duration-300"
+                className="w-full bg-transparent border-b border-[#F7F4EE]/15 focus:border-[#C9A96E] outline-none text-base font-light py-4 text-[#F7F4EE] placeholder:text-[#F7F4EE]/25 transition-colors duration-300"
               />
             </div>
 
@@ -100,7 +100,7 @@ const EspacePro = () => {
                 required
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full bg-transparent border-b border-[#F7F4EE]/15 focus:border-[#C9A96E] outline-none text-sm font-light py-3 text-[#F7F4EE] placeholder:text-[#F7F4EE]/25 transition-colors duration-300"
+                className="w-full bg-transparent border-b border-[#F7F4EE]/15 focus:border-[#C9A96E] outline-none text-base font-light py-4 text-[#F7F4EE] placeholder:text-[#F7F4EE]/25 transition-colors duration-300"
               />
               <div className="text-right mt-3">
                 <Link to="/mot-de-passe-oublie" className="font-sans-dm text-[9px] tracking-[0.1em] text-[#F7F4EE]/30 hover:text-[#C9A96E] transition-colors">
