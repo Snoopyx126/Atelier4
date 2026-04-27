@@ -113,13 +113,17 @@ const factureSchema = new mongoose.Schema({
     paymentStatus: { type: String, default: 'Non payé' },
     montagesReferences: [{ type: String }],
     invoiceData: { type: Array, default: [] }, 
-    pdfUrl: { type: String, default: '#' }
+    pdfUrl: { type: String, default: '#' },
+    pennylaneId: { type: String, default: null },
+    pennylaneUrl: { type: String, default: null }
 });
 const Facture = mongoose.models.Facture || mongoose.model("Facture", factureSchema);
 
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 5 * 1024 * 1024 } });
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SALT_ROUNDS = 10;
+const PENNYLANE_API = 'https://app.pennylane.com/api/external/v2';
+const PENNYLANE_TOKEN = process.env.PENNYLANE_API_TOKEN;
 const EMAIL_SENDER = "ne-pas-repondre@l-atelier-des-arts.com";
 const EMAIL_ADMIN = "atelierdesarts.12@gmail.com";
 
@@ -155,6 +159,132 @@ const getEmailTemplate = (title, bodyContent, buttonUrl = null, buttonText = nul
     </body></html>`;
 };
 
+
+// ─── PENNYLANE HELPERS ────────────────────────────────────────────────────────
+
+// Retrouver ou créer un client Pennylane
+const getOrCreatePennylaneCustomer = async (user) => {
+    const headers = {
+        'Authorization': `Bearer ${PENNYLANE_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
+
+    // 1. Chercher par référence externe (notre _id MongoDB)
+    const searchRes = await fetch(
+        `${PENNYLANE_API}/company_customers?filter=[{"field":"external_reference","operator":"eq","value":"atelier_${user._id}"}]`,
+        { headers }
+    );
+    const searchData = await searchRes.json();
+
+    if (searchData.company_customers && searchData.company_customers.length > 0) {
+        return searchData.company_customers[0].id;
+    }
+
+    // 2. Créer le client s'il n'existe pas
+    const createRes = await fetch(`${PENNYLANE_API}/company_customers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            name: user.nomSociete,
+            emails: [user.email],
+            external_reference: `atelier_${user._id}`,
+            billing_address: {
+                address: user.address || '',
+                postal_code: (user.zipCity || '').split(' ')[0] || '',
+                city: (user.zipCity || '').split(' ').slice(1).join(' ') || '',
+                country_alpha2: 'FR'
+            },
+            recipient_france_type: 'company',
+            registration_number: user.siret || ''
+        })
+    });
+    const createData = await createRes.json();
+    if (!createData.company_customer) {
+        throw new Error(`Erreur création client Pennylane: ${JSON.stringify(createData)}`);
+    }
+    return createData.company_customer.id;
+};
+
+// Créer la facture Pennylane avec toutes les lignes de montages
+const createPennylaneInvoice = async (customerId, invoiceNumber, montagesData, totalHT, deadline) => {
+    const headers = {
+        'Authorization': `Bearer ${PENNYLANE_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
+
+    // Construire les lignes de facture
+    const invoiceLines = montagesData.map(m => ({
+        label: `${m.reference || 'Montage'} — ${m.details.join(', ')}`,
+        quantity: 1,
+        raw_currency_unit_price: m.price.toFixed(2),
+        vat_rate: 'FR_200',
+        unit: 'piece'
+    }));
+
+    const today = new Date();
+    const deadlineDate = deadline || new Date(today.getTime() + 30 * 86400000);
+
+    const res = await fetch(`${PENNYLANE_API}/customer_invoices`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            customer_id: customerId,
+            date: today.toISOString().split('T')[0],
+            deadline: deadlineDate.toISOString().split('T')[0],
+            invoice_number: invoiceNumber,
+            invoice_lines: invoiceLines,
+            draft: false
+        })
+    });
+    const data = await res.json();
+    if (!data.customer_invoice) {
+        throw new Error(`Erreur création facture Pennylane: ${JSON.stringify(data)}`);
+    }
+    return data.customer_invoice;
+};
+
+// Envoyer la facture par email depuis Pennylane
+const sendPennylaneInvoiceByEmail = async (pennylaneInvoiceId, clientEmail, clientName, invoiceNumber, totalTTC) => {
+    const headers = {
+        'Authorization': `Bearer ${PENNYLANE_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
+
+    const emailBody = `Bonjour ${clientName},
+
+Veuillez trouver ci-joint votre facture N° ${invoiceNumber} d'un montant de ${totalTTC.toFixed(2)} € TTC.
+
+Vous pouvez consulter et télécharger votre facture depuis votre Espace Pro :
+https://l-atelier-des-arts.com/mes-commandes?tab=factures
+
+⚠️ Première connexion ? Rendez-vous sur "Mot de passe oublié" pour recevoir votre mot de passe temporaire.
+
+Merci de votre confiance,
+L'équipe de L'Atelier des Arts
+📍 178 Avenue Daumesnil, 75012 Paris`;
+
+    const res = await fetch(`${PENNYLANE_API}/customer_invoices/${pennylaneInvoiceId}/send`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            to: [clientEmail],
+            subject: `Votre facture N° ${invoiceNumber} — L'Atelier des Arts`,
+            body: emailBody
+        })
+    });
+
+    // Certaines versions de l'API retournent 200/204 sans body
+    if (!res.ok && res.status !== 204) {
+        const errData = await res.text();
+        console.error('Erreur envoi email Pennylane:', errData);
+        // On ne bloque pas si l'envoi email échoue — la facture est créée
+    }
+    return res.status;
+};
+
 // --- 5. ROUTES ---
 
 app.get("/api", (req, res) => res.json({ status: "En ligne", message: "API OK" }));
@@ -173,7 +303,8 @@ app.post("/api/login", async (req, res) => {
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
   const { nomSociete, email, siret, password, phone, address, zipCity } = req.body;
   try {
-    if (await User.findOne({ email })) return res.status(409).json({ success: false });
+    if (await User.findOne({ email })) return res.status(409).json({ success: false, message: 'Un compte existe déjà avec cette adresse email. Cliquez sur "Mot de passe oublié" pour vous connecter.' });
+    if (siret && await User.findOne({ siret })) return res.status(409).json({ success: false, message: 'Un compte existe déjà avec ce numéro SIRET.' });
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await User.create({ email, password: hashedPassword, nomSociete, siret, phone, address, zipCity, role: 'user' });
     try { await resend.emails.send({ from: EMAIL_SENDER, to: EMAIL_ADMIN, subject: `🔔 Inscription : ${nomSociete}`, html: `<p>Nouvelle inscription: ${nomSociete}</p>` }); } catch (e) {}
@@ -387,52 +518,75 @@ app.post("/api/montages/:id/photo", upload.single('photo'), async (req, res) => 
 // --- FACTURES ---
 app.post("/api/factures", async (req, res) => {
     try {
-        const f = await Facture.create({ ...req.body, paymentStatus: 'Non payé' });
-        
-        if (req.body.sendEmail) {
-            const user = await User.findById(req.body.userId);
-            if (!user || !user.email) throw new Error("Client introuvable.");
+        const { userId, clientName, invoiceNumber, totalHT, totalTTC,
+                montagesReferences, invoiceData, dateEmission } = req.body;
 
-            // Préparation de la base de l'email
-            let emailOptions = {
-                from: EMAIL_SENDER,
-                to: user.email,
-                cc: EMAIL_ADMIN,
-                subject: `Facture ${req.body.invoiceNumber}`,
-            };
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: "Client introuvable." });
 
-            // SCÉNARIO 1 : Petite facture (<= 20 dossiers) -> On attache le PDF
-            if (req.body.pdfBase64) {
-                let base64Data = req.body.pdfBase64;
-                if (base64Data.includes('base64,')) base64Data = base64Data.split('base64,')[1];
-                
-                emailOptions.html = `<p>Bonjour,</p><p>Veuillez trouver ci-joint votre nouvelle facture de L'Atelier des Arts.</p>`;
-                emailOptions.attachments = [{
-                    filename: `Facture_${req.body.invoiceNumber}.pdf`,
-                    content: base64Data
-                }];
-            } 
-            // SCÉNARIO 2 : Grosse facture (> 20 dossiers) -> Email avec bouton sans pièce jointe
-            else {
-                emailOptions.html = `
-                    <div style="font-family: sans-serif; color: #333;">
-                        <p>Bonjour,</p>
-                        <p>Votre nouvelle facture <strong>${req.body.invoiceNumber}</strong> d'un montant de <strong>${req.body.totalTTC} €</strong> est disponible.</p>
-                        <p>En raison du volume de montages, elle a été générée directement sur votre Espace Pro.</p>
-                        <br>
-                        <a href="https://l-atelier-des-arts.com/login" style="background-color:#000; color:#fff; padding:12px 24px; text-decoration:none; border-radius:5px; font-weight:bold; display:inline-block;">Consulter ma facture</a>
-                        <br><br>
-                        <p>L'équipe de L'Atelier des Arts.</p>
-                    </div>
-                `;
+        let pennylaneId = null;
+        let pennylaneUrl = null;
+
+        // ── INTÉGRATION PENNYLANE ─────────────────────────────────────────
+        if (PENNYLANE_TOKEN && invoiceData && invoiceData.length > 0) {
+            try {
+                // 1. Retrouver ou créer le client dans Pennylane
+                const customerId = await getOrCreatePennylaneCustomer(user);
+                console.log(`✅ Client Pennylane: ${customerId}`);
+
+                // 2. Créer la facture dans Pennylane
+                const plInvoice = await createPennylaneInvoice(
+                    customerId, invoiceNumber, invoiceData,
+                    parseFloat(totalHT), null
+                );
+                pennylaneId = plInvoice.id.toString();
+                pennylaneUrl = `https://app.pennylane.com/documents/customer_invoices/${pennylaneId}`;
+                console.log(`✅ Facture Pennylane créée: ${pennylaneId}`);
+
+                // 3. Envoyer la facture par email depuis Pennylane
+                await sendPennylaneInvoiceByEmail(
+                    pennylaneId, user.email, user.nomSociete,
+                    invoiceNumber, parseFloat(totalTTC)
+                );
+                console.log(`✅ Email Pennylane envoyé à ${user.email}`);
+
+            } catch (plErr) {
+                // Si Pennylane échoue, on log mais on continue (fallback Resend)
+                console.error("⚠️ Erreur Pennylane:", plErr.message);
+
+                // Fallback : email via Resend
+                const body = `<p>Bonjour <strong>${user.nomSociete}</strong>,</p>
+                    <p>Votre facture N° <strong>${invoiceNumber}</strong> d'un montant de <strong>${parseFloat(totalTTC).toFixed(2)} € TTC</strong> a été créée.</p>
+                    <p>Consultez-la dans votre Espace Pro :</p>`;
+                await resend.emails.send({
+                    from: EMAIL_SENDER,
+                    to: user.email,
+                    cc: EMAIL_ADMIN,
+                    subject: `Facture ${invoiceNumber} — L'Atelier des Arts`,
+                    html: getEmailTemplate(`Facture ${invoiceNumber}`, body,
+                        "https://l-atelier-des-arts.com/mes-commandes?tab=factures",
+                        "Voir mes factures")
+                });
             }
-
-            await resend.emails.send(emailOptions);
         }
-        res.json({ success: true, facture: f });
-    } catch (e) { 
-        console.error("❌ Erreur Envoi Facture :", e.message); 
-        res.status(500).json({ success: false, message: e.message }); 
+
+        // Sauvegarder en base MongoDB
+        const f = await Facture.create({
+            userId, clientName, invoiceNumber,
+            dateEmission: dateEmission || new Date(),
+            totalHT: parseFloat(totalHT),
+            totalTTC: parseFloat(totalTTC),
+            montagesReferences, invoiceData,
+            paymentStatus: 'Non payé',
+            pdfUrl: pennylaneUrl || '#',
+            pennylaneId, pennylaneUrl
+        });
+
+        res.json({ success: true, facture: f, pennylaneId, pennylaneUrl });
+
+    } catch (e) {
+        console.error("❌ Erreur facture:", e.message);
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 
@@ -453,6 +607,166 @@ app.put("/api/factures/:id", async (req, res) => {
 
 app.delete("/api/factures/:id", async (req, res) => {
     try { await Facture.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ success: false }); }
+});
+
+
+// ─── PENNYLANE WEBHOOK ────────────────────────────────────────────────────────
+// Pennylane appelle cette URL quand une facture est créée/modifiée/payée
+// Configurer dans Pennylane → Paramètres → Connectivité → Webhooks
+// URL : https://atelier4.vercel.app/api/pennylane/webhook
+app.post("/api/pennylane/webhook", async (req, res) => {
+    try {
+        const event = req.body;
+        console.log("📩 Webhook Pennylane:", event.type, event.id);
+
+        // On traite uniquement les événements de factures client
+        if (!event.type || !event.type.startsWith('customer_invoice')) {
+            return res.json({ received: true });
+        }
+
+        const plInvoice = event.data;
+        if (!plInvoice) return res.json({ received: true });
+
+        // Retrouver le client MongoDB via external_reference
+        const extRef = plInvoice.customer?.external_reference;
+        let userId = null;
+        if (extRef && extRef.startsWith('atelier_')) {
+            userId = extRef.replace('atelier_', '');
+        }
+
+        // Statut de paiement Pennylane → notre format
+        const paymentStatusMap = {
+            'paid': 'Payé',
+            'partially_paid': 'Partiellement payé',
+            'unpaid': 'Non payé',
+            'draft': 'Non payé'
+        };
+        const paymentStatus = paymentStatusMap[plInvoice.status] || 'Non payé';
+        const amountPaid = parseFloat(plInvoice.paid_amount || 0);
+
+        const invoiceNumber = plInvoice.invoice_number || `PL-${plInvoice.id}`;
+        const totalTTC = parseFloat(plInvoice.currency_amount || 0);
+        const totalHT = parseFloat(plInvoice.currency_amount_before_tax || totalTTC / 1.2);
+
+        // Upsert : créer ou mettre à jour dans MongoDB
+        const existing = await Facture.findOne({ pennylaneId: plInvoice.id.toString() });
+
+        if (existing) {
+            // Mettre à jour le statut de paiement
+            await Facture.findByIdAndUpdate(existing._id, {
+                paymentStatus,
+                amountPaid,
+                pdfUrl: `https://app.pennylane.com/documents/customer_invoices/${plInvoice.id}`
+            });
+            console.log(`✅ Facture ${invoiceNumber} mise à jour (${paymentStatus})`);
+        } else if (userId) {
+            // Créer la facture si elle n'existe pas encore
+            await Facture.create({
+                userId,
+                clientName: plInvoice.customer?.name || '',
+                invoiceNumber,
+                dateEmission: plInvoice.date ? new Date(plInvoice.date) : new Date(),
+                totalHT,
+                totalTTC,
+                amountPaid,
+                paymentStatus,
+                montagesReferences: [],
+                invoiceData: [],
+                pennylaneId: plInvoice.id.toString(),
+                pennylaneUrl: `https://app.pennylane.com/documents/customer_invoices/${plInvoice.id}`,
+                pdfUrl: `https://app.pennylane.com/documents/customer_invoices/${plInvoice.id}`
+            });
+            console.log(`✅ Facture ${invoiceNumber} créée depuis webhook`);
+        }
+
+        res.json({ received: true });
+    } catch (e) {
+        console.error("❌ Webhook Pennylane:", e.message);
+        res.status(500).json({ received: false, error: e.message });
+    }
+});
+
+// ─── SYNC MANUELLE PENNYLANE → MONGODB ───────────────────────────────────────
+// Admin peut déclencher une synchro manuelle
+// GET /api/pennylane/sync
+app.get("/api/pennylane/sync", async (req, res) => {
+    if (req.headers['x-user-role'] !== 'admin') {
+        return res.status(403).json({ success: false, message: "Accès refusé" });
+    }
+    if (!PENNYLANE_TOKEN) {
+        return res.status(500).json({ success: false, message: "Token Pennylane manquant" });
+    }
+
+    try {
+        const headers = {
+            'Authorization': `Bearer ${PENNYLANE_TOKEN}`,
+            'Accept': 'application/json'
+        };
+
+        // Récupérer les 100 dernières factures Pennylane
+        const plRes = await fetch(
+            `${PENNYLANE_API}/customer_invoices?sort=-date&limit=100`,
+            { headers }
+        );
+        const plData = await plRes.json();
+        const invoices = plData.customer_invoices || [];
+
+        let created = 0, updated = 0, skipped = 0;
+
+        for (const plInv of invoices) {
+            const pennylaneId = plInv.id.toString();
+            const invoiceNumber = plInv.invoice_number || `PL-${pennylaneId}`;
+            const totalTTC = parseFloat(plInv.currency_amount || 0);
+            const totalHT  = parseFloat(plInv.currency_amount_before_tax || totalTTC / 1.2);
+            const amountPaid = parseFloat(plInv.paid_amount || 0);
+            const paymentStatus = totalTTC > 0 && amountPaid >= totalTTC ? 'Payé'
+                : amountPaid > 0 ? 'Partiellement payé' : 'Non payé';
+
+            const pennylaneUrl = `https://app.pennylane.com/documents/customer_invoices/${pennylaneId}`;
+
+            // Retrouver le client MongoDB
+            const extRef = plInv.customer?.external_reference;
+            let userId = null;
+            if (extRef && extRef.startsWith('atelier_')) {
+                userId = extRef.replace('atelier_', '');
+            } else if (plInv.customer?.email) {
+                const u = await User.findOne({ email: plInv.customer.email });
+                if (u) userId = u._id.toString();
+            }
+
+            const existing = await Facture.findOne({ pennylaneId });
+
+            if (existing) {
+                await Facture.findByIdAndUpdate(existing._id, {
+                    paymentStatus, amountPaid, pennylaneUrl, pdfUrl: pennylaneUrl
+                });
+                updated++;
+            } else if (userId) {
+                await Facture.create({
+                    userId, clientName: plInv.customer?.name || '',
+                    invoiceNumber,
+                    dateEmission: plInv.date ? new Date(plInv.date) : new Date(),
+                    totalHT, totalTTC, amountPaid, paymentStatus,
+                    montagesReferences: [], invoiceData: [],
+                    pennylaneId, pennylaneUrl, pdfUrl: pennylaneUrl
+                });
+                created++;
+            } else {
+                skipped++;
+            }
+        }
+
+        res.json({
+            success: true,
+            total: invoices.length,
+            created, updated, skipped,
+            message: `${created} créées, ${updated} mises à jour, ${skipped} ignorées (client non trouvé)`
+        });
+
+    } catch (e) {
+        console.error("❌ Sync Pennylane:", e.message);
+        res.status(500).json({ success: false, message: e.message });
+    }
 });
 
 // CONTACT & MDP

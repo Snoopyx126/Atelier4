@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2, Clock, Phone, Mail, MapPin, Building2 } from "lucide-react";
+import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2, Clock, Phone, Mail, MapPin, Building2, RefreshCw } from "lucide-react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { authFetch, API_URL } from "@/lib/api";
@@ -208,6 +208,7 @@ export default function AdminDashboard(){
   const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
   const[openTimeline,setOpenTimeline]=useState<string|null>(null);
   const[ficheClient,setFicheClient]=useState<Client|null>(null);
+  const[syncing,setSyncing]=useState(false);
   const[invOpen,setInvOpen]=useState(false);
   const[invClient,setInvClient]=useState<Client|null>(null);
   const[invMontages,setInvMontages]=useState<Montage[]>([]);
@@ -254,6 +255,33 @@ export default function AdminDashboard(){
   const changeStatus=async(id:string,s:string)=>{await authFetch(`${getBase()}/api/montages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({statut:s})});fetchM();toast.success(`Statut : ${s}`);};
   const deleteMontage=async(id:string)=>{if(confirm("Supprimer ce dossier ?")){await authFetch(`${getBase()}/api/montages/${id}`,{method:'DELETE'});fetchM();toast.success("Supprimé");}};
   const exportCSV=()=>{const h=["Date","Client","Référence","Monture","Catégorie","Statut","Prix HT","Créé par"];const rows=montages.map(m=>{const c=clients.find(cl=>cl._id===m.userId);return[new Date(m.dateReception).toLocaleDateString(),`"${c?.nomSociete||''}"`,`"${m.reference||''}"`,`"${m.frame||''}"`,m.category,m.statut,calcP(m,c?.pricingTier||1).toFixed(2).replace('.',','),`"${m.createdBy||''}"`].join(";");});const blob=new Blob([[h.join(";"),...rows].join("\n")],{type:'text/csv;charset=utf-8;'});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`export_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);};
+
+  const syncPennylane = async () => {
+    setSyncing(true);
+    const tid = toast.loading("Synchronisation Pennylane...");
+    try {
+      const r = await authFetch(`${getBase()}/api/pennylane/sync`);
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`Sync OK — ${d.created} créées, ${d.updated} mises à jour`, {id: tid});
+        // Recharger les factures
+        const fr = await authFetch(`${getBase()}/api/factures`);
+        const fd = await fr.json();
+        if (fd.success) setAllInvoices(fd.factures.map((x:any) => ({
+          id:x._id, userId:x.userId, clientName:x.clientName,
+          invoiceNumber:x.invoiceNumber, totalTTC:x.totalTTC,
+          dateEmission:x.dateEmission, pdfUrl:x.pennylaneUrl||x.pdfUrl,
+          montagesReferences:x.montagesReferences, amountPaid:x.amountPaid,
+          paymentStatus:x.paymentStatus
+        })));
+      } else {
+        toast.error(d.message || "Erreur sync", {id: tid});
+      }
+    } catch {
+      toast.error("Erreur connexion", {id: tid});
+    } finally { setSyncing(false); }
+  };
+
   const saveShops=async()=>{if(!shopMgr)return;try{const r=await authFetch(`${getBase()}/api/users/${shopMgr._id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedShops:tmpShops})});const d=await r.json();if(d.success){toast.success("Magasins assignés !");setClients(p=>p.map(c=>c._id===shopMgr._id?{...c,assignedShops:d.user.assignedShops}:c));setShopOpen(false);}else toast.error("Erreur sauvegarde.");}catch{toast.error("Erreur technique.");}};
 
   // Reset showAll quand on change de filtre ou de recherche
@@ -326,6 +354,7 @@ export default function AdminDashboard(){
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <button onClick={()=>navigate('/stats')} className={S.btnO}><BarChart2 className="w-3.5 h-3.5 text-[#C9A96E]"/> Statistiques</button>
+            <button onClick={syncPennylane} disabled={syncing} className={S.btnO + " gap-2"}><RefreshCw className={`w-3.5 h-3.5 text-[#C9A96E] ${syncing?'animate-spin':''}`}/> {syncing?'Sync...':'Sync Pennylane'}</button>
             <button onClick={exportCSV} className={S.btnO}><FileText className="w-3.5 h-3.5"/> Export CSV</button>
             <button onClick={openCreate} className={S.btnP}><PlusCircle className="w-3.5 h-3.5"/> Créer un dossier</button>
             <button onClick={()=>{localStorage.clear();navigate("/");}} className="inline-flex items-center gap-2 border border-red-200 text-red-500 bg-white hover:bg-red-50 rounded-xl text-[10px] font-normal transition-all px-4 h-9 cursor-pointer">Déconnexion</button>
