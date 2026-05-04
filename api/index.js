@@ -47,22 +47,32 @@ app.options(/(.*)/, cors({
 app.use(express.json({ limit: '10mb' }));
 
 // --- 2. BASE DE DONNÉES ---
-let isConnected = false;
+// On utilise mongoose.connection.readyState au lieu d'un flag manuel
+// (le flag pouvait rester "true" alors que la connexion était tombée → 500 silencieux)
 const connectDB = async () => {
-  if (isConnected) return;
-  try {
-    if (!process.env.MONGODB_URI) throw new Error("URI Manquant");
-    await mongoose.connect(process.env.MONGODB_URI);
-    isConnected = true;
-    console.log("✅ Connecté à MongoDB");
-  } catch (error) {
-    console.error("❌ Erreur DB:", error);
+  // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+  if (mongoose.connection.readyState === 1) return;
+  if (mongoose.connection.readyState === 2) {
+    // Une connexion est en cours sur une autre invocation : on attend
+    await new Promise((resolve) => mongoose.connection.once('connected', resolve));
+    return;
   }
+  if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI manquant côté serveur");
+  await mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 8000,   // échoue vite si Atlas est injoignable (au lieu de 30s)
+    socketTimeoutMS: 45000,
+  });
+  console.log("✅ Connecté à MongoDB");
 };
 
 app.use(async (req, res, next) => {
-    await connectDB();
-    next();
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error("❌ Erreur DB:", error.message);
+        res.status(503).json({ success: false, message: `Base de données injoignable : ${error.message}` });
+    }
 });
 
 // --- 3. MODÈLES ---
