@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navigation from "@/components/Navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2, Clock, Phone, Mail, MapPin, Building2, RefreshCw } from "lucide-react";
+import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, X, Store, BarChart2, Clock, Phone, Mail, MapPin, Building2, RefreshCw } from "lucide-react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { authFetch, API_URL } from "@/lib/api";
 
 const getBase = () => API_URL.replace('/api','');
 
-interface Montage { _id:string;clientName:string;reference?:string;frame?:string;description:string;category?:string;glassType?:string[];urgency?:string;diamondCutType?:string;engravingCount?:number;shapeChange?:boolean;statut:string;dateReception:string;userId:string;photoUrl?:string;createdBy?:string; }
+interface Montage { _id:string;clientName:string;reference?:string;frame?:string;description:string;category?:string;glassType?:string[];urgency?:string;diamondCutType?:string;engravingCount?:number;shapeChange?:boolean;statut:string;dateReception:string;userId:string;createdBy?:string; }
 interface Client { _id:string;nomSociete:string;email:string;siret:string;phone?:string;address?:string;zipCity?:string;createdAt:string;isVerified?:boolean;role:string;assignedShops?:any[];pricingTier?:number; }
 interface FactureData { id:string;userId:string;clientName:string;invoiceNumber:string;totalTTC:number;dateEmission:string;pdfUrl:string;montagesReferences?:string[];amountPaid?:number;paymentStatus?:string; }
 
@@ -215,11 +215,9 @@ export default function AdminDashboard(){
   const[cliInvOpen,setCliInvOpen]=useState(false);
   const[cliInvClient,setCliInvClient]=useState<Client|null>(null);
   const[cliInvList,setCliInvList]=useState<FactureData[]>([]);
-  const[photoUrl,setPhotoUrl]=useState<string|null>(null);
   const[shopOpen,setShopOpen]=useState(false);
   const[shopMgr,setShopMgr]=useState<Client|null>(null);
   const[tmpShops,setTmpShops]=useState<string[]>([]);
-  const fileRefs=useRef<Record<string,HTMLInputElement|null>>({});
   const[isSubmitting,setIsSubmitting]=useState(false);
 
   const[nClient,setNClient]=useState("");const[nRef,setNRef]=useState("");const[nFrame,setNFrame]=useState("");
@@ -248,7 +246,6 @@ export default function AdminDashboard(){
   const fetchM=async()=>{const r=await authFetch(`${getBase()}/api/montages`);const d=await r.json();if(d.success)setMontages(d.montages);};
   const delInvoice=async(id:string)=>{const r=await authFetch(`${getBase()}/api/factures/${id}`,{method:'DELETE'});const d=await r.json();if(d.success){toast.success("Facture supprimée");setAllInvoices(p=>p.filter(f=>f.id!==id));setCliInvList(p=>p.filter(f=>f.id!==id));}else toast.error("Erreur suppression");};
   const updatePay=async(id:string,amount:number)=>{try{const r=await authFetch(`${getBase()}/api/factures/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({amountPaid:amount})});const d=await r.json();if(d.success){toast.success("Paiement mis à jour !");setAllInvoices(p=>p.map(f=>f.id===id?{...f,amountPaid:d.facture.amountPaid,paymentStatus:d.facture.paymentStatus}:f));setCliInvList(p=>p.map(f=>f.id===id?{...f,amountPaid:d.facture.amountPaid,paymentStatus:d.facture.paymentStatus}:f));}}catch{toast.error("Erreur paiement");}};
-  const uploadPhoto=async(id:string,file:File)=>{const fd=new FormData();fd.append('photo',file);toast.loading("Envoi...",{id:'ph'});try{const r=await authFetch(`${getBase()}/api/montages/${id}/photo`,{method:'POST',body:fd});const d=await r.json();if(d.success){toast.success("Photo ajoutée !",{id:'ph'});fetchM();}else toast.error("Erreur upload",{id:'ph'});}catch{toast.error("Erreur connexion",{id:'ph'});}};
   const saveMontage=async(e:React.FormEvent)=>{e.preventDefault();setIsSubmitting(true);const method=editId?"PUT":"POST";const url=editId?`${getBase()}/api/montages/${editId}`:`${getBase()}/api/montages`;const base={reference:nRef,frame:nFrame,description:nDesc,category:nCat,glassType:nGlass,urgency:nUrg,diamondCutType:nDC,engravingCount:nEng,shapeChange:nSC,createdBy:"Admin",statut:nStatut};const payload=method==="POST"?{...base,userId:nClient}:base;try{const r=await authFetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(d.success){toast.success(editId?"Modifié !":"Créé !");setDlgOpen(false);fetchM();}}catch{toast.error("Erreur API");}finally{setIsSubmitting(false);};};
   const openCreate=()=>{setEditId(null);setNRef("");setNFrame("");setNCat("Cerclé");setNGlass([]);setNUrg("Standard");setNDC("Standard");setNEng(0);setNSC(false);setNDesc("");setNStatut("En attente");setDlgOpen(true);};
   const openEdit=(m:Montage)=>{setEditId(m._id);setNRef(m.reference||"");setNFrame(m.frame||"");setNCat(m.category||"Cerclé");setNGlass(m.glassType||[]);setNUrg(m.urgency||"Standard");setNDC(m.diamondCutType||"Standard");setNEng(m.engravingCount||0);setNSC(m.shapeChange||false);setNDesc(m.description||"");setNStatut(m.statut||"En attente");setNClient(m.userId);setDlgOpen(true);};
@@ -458,15 +455,6 @@ export default function AdminDashboard(){
                                                     ))}
                                                   </SelectContent>
                                                 </Select>
-                                                {m.photoUrl?(
-                                                  <button title="Voir la photo" className="h-8 w-8 flex items-center justify-center rounded-xl border border-[#C9A96E] bg-[#FBF6EE] hover:bg-[#C9A96E]/20 transition-all cursor-pointer" onClick={async(e:React.MouseEvent)=>{e.stopPropagation();toast.loading("Chargement...",{id:'p'});try{const r=await authFetch(`${getBase()}/api/montages/${m._id}`);const photoData=await r.json();if(photoData.success&&photoData.montage.photoUrl){setPhotoUrl(photoData.montage.photoUrl);toast.dismiss('p');}else toast.error("Image introuvable",{id:'p'});}catch{toast.error("Erreur",{id:'p'});}}}>                                                    <ImageIcon className="w-3.5 h-3.5 text-[#C9A96E]"/>
-                                                  </button>
-                                                ):(
-                                                  <>
-                                                    <input type="file" accept="image/*" style={{display:'none'}} ref={el=>fileRefs.current[m._id]=el} onChange={e=>{if(e.target.files?.[0])uploadPhoto(m._id,e.target.files[0]);}}/>
-                                                    <button title="Ajouter une photo" className="h-8 w-8 flex items-center justify-center rounded-xl border border-[#EDE8DF] bg-white hover:border-[#C9A96E] hover:bg-[#FBF6EE] transition-all cursor-pointer" onClick={(e:React.MouseEvent)=>{e.stopPropagation();fileRefs.current[m._id]?.click();}}><Camera className="w-3.5 h-3.5 text-gray-400"/></button>
-                                                  </>
-                                                )}
                                                 <button title="Modifier" className="h-8 w-8 flex items-center justify-center rounded-xl border border-blue-200 bg-white hover:bg-blue-50 transition-all cursor-pointer" onClick={()=>openEdit(m)}><Pencil className="w-3.5 h-3.5 text-blue-500"/></button>
                                                 <button title="Supprimer" className="h-8 w-8 flex items-center justify-center rounded-xl border border-red-200 bg-white hover:bg-red-50 transition-all cursor-pointer" onClick={()=>deleteMontage(m._id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></button>
                                               </div>
@@ -691,15 +679,6 @@ export default function AdminDashboard(){
 
         {invClient&&<InvoiceModal client={invClient} montages={invMontages} isOpen={invOpen} onClose={()=>setInvOpen(false)} onPublished={f=>{setAllInvoices(p=>[f,...p]);}}/>}
         <ClientInvoicesModal client={cliInvClient} invoices={cliInvList} isOpen={cliInvOpen} onClose={()=>setCliInvOpen(false)} onDelete={delInvoice} onPaymentUpdate={updatePay}/>
-
-        <Dialog open={!!photoUrl} onOpenChange={()=>setPhotoUrl(null)}>
-          <DialogContent className="bg-[#0F0E0C]/95 border-[#C9A96E]/20 p-0 flex items-center justify-center max-w-4xl rounded-2xl overflow-hidden">
-            <div className="relative p-4">
-              <button className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors" onClick={()=>setPhotoUrl(null)}><X className="w-4 h-4"/></button>
-              {photoUrl&&<img src={photoUrl} alt="Montage" className="max-w-full max-h-[85vh] object-contain rounded-xl"/>}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Search, FileText, ShoppingCart, Receipt, Calendar, PlusCircle, Image as ImageIcon, X, UserCog, Store, RefreshCw, Loader2, Clock, ChevronRight } from "lucide-react";
+import { Search, FileText, ShoppingCart, Receipt, Calendar, PlusCircle, UserCog, Store, RefreshCw, Loader2, Clock, ChevronRight } from "lucide-react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { authFetch, API_URL } from "@/lib/api";
@@ -21,7 +21,7 @@ interface UserData {
 interface Montage {
   _id: string; reference: string; frame: string; description: string; category: string;
   glassType?: string[]; urgency?: string; diamondCutType?: string; engravingCount?: number;
-  shapeChange?: boolean; statut: string; dateReception: string; photoUrl?: string;
+  shapeChange?: boolean; statut: string; dateReception: string;
   createdBy?: string; clientName?: string; userId?: string;
   statusHistory?: {statut: string; date: string}[];
 }
@@ -205,7 +205,6 @@ export default function MesCommandes() {
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
   const [statusFilter,  setStatusFilter]  = useState<string|null>(null);
-  const [photoUrl,      setPhotoUrl]      = useState<string|null>(null);
   const [quickView,     setQuickView]     = useState<Montage|null>(null);
   const [clientsList,   setClientsList]   = useState<any[]>([]);
   const [targetClient,  setTargetClient]  = useState("");
@@ -449,12 +448,6 @@ export default function MesCommandes() {
               {m.description && <p className="text-xs text-gray-600 mt-2 border-l-2 border-[#D5CFC6] pl-2.5">{m.description}</p>}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {m.photoUrl && (
-                <button className="h-9 w-9 flex items-center justify-center rounded-xl border border-[#C9A96E] bg-[#FBF6EE] hover:bg-[#C9A96E]/20 transition-colors"
-                  onClick={e => { e.stopPropagation(); setPhotoUrl(m.photoUrl!); }}>
-                  <ImageIcon className="w-4 h-4 text-[#C9A96E]"/>
-                </button>
-              )}
               <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#C9A96E] transition-colors"/>
             </div>
           </div>
@@ -752,17 +745,6 @@ export default function MesCommandes() {
 
         {/* Modales */}
         <QuickView m={quickView} tier={quickView ? getTier(quickView) : 1} onClose={() => setQuickView(null)}/>
-
-        <Dialog open={!!photoUrl} onOpenChange={() => setPhotoUrl(null)}>
-          <DialogContent className="bg-[#0F0E0C]/95 border-[#C9A96E]/20 p-0 flex items-center justify-center max-w-4xl rounded-2xl overflow-hidden">
-            <div className="relative p-4">
-              <button className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors" onClick={() => setPhotoUrl(null)}>
-                <X className="w-4 h-4"/>
-              </button>
-              {photoUrl && <img src={photoUrl} alt="Montage" className="max-w-full max-h-[85vh] object-contain rounded-xl"/>}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

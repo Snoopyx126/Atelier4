@@ -394,12 +394,13 @@ app.get("/api/montages", async (req, res) => {
             }
         }
 
-        // On récupère les montages normalement
-        const montages = await Montage.find(query).sort({ dateReception: -1 }).lean();
+        // ⚡ PERF : on EXCLUT le champ photoUrl de la liste (peut peser plusieurs Mo en base64).
+        // Les photos ne sont plus affichées côté frontend, donc inutile de les transporter.
+        const montages = await Montage.find(query)
+            .select('-photoUrl')
+            .sort({ dateReception: -1 })
+            .lean();
 
-        // 🚨 C'EST ICI LE CHANGEMENT :
-        // On renvoie la vraie photoUrl (le lien Cloudinary) au lieu de null.
-        // Le frontend pourra donc afficher l'Œil si le lien existe.
         res.json({ success: true, montages });
         
     } catch (e) { 
