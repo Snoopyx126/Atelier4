@@ -426,39 +426,48 @@ app.put("/api/montages/:id", async (req, res) => {
 
         const statutChanged = req.body.statut && req.body.statut !== existing.statut;
 
-        const update = { ...req.body };
+        // ⚡ FIX 500 : MongoDB refuse de mélanger un opérateur ($push) avec des champs simples
+        // au même niveau. On enveloppe les champs simples dans $set, et on ajoute $push à part.
+        const { statusHistory, _id, ...rest } = req.body;
+        const updateOps = { $set: rest };
         if (statutChanged) {
-            update.$push = { statusHistory: { statut: req.body.statut, date: new Date() } };
-            delete update.statusHistory;
+            updateOps.$push = { statusHistory: { statut: req.body.statut, date: new Date() } };
         }
 
-        const m = await Montage.findByIdAndUpdate(req.params.id, update, { new: true });
+        const m = await Montage.findByIdAndUpdate(req.params.id, updateOps, { new: true });
 
-        if (statutChanged) {
-            try {
-                const user = await User.findById(m.userId);
-                if (user && user.email) {
-                    const statusEmoji = { 'En attente': '⏳', 'Reçu': '📦', 'En cours': '🔧', 'Terminé': '✅' };
-                    const emoji = statusEmoji[req.body.statut] || '📋';
-                    const title = `${emoji} Dossier ${m.reference} — ${req.body.statut}`;
-                    const body = `<p>Bonjour <strong>${user.nomSociete}</strong>,</p>
-                        <p>Le statut de votre dossier a été mis à jour.</p>
-                        <table style="margin:20px 0;width:100%;border-collapse:collapse">
-                          <tr><td style="padding:10px;background:#F7F4EE;border-radius:8px 0 0 8px;color:#666;font-size:13px;width:40%">Référence</td><td style="padding:10px;background:#F7F4EE;font-weight:bold;color:#0F0E0C">${m.reference}</td></tr>
-                          <tr><td style="padding:10px;color:#666;font-size:13px">Nouveau statut</td><td style="padding:10px;font-weight:bold;color:#C9A96E">${req.body.statut}</td></tr>
-                        </table>`;
-                    await resend.emails.send({
-                        from: EMAIL_SENDER,
-                        to: user.email,
-                        subject: title,
-                        html: getEmailTemplate(title, body, "https://l-atelier-des-arts.com/mes-commandes", "Voir mon dossier")
-                    });
-                }
-            } catch(e) { console.error("Erreur mail statut:", e); }
-        }
-
+        // ⚡ PERF : on répond TOUT DE SUITE au client, l'email part en arrière-plan.
+        // Ça évite les timeouts Vercel (10s) et accélère drastiquement le changement de statut.
         res.json({ success: true, montage: m });
-    } catch (e) { console.error(e); res.status(500).json({ success: false }); }
+
+        if (statutChanged) {
+            (async () => {
+                try {
+                    const user = await User.findById(m.userId);
+                    if (user && user.email) {
+                        const statusEmoji = { 'En attente': '⏳', 'Reçu': '📦', 'En cours': '🔧', 'Terminé': '✅' };
+                        const emoji = statusEmoji[req.body.statut] || '📋';
+                        const title = `${emoji} Dossier ${m.reference} — ${req.body.statut}`;
+                        const body = `<p>Bonjour <strong>${user.nomSociete}</strong>,</p>
+                            <p>Le statut de votre dossier a été mis à jour.</p>
+                            <table style="margin:20px 0;width:100%;border-collapse:collapse">
+                              <tr><td style="padding:10px;background:#F7F4EE;border-radius:8px 0 0 8px;color:#666;font-size:13px;width:40%">Référence</td><td style="padding:10px;background:#F7F4EE;font-weight:bold;color:#0F0E0C">${m.reference}</td></tr>
+                              <tr><td style="padding:10px;color:#666;font-size:13px">Nouveau statut</td><td style="padding:10px;font-weight:bold;color:#C9A96E">${req.body.statut}</td></tr>
+                            </table>`;
+                        await resend.emails.send({
+                            from: EMAIL_SENDER,
+                            to: user.email,
+                            subject: title,
+                            html: getEmailTemplate(title, body, "https://l-atelier-des-arts.com/mes-commandes", "Voir mon dossier")
+                        });
+                    }
+                } catch(e) { console.error("Erreur mail statut:", e); }
+            })();
+        }
+    } catch (e) {
+        console.error("❌ Erreur PUT montage:", e);
+        if (!res.headersSent) res.status(500).json({ success: false, message: e.message });
+    }
 });
 
 // 5. SUPPRESSION (DELETE)

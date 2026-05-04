@@ -249,7 +249,15 @@ export default function AdminDashboard(){
   const saveMontage=async(e:React.FormEvent)=>{e.preventDefault();setIsSubmitting(true);const method=editId?"PUT":"POST";const url=editId?`${getBase()}/api/montages/${editId}`:`${getBase()}/api/montages`;const base={reference:nRef,frame:nFrame,description:nDesc,category:nCat,glassType:nGlass,urgency:nUrg,diamondCutType:nDC,engravingCount:nEng,shapeChange:nSC,createdBy:"Admin",statut:nStatut};const payload=method==="POST"?{...base,userId:nClient}:base;try{const r=await authFetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(d.success){toast.success(editId?"Modifié !":"Créé !");setDlgOpen(false);fetchM();}}catch{toast.error("Erreur API");}finally{setIsSubmitting(false);};};
   const openCreate=()=>{setEditId(null);setNRef("");setNFrame("");setNCat("Cerclé");setNGlass([]);setNUrg("Standard");setNDC("Standard");setNEng(0);setNSC(false);setNDesc("");setNStatut("En attente");setDlgOpen(true);};
   const openEdit=(m:Montage)=>{setEditId(m._id);setNRef(m.reference||"");setNFrame(m.frame||"");setNCat(m.category||"Cerclé");setNGlass(m.glassType||[]);setNUrg(m.urgency||"Standard");setNDC(m.diamondCutType||"Standard");setNEng(m.engravingCount||0);setNSC(m.shapeChange||false);setNDesc(m.description||"");setNStatut(m.statut||"En attente");setNClient(m.userId);setDlgOpen(true);};
-  const changeStatus=async(id:string,s:string)=>{await authFetch(`${getBase()}/api/montages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({statut:s})});fetchM();toast.success(`Statut : ${s}`);};
+  const changeStatus=async(id:string,s:string)=>{
+    try {
+      const r=await authFetch(`${getBase()}/api/montages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({statut:s})});
+      if(!r.ok){const d=await r.json().catch(()=>({}));toast.error(d.message||`Erreur ${r.status}`);return;}
+      // Mise à jour locale immédiate (évite de retélécharger toute la liste)
+      setMontages(p=>p.map(m=>m._id===id?{...m,statut:s}:m));
+      toast.success(`Statut : ${s}`);
+    } catch { toast.error("Erreur réseau"); }
+  };
   const deleteMontage=async(id:string)=>{if(confirm("Supprimer ce dossier ?")){await authFetch(`${getBase()}/api/montages/${id}`,{method:'DELETE'});fetchM();toast.success("Supprimé");}};
   const exportCSV=()=>{const h=["Date","Client","Référence","Monture","Catégorie","Statut","Prix HT","Créé par"];const rows=montages.map(m=>{const c=clients.find(cl=>cl._id===m.userId);return[new Date(m.dateReception).toLocaleDateString(),`"${c?.nomSociete||''}"`,`"${m.reference||''}"`,`"${m.frame||''}"`,m.category,m.statut,calcP(m,c?.pricingTier||1).toFixed(2).replace('.',','),`"${m.createdBy||''}"`].join(";");});const blob=new Blob([[h.join(";"),...rows].join("\n")],{type:'text/csv;charset=utf-8;'});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`export_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);};
 
