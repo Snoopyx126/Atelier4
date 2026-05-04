@@ -296,7 +296,7 @@ const createPennylaneInvoice = async (customerId, invoiceNumber, montagesData, t
             date: today.toISOString().split('T')[0],
             deadline: deadlineDate.toISOString().split('T')[0],
             invoice_lines: invoiceLines,
-            draft: false
+            draft: true
         })
     });
     const data = await res.json();
@@ -309,45 +309,6 @@ const createPennylaneInvoice = async (customerId, invoiceNumber, montagesData, t
     return invoice;
 };
 
-// Envoyer la facture par email depuis Pennylane
-const sendPennylaneInvoiceByEmail = async (pennylaneInvoiceId, clientEmail, clientName, invoiceNumber, totalTTC) => {
-    const headers = {
-        'Authorization': `Bearer ${PENNYLANE_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    };
-
-    const emailBody = `Bonjour ${clientName},
-
-Veuillez trouver ci-joint votre facture N° ${invoiceNumber} d'un montant de ${totalTTC.toFixed(2)} € TTC.
-
-Vous pouvez consulter et télécharger votre facture depuis votre Espace Pro :
-https://l-atelier-des-arts.com/mes-commandes?tab=factures
-
-⚠️ Première connexion ? Rendez-vous sur "Mot de passe oublié" pour recevoir votre mot de passe temporaire.
-
-Merci de votre confiance,
-L'équipe de L'Atelier des Arts
-📍 178 Avenue Daumesnil, 75012 Paris`;
-
-    const res = await fetch(`${PENNYLANE_API}/customer_invoices/${pennylaneInvoiceId}/send`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-            to: [clientEmail],
-            subject: `Votre facture N° ${invoiceNumber} — L'Atelier des Arts`,
-            body: emailBody
-        })
-    });
-
-    // Certaines versions de l'API retournent 200/204 sans body
-    if (!res.ok && res.status !== 204) {
-        const errData = await res.text();
-        console.error('Erreur envoi email Pennylane:', errData);
-        // On ne bloque pas si l'envoi email échoue — la facture est créée
-    }
-    return res.status;
-};
 
 // --- 5. ROUTES ---
 
@@ -617,30 +578,69 @@ app.post("/api/factures", async (req, res) => {
                 pennylaneUrl = `https://app.pennylane.com/documents/customer_invoices/${pennylaneId}`;
                 console.log(`✅ Facture Pennylane créée: ${pennylaneId}`);
 
-                // 3. Envoyer la facture par email depuis Pennylane
-                await sendPennylaneInvoiceByEmail(
-                    pennylaneId, user.email, user.nomSociete,
-                    invoiceNumber, parseFloat(totalTTC)
-                );
-                console.log(`✅ Email Pennylane envoyé à ${user.email}`);
+                // 3. Envoyer le mail avec PDF en arrière-plan (polling jusqu'à 3 min)
+                // On répond au client immédiatement, le mail part dès que le PDF est prêt
+                const pdfUrl = plInvoice.public_file_url;
+                const _invoiceNumber = invoiceNumber;
+                const _totalTTC = parseFloat(totalTTC);
+                const _userEmail = user.email;
+                const _userNom = user.nomSociete;
+
+                (async () => {
+                    const MAX_ATTEMPTS = 18;   // 18 × 10s = 3 minutes max
+                    const INTERVAL_MS  = 10000; // 10 secondes entre chaque essai
+
+                    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                        try {
+                            if (!pdfUrl) throw new Error('Pas de public_file_url dans la réponse Pennylane');
+
+                            console.log(`⏳ Tentative ${attempt}/${MAX_ATTEMPTS} — téléchargement PDF...`);
+                            const pdfRes = await fetch(pdfUrl);
+
+                            if (!pdfRes.ok) {
+                                console.log(`⏳ PDF pas encore prêt (${pdfRes.status}), nouvelle tentative dans ${INTERVAL_MS/1000}s...`);
+                                await new Promise(r => setTimeout(r, INTERVAL_MS));
+                                continue;
+                            }
+
+                            const pdfBuffer = await pdfRes.arrayBuffer();
+                            console.log(`✅ PDF téléchargé (${Math.round(pdfBuffer.byteLength / 1024)} Ko) après ${attempt} tentative(s)`);
+
+                            const emailBodyHtml = `<p>Bonjour <strong>${_userNom}</strong>,</p>
+                                <p>Votre facture N° <strong>${_invoiceNumber}</strong> d'un montant de <strong>${_totalTTC.toFixed(2)} € TTC</strong> a été créée.</p>
+                                <p>Vous la trouverez en pièce jointe de cet email.</p>
+                                <p>Vous pouvez également la consulter depuis votre Espace Pro :</p>`;
+
+                            await resend.emails.send({
+                                from: EMAIL_SENDER,
+                                to: _userEmail,
+                                cc: EMAIL_ADMIN,
+                                subject: `Facture ${_invoiceNumber} — L'Atelier des Arts`,
+                                html: getEmailTemplate(`Facture ${_invoiceNumber}`, emailBodyHtml,
+                                    'https://l-atelier-des-arts.com/mes-commandes?tab=factures',
+                                    'Voir mes factures'),
+                                attachments: [{
+                                    filename: `Facture-${_invoiceNumber}.pdf`,
+                                    content: Buffer.from(pdfBuffer).toString('base64'),
+                                    type: 'application/pdf',
+                                    disposition: 'attachment'
+                                }]
+                            });
+                            console.log(`✅ Email avec PDF envoyé à ${_userEmail}`);
+                            return; // succès → on sort de la boucle
+
+                        } catch (err) {
+                            if (attempt === MAX_ATTEMPTS) {
+                                console.error(`❌ PDF non disponible après ${MAX_ATTEMPTS} tentatives, email non envoyé:`, err.message);
+                            } else {
+                                await new Promise(r => setTimeout(r, INTERVAL_MS));
+                            }
+                        }
+                    }
+                })();
 
             } catch (plErr) {
-                // Si Pennylane échoue, on log mais on continue (fallback Resend)
                 console.error("⚠️ Erreur Pennylane:", plErr.message);
-
-                // Fallback : email via Resend
-                const body = `<p>Bonjour <strong>${user.nomSociete}</strong>,</p>
-                    <p>Votre facture N° <strong>${invoiceNumber}</strong> d'un montant de <strong>${parseFloat(totalTTC).toFixed(2)} € TTC</strong> a été créée.</p>
-                    <p>Consultez-la dans votre Espace Pro :</p>`;
-                await resend.emails.send({
-                    from: EMAIL_SENDER,
-                    to: user.email,
-                    cc: EMAIL_ADMIN,
-                    subject: `Facture ${invoiceNumber} — L'Atelier des Arts`,
-                    html: getEmailTemplate(`Facture ${invoiceNumber}`, body,
-                        "https://l-atelier-des-arts.com/mes-commandes?tab=factures",
-                        "Voir mes factures")
-                });
             }
         }
 
