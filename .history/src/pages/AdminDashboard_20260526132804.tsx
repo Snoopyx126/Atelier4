@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navigation from "@/components/Navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, Camera, Image as ImageIcon, X, Store, BarChart2 } from "lucide-react";
+import { Users, AlertCircle, CheckCircle2, Trash2, FileText, Calendar, PlusCircle, Pencil, Search, Receipt, Loader2, CreditCard, X, Store, BarChart2, Clock, Phone, Mail, MapPin, Building2, RefreshCw } from "lucide-react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { authFetch, API_URL } from "@/lib/api";
 
 const getBase = () => API_URL.replace('/api','');
 
-interface Montage { _id:string;clientName:string;reference?:string;frame?:string;description:string;category?:string;glassType?:string[];urgency?:string;diamondCutType?:string;engravingCount?:number;shapeChange?:boolean;statut:string;dateReception:string;userId:string;photoUrl?:string;createdBy?:string; }
+interface Montage { _id:string;clientName:string;reference?:string;frame?:string;description:string;category?:string;glassType?:string[];urgency?:string;diamondCutType?:string;engravingCount?:number;shapeChange?:boolean;statut:string;dateReception:string;userId:string;createdBy?:string; }
 interface Client { _id:string;nomSociete:string;email:string;siret:string;phone?:string;address?:string;zipCity?:string;createdAt:string;isVerified?:boolean;role:string;assignedShops?:any[];pricingTier?:number; }
 interface FactureData { id:string;userId:string;clientName:string;invoiceNumber:string;totalTTC:number;dateEmission:string;pdfUrl:string;montagesReferences?:string[];amountPaid?:number;paymentStatus?:string; }
 
@@ -39,7 +39,7 @@ const statusCfg: Record<string,{dot:string;cls:string}> = {
   'En cours':  {dot:'bg-orange-400',cls:'bg-orange-50 text-orange-700 border-orange-200'},
   'Terminé':   {dot:'bg-emerald-400',cls:'bg-emerald-50 text-emerald-700 border-emerald-200'},
 };
-const StatusPill=({s}:{s:string})=>{const c=statusCfg[s]||{dot:'bg-gray-300',cls:'bg-gray-50 text-gray-600 border-gray-200'};return <span className={`inline-flex items-center gap-1.5 text-[10px] tracking-wide rounded-full px-2.5 py-1 border ${c.cls}`}><span className={`w-1.5 h-1.5 rounded-full ${c.dot}`}/>{s}</span>;};
+const StatusPill=({s}:{s:string})=>{const c=statusCfg[s]||{dot:'bg-gray-300',cls:'bg-gray-50 text-gray-600 border-gray-200'};return <span className={`inline-flex items-center gap-2 text-xs font-semibold rounded-full px-3 py-1.5 border ${c.cls}`}><span className={`w-2 h-2 rounded-full ${c.dot}`}/>{s}</span>;};
 
 const S={
   card:"bg-white rounded-2xl border border-[#EDE8DF] shadow-sm",
@@ -54,7 +54,6 @@ const S={
 /* ---- MODALE FACTURE ---- */
 const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;montages:Montage[];isOpen:boolean;onClose:()=>void;onPublished:(f:FactureData)=>void})=>{
   const [busy,setBusy]=useState(false);
-  if(!isOpen)return null;
   const tier=client.pricingTier||1;
   const today=new Date();
   const getDetails=(m:Montage)=>{
@@ -121,12 +120,13 @@ const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;
 
 /* ---- MODALE FACTURES CLIENT ---- */
 const ClientInvoicesModal=({client,invoices,isOpen,onClose,onDelete,onPaymentUpdate}:{client:Client|null;invoices:FactureData[];isOpen:boolean;onClose:()=>void;onDelete:(id:string)=>void;onPaymentUpdate:(id:string,amount:number)=>void})=>{
-  const [payInv,setPayInv]=useState<FactureData|null>(null);const[amt,setAmt]=useState(0);
+  const [payInv,setPayInv]=useState<FactureData|null>(null);
+  const [amt,setAmt]=useState(0);
   if(!isOpen||!client)return null;
   const badge=(s:string|undefined,rem:number)=>{
-    if(s==='Payé')return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700">Payé</span>;
-    if(s==='Partiellement payé')return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-700">Reste : {rem.toFixed(2)} €</span>;
-    return <span className="text-[10px] rounded-full px-2.5 py-0.5 bg-red-50 border border-red-200 text-red-700">Non payé</span>;
+    if(s==='Payé')return <span className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700">Payé</span>;
+    if(s==='Partiellement payé')return <span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700">Reste : {rem.toFixed(2)} €</span>;
+    return <span className="text-xs rounded-full px-3 py-1 bg-red-50 border border-red-200 text-red-700">Non payé</span>;
   };
   return(
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -152,6 +152,47 @@ const ClientInvoicesModal=({client,invoices,isOpen,onClose,onDelete,onPaymentUpd
   );
 };
 
+
+// ---- TIMELINE PANEL (composant dédié pour éviter les IIFE dans JSX) ----
+const TimelinePanel = ({m}:{m:Montage}) => {
+  const hist = (m as any).statusHistory || [];
+  const scfg = statusCfg[m.statut] || {dot:'bg-gray-300'};
+  return (
+    <div className="px-5 pb-3 pt-2 bg-[#FAFAF8] border-t border-[#F0EDE7]">
+      <div className="relative pl-4">
+        <div className="absolute left-1.5 top-1 bottom-1 w-px bg-[#EDE8DF]"/>
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2 relative">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#EDE8DF] border-2 border-white absolute -left-3.5"/>
+            <span className="text-xs font-semibold text-gray-600 w-24 flex-shrink-0">Créé</span>
+            <span className="text-xs text-gray-500">{new Date(m.dateReception).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})}</span>
+          </div>
+          {hist.length>0
+            ? hist.map((h:any,i:number)=>{
+                const hcfg=statusCfg[h.statut]||{dot:'bg-gray-300'};
+                const isLast=i===hist.length-1;
+                return(
+                  <div key={i} className="flex items-center gap-2 relative">
+                    <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 ${isLast?hcfg.dot:'bg-gray-200'}`}/>
+                    <span className={`text-xs font-semibold w-24 flex-shrink-0 ${isLast?'text-[#0F0E0C]':'text-gray-600'}`}>{h.statut}</span>
+                    <span className="text-xs text-gray-500">{new Date(h.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · {new Date(h.date).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                );
+              })
+            : m.statut!=='En attente'&&(
+                <div className="flex items-center gap-2 relative">
+                  <div className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute -left-3.5 ${scfg.dot}`}/>
+                  <span className="text-xs font-semibold text-[#0F0E0C] w-24 flex-shrink-0">{m.statut}</span>
+                  <span className="text-[9px] text-gray-300 italic">date non enregistrée</span>
+                </div>
+              )
+          }
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ---- DASHBOARD PRINCIPAL ---- */
 export default function AdminDashboard(){
   const navigate=useNavigate();
@@ -164,17 +205,19 @@ export default function AdminDashboard(){
   const[allInvoices,setAllInvoices]=useState<FactureData[]>([]);
   const[statusFilter,setStatusFilter]=useState<string|null>(null);
   const[showAll,setShowAll]=useState(false);
+  const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
+  const[openTimeline,setOpenTimeline]=useState<string|null>(null);
+  const[ficheClient,setFicheClient]=useState<Client|null>(null);
+  const[syncing,setSyncing]=useState(false);
   const[invOpen,setInvOpen]=useState(false);
   const[invClient,setInvClient]=useState<Client|null>(null);
   const[invMontages,setInvMontages]=useState<Montage[]>([]);
   const[cliInvOpen,setCliInvOpen]=useState(false);
   const[cliInvClient,setCliInvClient]=useState<Client|null>(null);
   const[cliInvList,setCliInvList]=useState<FactureData[]>([]);
-  const[photoUrl,setPhotoUrl]=useState<string|null>(null);
   const[shopOpen,setShopOpen]=useState(false);
   const[shopMgr,setShopMgr]=useState<Client|null>(null);
   const[tmpShops,setTmpShops]=useState<string[]>([]);
-  const fileRefs=useRef<Record<string,HTMLInputElement|null>>({});
   const[isSubmitting,setIsSubmitting]=useState(false);
 
   const[nClient,setNClient]=useState("");const[nRef,setNRef]=useState("");const[nFrame,setNFrame]=useState("");
@@ -203,21 +246,99 @@ export default function AdminDashboard(){
   const fetchM=async()=>{const r=await authFetch(`${getBase()}/api/montages`);const d=await r.json();if(d.success)setMontages(d.montages);};
   const delInvoice=async(id:string)=>{const r=await authFetch(`${getBase()}/api/factures/${id}`,{method:'DELETE'});const d=await r.json();if(d.success){toast.success("Facture supprimée");setAllInvoices(p=>p.filter(f=>f.id!==id));setCliInvList(p=>p.filter(f=>f.id!==id));}else toast.error("Erreur suppression");};
   const updatePay=async(id:string,amount:number)=>{try{const r=await authFetch(`${getBase()}/api/factures/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({amountPaid:amount})});const d=await r.json();if(d.success){toast.success("Paiement mis à jour !");setAllInvoices(p=>p.map(f=>f.id===id?{...f,amountPaid:d.facture.amountPaid,paymentStatus:d.facture.paymentStatus}:f));setCliInvList(p=>p.map(f=>f.id===id?{...f,amountPaid:d.facture.amountPaid,paymentStatus:d.facture.paymentStatus}:f));}}catch{toast.error("Erreur paiement");}};
-  const uploadPhoto=async(id:string,file:File)=>{const fd=new FormData();fd.append('photo',file);toast.loading("Envoi...",{id:'ph'});try{const r=await authFetch(`${getBase()}/api/montages/${id}/photo`,{method:'POST',body:fd});const d=await r.json();if(d.success){toast.success("Photo ajoutée !",{id:'ph'});fetchM();}else toast.error("Erreur upload",{id:'ph'});}catch{toast.error("Erreur connexion",{id:'ph'});}};
   const saveMontage=async(e:React.FormEvent)=>{e.preventDefault();setIsSubmitting(true);const method=editId?"PUT":"POST";const url=editId?`${getBase()}/api/montages/${editId}`:`${getBase()}/api/montages`;const base={reference:nRef,frame:nFrame,description:nDesc,category:nCat,glassType:nGlass,urgency:nUrg,diamondCutType:nDC,engravingCount:nEng,shapeChange:nSC,createdBy:"Admin",statut:nStatut};const payload=method==="POST"?{...base,userId:nClient}:base;try{const r=await authFetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(d.success){toast.success(editId?"Modifié !":"Créé !");setDlgOpen(false);fetchM();}}catch{toast.error("Erreur API");}finally{setIsSubmitting(false);};};
   const openCreate=()=>{setEditId(null);setNRef("");setNFrame("");setNCat("Cerclé");setNGlass([]);setNUrg("Standard");setNDC("Standard");setNEng(0);setNSC(false);setNDesc("");setNStatut("En attente");setDlgOpen(true);};
   const openEdit=(m:Montage)=>{setEditId(m._id);setNRef(m.reference||"");setNFrame(m.frame||"");setNCat(m.category||"Cerclé");setNGlass(m.glassType||[]);setNUrg(m.urgency||"Standard");setNDC(m.diamondCutType||"Standard");setNEng(m.engravingCount||0);setNSC(m.shapeChange||false);setNDesc(m.description||"");setNStatut(m.statut||"En attente");setNClient(m.userId);setDlgOpen(true);};
-  const changeStatus=async(id:string,s:string)=>{await authFetch(`${getBase()}/api/montages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({statut:s})});fetchM();toast.success(`Statut : ${s}`);};
+  const changeStatus=async(id:string,s:string)=>{
+    try {
+      const r=await authFetch(`${getBase()}/api/montages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({statut:s})});
+      if(!r.ok){const d=await r.json().catch(()=>({}));toast.error(d.message||`Erreur ${r.status}`);return;}
+      // Mise à jour locale immédiate (évite de retélécharger toute la liste)
+      setMontages(p=>p.map(m=>m._id===id?{...m,statut:s}:m));
+      toast.success(`Statut : ${s}`);
+    } catch { toast.error("Erreur réseau"); }
+  };
   const deleteMontage=async(id:string)=>{if(confirm("Supprimer ce dossier ?")){await authFetch(`${getBase()}/api/montages/${id}`,{method:'DELETE'});fetchM();toast.success("Supprimé");}};
   const exportCSV=()=>{const h=["Date","Client","Référence","Monture","Catégorie","Statut","Prix HT","Créé par"];const rows=montages.map(m=>{const c=clients.find(cl=>cl._id===m.userId);return[new Date(m.dateReception).toLocaleDateString(),`"${c?.nomSociete||''}"`,`"${m.reference||''}"`,`"${m.frame||''}"`,m.category,m.statut,calcP(m,c?.pricingTier||1).toFixed(2).replace('.',','),`"${m.createdBy||''}"`].join(";");});const blob=new Blob([[h.join(";"),...rows].join("\n")],{type:'text/csv;charset=utf-8;'});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`export_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);};
+
+  const syncPennylane = async () => {
+    setSyncing(true);
+    const tid = toast.loading("Synchronisation Pennylane...");
+    try {
+      const r = await authFetch(`${getBase()}/api/pennylane/sync`);
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`Sync OK — ${d.created} créées, ${d.updated} mises à jour`, {id: tid});
+        // Recharger les factures
+        const fr = await authFetch(`${getBase()}/api/factures`);
+        const fd = await fr.json();
+        if (fd.success) setAllInvoices(fd.factures.map((x:any) => ({
+          id:x._id, userId:x.userId, clientName:x.clientName,
+          invoiceNumber:x.invoiceNumber, totalTTC:x.totalTTC,
+          dateEmission:x.dateEmission, pdfUrl:x.pennylaneUrl||x.pdfUrl,
+          montagesReferences:x.montagesReferences, amountPaid:x.amountPaid,
+          paymentStatus:x.paymentStatus
+        })));
+      } else {
+        toast.error(d.message || "Erreur sync", {id: tid});
+      }
+    } catch {
+      toast.error("Erreur connexion", {id: tid});
+    } finally { setSyncing(false); }
+  };
+
   const saveShops=async()=>{if(!shopMgr)return;try{const r=await authFetch(`${getBase()}/api/users/${shopMgr._id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedShops:tmpShops})});const d=await r.json();if(d.success){toast.success("Magasins assignés !");setClients(p=>p.map(c=>c._id===shopMgr._id?{...c,assignedShops:d.user.assignedShops}:c));setShopOpen(false);}else toast.error("Erreur sauvegarde.");}catch{toast.error("Erreur technique.");}};
 
+  // Reset showAll quand on change de filtre ou de recherche
+  React.useEffect(()=>{ setShowAll(false); },[search,statusFilter]);
+
   const fm=montages.filter(m=>{const s=normalize(search);const ok=(normalize(m.reference)+normalize(m.clientName)).includes(s);let st=true;if(statusFilter==='En production')st=m.statut==='En cours'||m.statut==='Reçu';else if(statusFilter)st=m.statut===statusFilter;return ok&&st;});
-  const sorted=[...fm].sort((a,b)=>new Date(b.dateReception).getTime()-new Date(a.dateReception).getTime());
-  const cnts: Record<string,number>={};
-  const displayed=showAll?sorted:sorted.filter(m=>{cnts[m.userId]=(cnts[m.userId]||0)+1;return cnts[m.userId]<=20;});
-  const hidden=fm.length-displayed.length;
-  const grouped=fm.reduce((acc:any,m)=>{const c=clients.find(cl=>cl._id===m.userId);const cn=c?.nomSociete||m.clientName||`?`;let mo="?";try{if(m.dateReception)mo=new Date(m.dateReception).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}catch{}if(!acc[mo])acc[mo]={};if(!acc[mo][cn])acc[mo][cn]=[];acc[mo][cn].push(m);return acc;},{});
+
+  // ---- Clé de mois avec tri chronologique réel ----
+  // Format: "YYYY-MM" pour trier + label "mois YYYY" pour afficher
+  const getMonthKey=(date:string|undefined):string=>{
+    if(!date)return'0000-00';
+    try{
+      const d=new Date(date);
+      if(isNaN(d.getTime()))return'0000-00';
+      return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }catch{return'0000-00';}
+  };
+  const getMonthLabel=(key:string):string=>{
+    try{
+      const[y,m]=key.split('-');
+      const d=new Date(parseInt(y),parseInt(m)-1,1);
+      const label=d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+      return label.charAt(0).toUpperCase()+label.slice(1);
+    }catch{return key;}
+  };
+
+  // Mois en cours et mois précédent (clés YYYY-MM)
+  const now=new Date();
+  const currentMonthKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevMonthKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+  // Les 2 mois à afficher par défaut
+  const defaultVisibleKeys=new Set<string>([currentMonthKey,prevMonthKey]);
+
+  // Groupement par mois trié du plus récent au plus ancien
+  const grouped=fm.reduce((acc:any,m)=>{
+    const c=clients.find(cl=>cl._id===m.userId);
+    const cn=c?.nomSociete||m.clientName||'?';
+    const mk=getMonthKey(m.dateReception);
+    if(!acc[mk])acc[mk]={};
+    if(!acc[mk][cn])acc[mk][cn]=[];
+    acc[mk][cn].push(m);
+    return acc;
+  },{});
+
+  // Tous les mois triés du plus récent au plus ancien
+  const allMonthKeys=Object.keys(grouped).sort().reverse();
+  // Mois visibles par défaut = mois en cours + mois précédent
+  // Si showAll = tous les mois
+  const visibleKeys=showAll?allMonthKeys:allMonthKeys.filter(k=>defaultVisibleKeys.has(k));
+  const hiddenMonths=allMonthKeys.filter(k=>!defaultVisibleKeys.has(k));
+  const hidden=hiddenMonths.length;
   const filteredClients=clients.filter(c=>normalize(c.nomSociete).includes(normalize(search)));
   const pending=montages.filter(m=>m.statut==='En attente').length;
   const inProd=montages.filter(m=>m.statut==='En cours'||m.statut==='Reçu').length;
@@ -227,7 +348,7 @@ export default function AdminDashboard(){
   return(
     <div className="min-h-screen bg-[#F7F4EE] flex flex-col">
       <Navigation/>
-      <div className="flex-grow pt-24 pb-12 px-6 container mx-auto max-w-7xl">
+      <div className="flex-grow pt-24 pb-12 px-4 sm:px-6 container mx-auto max-w-7xl">
 
         {/* En-tête */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
@@ -236,8 +357,9 @@ export default function AdminDashboard(){
             <h1 className="font-playfair text-3xl font-normal text-[#0F0E0C] tracking-tight">Tableau de Bord</h1>
             <p className="text-sm text-gray-400 mt-1 font-light">{montages.length} montages chargés</p>
           </div>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <button onClick={()=>navigate('/stats')} className={S.btnO}><BarChart2 className="w-3.5 h-3.5 text-[#C9A96E]"/> Statistiques</button>
+            <button onClick={syncPennylane} disabled={syncing} className={S.btnO + " gap-2"}><RefreshCw className={`w-3.5 h-3.5 text-[#C9A96E] ${syncing?'animate-spin':''}`}/> {syncing?'Sync...':'Sync Pennylane'}</button>
             <button onClick={exportCSV} className={S.btnO}><FileText className="w-3.5 h-3.5"/> Export CSV</button>
             <button onClick={openCreate} className={S.btnP}><PlusCircle className="w-3.5 h-3.5"/> Créer un dossier</button>
             <button onClick={()=>{localStorage.clear();navigate("/");}} className="inline-flex items-center gap-2 border border-red-200 text-red-500 bg-white hover:bg-red-50 rounded-xl text-[10px] font-normal transition-all px-4 h-9 cursor-pointer">Déconnexion</button>
@@ -265,10 +387,7 @@ export default function AdminDashboard(){
         </div>
 
         {/* Tabs manuels */}
-        {(()=>{
-          const[tab,setTab]=useState<'atelier'|'clients'>('atelier');
-          return(
-            <div className="space-y-6">
+        <div className="space-y-6">
               <div className="bg-white border border-[#EDE8DF] rounded-2xl p-1 inline-flex shadow-sm">
                 {(['atelier','clients'] as const).map(t=>(
                   <button key={t} onClick={()=>setTab(t)}
@@ -285,12 +404,12 @@ export default function AdminDashboard(){
                     <h2 className="font-playfair text-xl font-normal text-[#0F0E0C]">Flux de Production</h2>
                   </div>
                   <div className="p-6 min-h-64">
-                    {Object.keys(grouped).length===0?<div className="text-center py-16 text-gray-300 text-sm">Aucun montage avec les filtres actuels.</div>:(
+                    {Object.keys(grouped).length===0?<div className="text-center py-16 text-gray-400 text-sm">Aucun montage avec les filtres actuels.</div>:(
                       <Accordion type="multiple" className="space-y-3">
-                        {Object.entries(grouped).sort().reverse().map(([mo,shops]:any)=>(
-                          <AccordionItem key={mo} value={mo} className="bg-white border border-[#EDE8DF] rounded-2xl overflow-hidden">
+                        {visibleKeys.map(mk=>{ const shops=grouped[mk]; const mo=getMonthLabel(mk); return (
+                          <AccordionItem key={mk} value={mk} className="bg-white border border-[#EDE8DF] rounded-2xl overflow-hidden">
                             <AccordionTrigger className="hover:no-underline px-5 py-4 hover:bg-[#F7F4EE] transition-colors">
-                              <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-base font-normal text-[#0F0E0C] capitalize">{mo}</span></div>
+                              <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-xl font-normal text-[#0F0E0C] capitalize">{mo}</span></div>
                             </AccordionTrigger>
                             <AccordionContent className="px-5 pb-5 pt-2">
                               <Accordion type="multiple" className="space-y-2">
@@ -301,8 +420,8 @@ export default function AdminDashboard(){
                                     <AccordionItem key={shopName} value={shopName} className="bg-[#F7F4EE] border border-[#EDE8DF] rounded-xl overflow-hidden">
                                       <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-[#EDE8DF] transition-colors">
                                         <div className="flex items-center gap-3 w-full pr-3">
-                                          <span className="font-medium text-[#0F0E0C] text-sm">{shopName}</span>
-                                          <span className="text-xs text-gray-400">({items.length})</span>
+                                          <span className="font-semibold text-[#0F0E0C] text-base">{shopName}</span>
+                                          <span className="text-xs text-gray-500 font-medium ml-1">({items.length} dossiers)</span>
                                           <button onClick={e=>{e.stopPropagation();if(client){setInvClient(client);setInvMontages(items);setInvOpen(true);}}} disabled={!client}
                                             className={S.btnG+" ml-auto"}>
                                             <Receipt className="w-3 h-3"/> Facturer
@@ -313,23 +432,27 @@ export default function AdminDashboard(){
                                         {items.map((m:Montage)=>{
                                           const price=calcP(m,client?.pricingTier||1);
                                           return(
-                                            <div key={m._id} className="bg-white border border-[#EDE8DF] rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-sm transition-all">
+                                            <React.Fragment key={m._id}>
+                                            <div className="bg-white border border-[#EDE8DF] rounded-xl overflow-hidden hover:shadow-sm transition-all">
+                                            <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                               <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                                                  <span className="font-semibold text-[#0F0E0C]">{m.reference}</span>
+                                                  <span className="font-bold text-base text-[#0F0E0C] tracking-wide">{m.reference}</span>
                                                   <span className="text-gray-300">·</span>
-                                                  <span className="text-sm text-gray-500">{m.frame}</span>
+                                                  <span className="text-sm font-medium text-gray-600">{m.frame}</span>
                                                   <StatusPill s={m.statut}/>
-                                                  <span className="ml-auto text-xs font-medium text-[#9A7A45]">{price.toFixed(2)} € HT</span>
+                                                  <span className="text-sm font-semibold text-[#9A7A45] whitespace-nowrap">{price.toFixed(2)} € HT</span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                  <span className="text-[10px] rounded-full px-2 py-0.5 bg-[#F7F4EE] border border-[#EDE8DF] text-gray-500">{m.category}</span>
-                                                  {m.urgency!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-red-50 border border-red-100 text-red-500">{m.urgency}</span>}
-                                                  {m.diamondCutType!=='Standard'&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-500">{m.diamondCutType}</span>}
-                                                  {m.glassType?.map(g=><span key={g} className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600">{g.replace('Verre ','')}</span>)}
-                                                  {(m.engravingCount||0)>0&&<span className="text-[10px] rounded-full px-2 py-0.5 bg-purple-50 border border-purple-100 text-purple-600">{m.engravingCount} gravure(s)</span>}
+                                                  <span className="text-xs rounded-full px-3 py-1 bg-[#F7F4EE] border border-[#D5CFC6] text-gray-600 font-medium">{m.category}</span>
+                                                  {m.urgency!=='Standard'&&<span className="text-xs rounded-full px-3 py-1 bg-red-50 border border-red-200 text-red-600 font-medium">{m.urgency}</span>}
+                                                  {m.diamondCutType!=='Standard'&&<span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 font-medium">{m.diamondCutType}</span>}
+                                                  {m.glassType?.map(g=><span key={g} className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600">{g.replace('Verre ','')}</span>)}
+                                                  {(m.engravingCount||0)>0&&<span className="text-xs rounded-full px-3 py-1 bg-purple-50 border border-purple-200 text-purple-700 font-medium">{m.engravingCount} gravure(s)</span>}
+                                                  {m.shapeChange&&<span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 font-medium">Changement forme</span>}
+                                                  {m.shapeChange&&<span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 font-medium">Changement forme</span>}
                                                 </div>
-                                                {m.description&&<p className="text-xs text-gray-400 mt-1.5 italic">{m.description}</p>}
+                                                {m.description&&<p className="text-xs text-gray-600 mt-1.5 border-l-2 border-[#D5CFC6] pl-2.5">{m.description}</p>}
                                               </div>
                                               <div className="flex items-center gap-2 flex-shrink-0">
                                                 <Select defaultValue={m.statut} onValueChange={v=>changeStatus(m._id,v)}>
@@ -340,20 +463,27 @@ export default function AdminDashboard(){
                                                     ))}
                                                   </SelectContent>
                                                 </Select>
-                                                {m.photoUrl?(
-                                                  <button className={S.btnO+" h-8 w-8 p-0"} onClick={async e=>{e.stopPropagation();toast.loading("Chargement...",{id:'p'});try{const r=await authFetch(`${getBase()}/api/montages/${m._id}`);const d=await r.json();if(d.success&&d.montage.photoUrl){setPhotoUrl(d.montage.photoUrl);toast.dismiss('p');}else toast.error("Image introuvable",{id:'p'});}catch{toast.error("Erreur",{id:'p'});}}}>
-                                                    <ImageIcon className="w-3.5 h-3.5 text-[#C9A96E]"/>
-                                                  </button>
-                                                ):(
-                                                  <>
-                                                    <input type="file" accept="image/*" style={{display:'none'}} ref={el=>fileRefs.current[m._id]=el} onChange={e=>{if(e.target.files?.[0])uploadPhoto(m._id,e.target.files[0]);}}/>
-                                                    <button className={S.btnO+" h-8 w-8 p-0"} onClick={e=>{e.stopPropagation();fileRefs.current[m._id]?.click();}}><Camera className="w-3.5 h-3.5"/></button>
-                                                  </>
-                                                )}
-                                                <button className={S.btnO+" h-8 w-8 p-0"} onClick={()=>openEdit(m)}><Pencil className="w-3.5 h-3.5"/></button>
-                                                <button className={S.btnD} onClick={()=>deleteMontage(m._id)}><Trash2 className="w-3.5 h-3.5"/></button>
+                                                <button title="Modifier" className="h-8 w-8 flex items-center justify-center rounded-xl border border-blue-200 bg-white hover:bg-blue-50 transition-all cursor-pointer" onClick={()=>openEdit(m)}><Pencil className="w-3.5 h-3.5 text-blue-500"/></button>
+                                                <button title="Supprimer" className="h-8 w-8 flex items-center justify-center rounded-xl border border-red-200 bg-white hover:bg-red-50 transition-all cursor-pointer" onClick={()=>deleteMontage(m._id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></button>
                                               </div>
                                             </div>
+                                            {/* Pied de carte — timeline dépliable */}
+                                            <div
+                                              className="px-4 py-1.5 flex items-center justify-between border-t border-[#F7F4EE] cursor-pointer hover:bg-[#F7F4EE] transition-colors"
+                                              onClick={e=>{e.stopPropagation();setOpenTimeline(openTimeline===m._id?null:m._id);}}
+                                            >
+                                              <div className="flex items-center gap-1.5">
+                                                <Clock className="w-3.5 h-3.5 text-gray-400"/>
+                                                <span className="text-xs text-gray-500 font-medium">Reçu le {new Date(m.dateReception).toLocaleDateString('fr-FR')}</span>
+                                              </div>
+                                              <div className={`flex items-center gap-1 transition-colors ${openTimeline===m._id?'text-[#C9A96E]':'text-gray-500 hover:text-gray-700'}`}>
+                                                <span className="text-xs font-semibold tracking-widest uppercase">Historique</span>
+                                                <svg className={`w-2.5 h-2.5 transition-transform ${openTimeline===m._id?'rotate-180':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+                                              </div>
+                                            </div>
+                                            {openTimeline===m._id&&<TimelinePanel m={m}/>}
+                                          </div>
+                                            </React.Fragment>
                                           );
                                         })}
                                       </AccordionContent>
@@ -363,10 +493,24 @@ export default function AdminDashboard(){
                               </Accordion>
                             </AccordionContent>
                           </AccordionItem>
-                        ))}
+                        );})}
                       </Accordion>
                     )}
-                    {!showAll&&hidden>0&&(<div className="mt-8 flex justify-center"><button onClick={()=>setShowAll(true)} className="text-xs tracking-wide text-[#C9A96E] border border-[#C9A96E]/30 rounded-full px-6 py-2.5 hover:bg-[#C9A96E]/5 transition-colors">Charger l'historique ({hidden} dossiers masqués)</button></div>)}
+                    {!showAll&&hidden>0&&(
+                      <div className="mt-8 flex justify-center">
+                        <button onClick={()=>setShowAll(true)} className="text-xs tracking-wide text-[#C9A96E] border border-[#C9A96E]/30 rounded-full px-6 py-2.5 hover:bg-[#C9A96E]/5 transition-colors flex items-center gap-2">
+                          Charger {hidden} mois supplémentaire{hidden>1?'s':''}
+                          <span className="text-[9px] bg-[#C9A96E]/10 rounded-full px-2 py-0.5">{fm.filter(m=>hiddenMonths.includes(getMonthKey(m.dateReception))).length} dossiers</span>
+                        </button>
+                      </div>
+                    )}
+                    {showAll&&hidden>0&&(
+                      <div className="mt-4 flex justify-center">
+                        <button onClick={()=>setShowAll(false)} className="text-[10px] tracking-wide text-gray-400 hover:text-[#0F0E0C] transition-colors">
+                          Réduire l'historique
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -380,11 +524,11 @@ export default function AdminDashboard(){
                   <div className="divide-y divide-[#EDE8DF]">
                     {filteredClients.map(c=>(
                       <div key={c._id} className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-white transition-colors">
-                        <div className="flex-1 cursor-pointer" onClick={()=>{setCliInvClient(c);setCliInvList(allInvoices.filter(f=>f.userId===c._id));setCliInvOpen(true);}}>
+                        <div className="flex-1 cursor-pointer" onClick={()=>setFicheClient(c)}>
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <p className="font-medium text-[#0F0E0C]">{c.nomSociete}</p>
-                            {c.role==='manager'&&<span className="text-[10px] rounded-full px-2.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-600">Manager</span>}
-                            {c.isVerified?<span className="text-[10px] rounded-full px-2.5 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5"/>Validé</span>:<span className="text-[10px] rounded-full px-2.5 py-0.5 bg-amber-50 border border-amber-100 text-amber-600 flex items-center gap-1"><AlertCircle className="w-2.5 h-2.5"/>En attente</span>}
+                            {c.role==='manager'&&<span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-100 text-blue-600">Manager</span>}
+                            {c.isVerified?<span className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5"/>Validé</span>:<span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-100 text-amber-600 flex items-center gap-1"><AlertCircle className="w-2.5 h-2.5"/>En attente</span>}
                           </div>
                           <p className="text-xs text-gray-400">{c.email} · SIRET : {c.siret}</p>
                         </div>
@@ -406,15 +550,99 @@ export default function AdminDashboard(){
                 </div>
               )}
             </div>
-          );
-        })()}
 
         {/* Modales */}
+        {/* MODALE FICHE CLIENT */}
+        <Dialog open={!!ficheClient} onOpenChange={()=>setFicheClient(null)}>
+          <DialogContent className="bg-white max-w-md rounded-2xl p-0 overflow-hidden">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#EDE8DF]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#F7F4EE] border border-[#EDE8DF] flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-[#C9A96E]"/>
+                </div>
+                <div>
+                  <span className="text-[9px] tracking-[0.22em] uppercase text-[#C9A96E] block">Fiche client</span>
+                  <DialogTitle className="font-playfair text-xl font-normal text-[#0F0E0C]">{ficheClient?.nomSociete}</DialogTitle>
+                </div>
+              </div>
+            </DialogHeader>
+            {ficheClient && (
+              <div className="px-6 py-5 space-y-4">
+                {/* Statut */}
+                <div className="flex items-center gap-2">
+                  {ficheClient.isVerified
+                    ? <span className="text-xs rounded-full px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3"/>Compte validé</span>
+                    : <span className="text-xs rounded-full px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 font-semibold flex items-center gap-1.5"><AlertCircle className="w-3 h-3"/>En attente de validation</span>
+                  }
+                  {ficheClient.role === 'manager' && (
+                    <span className="text-xs rounded-full px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 font-semibold">Manager</span>
+                  )}
+                </div>
+                {/* Infos */}
+                <div className="space-y-3 bg-[#F7F4EE] rounded-xl p-4">
+                  {ficheClient.email && (
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-4 h-4 text-[#C9A96E] flex-shrink-0"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">Email</p>
+                        <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.email}</p>
+                      </div>
+                    </div>
+                  )}
+                  {ficheClient.siret && (
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-4 h-4 text-[#C9A96E] flex-shrink-0"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">SIRET</p>
+                        <p className="text-sm font-medium text-[#0F0E0C] font-mono">{ficheClient.siret}</p>
+                      </div>
+                    </div>
+                  )}
+                  {ficheClient.phone && (
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-4 h-4 text-[#C9A96E] flex-shrink-0"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">Téléphone</p>
+                        <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.phone}</p>
+                      </div>
+                    </div>
+                  )}
+                  {(ficheClient.address || ficheClient.zipCity) && (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-4 h-4 text-[#C9A96E] flex-shrink-0 mt-0.5"/>
+                      <div>
+                        <p className="text-[9px] tracking-[0.2em] uppercase text-[#C9A96E]">Adresse</p>
+                        {ficheClient.address && <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.address}</p>}
+                        {ficheClient.zipCity && <p className="text-sm font-medium text-[#0F0E0C]">{ficheClient.zipCity}</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Tarif */}
+                <div className="flex items-center justify-between p-3 bg-white border border-[#EDE8DF] rounded-xl">
+                  <span className="text-sm text-gray-600">Grille tarifaire</span>
+                  <span className="text-sm font-semibold text-[#0F0E0C]">Tarif {ficheClient.pricingTier || 1}</span>
+                </div>
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    className={S.btnG+" flex-1"}
+                    onClick={()=>{setCliInvClient(ficheClient);setCliInvList(allInvoices.filter(f=>f.userId===ficheClient._id));setCliInvOpen(true);setFicheClient(null);}}
+                  >
+                    <Receipt className="w-4 h-4"/> Voir les factures
+                  </button>
+                  <button className={S.btnO} onClick={()=>setFicheClient(null)}>Fermer</button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={shopOpen} onOpenChange={setShopOpen}>
           <DialogContent className="bg-white max-w-lg rounded-2xl">
             <DialogHeader><DialogTitle className="font-playfair font-normal">Magasins — {shopMgr?.nomSociete}</DialogTitle></DialogHeader>
             <div className="py-4 space-y-2 max-h-[60vh] overflow-y-auto">
-              {clients.filter(c=>c.role==='user').map(shop=>(
+              {clients.filter(c=>c.role==='user').sort((a,b)=>a.nomSociete.localeCompare(b.nomSociete,'fr')).map(shop=>(
                 <div key={shop._id} className="flex items-center gap-3 p-3 border border-[#EDE8DF] rounded-xl hover:bg-[#F7F4EE] transition-colors">
                   <Checkbox id={shop._id} checked={tmpShops.includes(shop._id)} onCheckedChange={chk=>setTmpShops(p=>chk?[...p,shop._id]:p.filter(id=>id!==shop._id))}/>
                   <label htmlFor={shop._id} className="flex-1 cursor-pointer text-sm font-medium text-[#0F0E0C]">{shop.nomSociete} <span className="text-gray-400 text-xs ml-1">{shop.zipCity}</span></label>
@@ -433,13 +661,13 @@ export default function AdminDashboard(){
             <DialogHeader><DialogTitle className="font-playfair font-normal text-xl">{editId?"Modifier le dossier":"Nouveau dossier"}</DialogTitle></DialogHeader>
             <form onSubmit={saveMontage} className="space-y-5 pt-2">
               <div><Label className={S.label}>Client</Label><Select onValueChange={setNClient} value={nClient}><SelectTrigger className={S.inp+" w-full h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{clients.map(c=><SelectItem key={c._id} value={c._id}>{c.nomSociete}</SelectItem>)}</SelectContent></Select></div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><Label className={S.label}>Réf.</Label><Input value={nRef} onChange={e=>setNRef(e.target.value)} required className={S.inp+" h-10"}/></div>
                 <div><Label className={S.label}>Monture</Label><Input value={nFrame} onChange={e=>setNFrame(e.target.value)} required className={S.inp+" h-10"}/></div>
                 <div><Label className={S.label}>Urgence</Label><Select onValueChange={setNUrg} value={nUrg}><SelectTrigger className={S.inp+" h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{URGENCY_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
               </div>
               <div><Label className={S.label}>Statut</Label><Select onValueChange={setNStatut} value={nStatut}><SelectTrigger className={S.inp+" h-10 w-full"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{Object.entries(statusCfg).map(([v,c])=><SelectItem key={v} value={v}><span className="flex items-center gap-2 text-sm"><span className={`w-2 h-2 rounded-full ${c.dot}`}/>{v}</span></SelectItem>)}</SelectContent></Select></div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><Label className={S.label}>Type</Label><Select onValueChange={setNCat} value={nCat}><SelectTrigger className={S.inp+" h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl"><SelectItem value="Cerclé">Cerclé</SelectItem><SelectItem value="Percé">Percé</SelectItem><SelectItem value="Nylor">Nylor</SelectItem><SelectItem value="Sans Montage">Sans Montage</SelectItem></SelectContent></Select></div>
                 <div><Label className={S.label}>Diamond Cut</Label><Select onValueChange={setNDC} value={nDC}><SelectTrigger className={S.inp+" h-10"}><SelectValue/></SelectTrigger><SelectContent className="bg-white rounded-xl">{DIAMONDCUT_OPTIONS.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label className={S.label}>Gravures</Label><Input type="number" value={nEng} onChange={e=>setNEng(parseInt(e.target.value)||0)} className={S.inp+" h-10"}/></div>
@@ -459,15 +687,6 @@ export default function AdminDashboard(){
 
         {invClient&&<InvoiceModal client={invClient} montages={invMontages} isOpen={invOpen} onClose={()=>setInvOpen(false)} onPublished={f=>{setAllInvoices(p=>[f,...p]);}}/>}
         <ClientInvoicesModal client={cliInvClient} invoices={cliInvList} isOpen={cliInvOpen} onClose={()=>setCliInvOpen(false)} onDelete={delInvoice} onPaymentUpdate={updatePay}/>
-
-        <Dialog open={!!photoUrl} onOpenChange={()=>setPhotoUrl(null)}>
-          <DialogContent className="bg-[#0F0E0C]/95 border-[#C9A96E]/20 p-0 flex items-center justify-center max-w-4xl rounded-2xl overflow-hidden">
-            <div className="relative p-4">
-              <button className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors" onClick={()=>setPhotoUrl(null)}><X className="w-4 h-4"/></button>
-              {photoUrl&&<img src={photoUrl} alt="Montage" className="max-w-full max-h-[85vh] object-contain rounded-xl"/>}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
