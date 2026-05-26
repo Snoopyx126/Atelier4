@@ -236,7 +236,7 @@ export default function AdminDashboard(){
         authFetch(`${getBase()}/api/factures`).then(r=>r.json()),
       ]).then(([m,c,f])=>{
         if(m.success)setMontages(m.montages);
-        if(c.success){const sorted=[...c.users].sort((a,b)=>a.nomSociete.localeCompare(b.nomSociete,'fr',{sensitivity:'base'}));setClients(sorted);if(sorted.length)setNClient(sorted[0]._id);}
+        if(c.success){setClients(c.users);if(c.users.length)setNClient(c.users[0]._id);}
         if(f.success)setAllInvoices(f.factures.map((x:any)=>({id:x._id,userId:x.userId,clientName:x.clientName,invoiceNumber:x.invoiceNumber,totalTTC:x.totalTTC,dateEmission:x.dateEmission,pdfUrl:x.pdfUrl,montagesReferences:x.montagesReferences,amountPaid:x.amountPaid,paymentStatus:x.paymentStatus})));
         setLoading(false);
       });
