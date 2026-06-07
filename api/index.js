@@ -197,48 +197,47 @@ const getOrCreatePennylaneCustomer = async (user) => {
 
     const externalRef = `atelier_${user._id}`;
 
-    // Helper : chercher par un filtre donne, retourne l'ID ou null
-    const searchBy = async (filterField, filterValue) => {
+    // Helper recherche via /customers (endpoint de lecture, different de /company_customers)
+    const searchCustomers = async (filterField, filterValue) => {
         const filter = JSON.stringify([{ field: filterField, operator: "eq", value: filterValue }]);
-        const res = await fetch(
-            `${PENNYLANE_API}/company_customers?filter=${encodeURIComponent(filter)}`,
-            { headers }
-        );
-        if (!res.ok) {
-            console.log(`Recherche Pennylane (${filterField}=${filterValue}): HTTP ${res.status}`);
-            return null;
-        }
+        const url = `${PENNYLANE_API}/customers?filter=${encodeURIComponent(filter)}`;
+        console.log(`Recherche Pennylane: GET ${url}`);
+        const res = await fetch(url, { headers });
+        console.log(`Reponse recherche HTTP ${res.status}`);
+        if (!res.ok) return null;
         const data = await res.json();
-        console.log(`Recherche Pennylane (${filterField}):`, JSON.stringify(data));
+        console.log(`Donnees recherche:`, JSON.stringify(data).substring(0, 300));
         const list = data.customers || data.company_customers || (Array.isArray(data) ? data : []);
-        return list.length > 0 ? list[0].id : null;
+        return list.length > 0 ? (list[0].id || list[0].source_id) : null;
     };
 
     // 1. Recherche par external_reference
-    let customerId = await searchBy("external_reference", externalRef);
+    let customerId = await searchCustomers("external_reference", externalRef);
     if (customerId) {
-        console.log(`Client trouve via external_reference : ${customerId}`);
+        console.log(`Client trouve via external_reference: ${customerId}`);
         return customerId;
     }
 
-    // 2. Fallback : recherche par nom
-    customerId = await searchBy("name", user.nomSociete);
+    // 2. Fallback: recherche par nom
+    customerId = await searchCustomers("name", user.nomSociete);
     if (customerId) {
-        console.log(`Client trouve via nom : ${customerId}`);
+        console.log(`Client trouve via nom: ${customerId}`);
+        // Mise a jour de l'external_reference pour les prochains appels
         try {
             await fetch(`${PENNYLANE_API}/company_customers/${customerId}`, {
                 method: 'PUT',
                 headers,
                 body: JSON.stringify({ external_reference: externalRef })
             });
-        } catch (e) {
-            console.log(`Impossible de mettre a jour external_reference : ${e.message}`);
+            console.log(`external_reference mis a jour sur ${customerId}`);
+        } catch(e) {
+            console.log(`Impossible de mettre a jour external_reference: ${e.message}`);
         }
         return customerId;
     }
 
     // 3. Creation
-    console.log("Client non trouve, creation en cours...");
+    console.log("Client introuvable, creation...");
     const createRes = await fetch(`${PENNYLANE_API}/company_customers`, {
         method: 'POST',
         headers,
@@ -256,24 +255,25 @@ const getOrCreatePennylaneCustomer = async (user) => {
     });
 
     const createData = await createRes.json();
-    console.log(`Reponse creation client (HTTP ${createRes.status}):`, JSON.stringify(createData));
+    console.log(`Creation client HTTP ${createRes.status}:`, JSON.stringify(createData).substring(0, 300));
 
     customerId = createData.id || (createData.company_customer && createData.company_customer.id);
 
     if (!customerId) {
         if (createRes.status === 422) {
-            console.log("Conflit 422, tentative de recuperation par email...");
-            customerId = await searchBy("emails", user.email);
+            // Derniere tentative: recherche par email
+            console.log("Conflit 422, tentative par email...");
+            customerId = await searchCustomers("email", user.email);
             if (customerId) {
-                console.log(`Client recupere via email apres conflit : ${customerId}`);
+                console.log(`Client recupere par email: ${customerId}`);
                 return customerId;
             }
-            throw new Error(`Conflit Pennylane : client introuvable apres toutes les tentatives pour "${user.nomSociete}".`);
+            throw new Error(`Conflit Pennylane non resolu pour "${user.nomSociete}". Verifiez manuellement dans Pennylane.`);
         }
-        throw new Error(`Erreur creation client Pennylane (HTTP ${createRes.status}): ${JSON.stringify(createData)}`);
+        throw new Error(`Erreur creation Pennylane HTTP ${createRes.status}: ${JSON.stringify(createData)}`);
     }
 
-    console.log(`Client cree : ${customerId}`);
+    console.log(`Client cree: ${customerId}`);
     return customerId;
 };
 
