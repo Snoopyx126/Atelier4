@@ -359,6 +359,7 @@ export default function AdminDashboard(){
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <button onClick={()=>navigate('/stats')} className={S.btnO}><BarChart2 className="w-3.5 h-3.5 text-[#C9A96E]"/> Statistiques</button>
+            <button onClick={()=>navigate('/admin-users')} className={S.btnO}><Users className="w-3.5 h-3.5 text-[#C9A96E]"/> Utilisateurs</button>
             <button onClick={syncPennylane} disabled={syncing} className={S.btnO + " gap-2"}><RefreshCw className={`w-3.5 h-3.5 text-[#C9A96E] ${syncing?'animate-spin':''}`}/> {syncing?'Sync...':'Sync Pennylane'}</button>
             <button onClick={exportCSV} className={S.btnO}><FileText className="w-3.5 h-3.5"/> Export CSV</button>
             <button onClick={openCreate} className={S.btnP}><PlusCircle className="w-3.5 h-3.5"/> Créer un dossier</button>

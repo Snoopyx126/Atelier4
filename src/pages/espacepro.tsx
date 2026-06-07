@@ -29,7 +29,8 @@ const EspacePro = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Échec de la connexion.");
       localStorage.setItem("user", JSON.stringify(data.user));
-      navigate(data.user.role === "admin" ? "/admin" : "/dashboardpro");
+      const role = data.user.role;
+      navigate(role === "admin" ? "/admin" : role === "lecteur" ? "/dashboard-lecteur" : "/dashboardpro");
     } catch (err: any) {
       toast.error(err.message || "Une erreur est survenue.");
     } finally {
