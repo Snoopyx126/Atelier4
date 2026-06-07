@@ -15,6 +15,8 @@ import AdminStats from "./pages/AdminStats";
 import MesCommandes from "./pages/MesCommandes";
 import Configurateur from "./pages/configurateur";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardLecteur from "@/pages/DashboardLecteur";
+import AdminUsers from "@/pages/AdminUsers";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,9 @@ const App = () => {
 
               <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
               <Route path="/stats" element={<ProtectedRoute requiredRole="admin"><AdminStats /></ProtectedRoute>} />
+
+              <Route path="/dashboard-lecteur" element={<DashboardLecteur />} />
+<Route path="/admin-users" element={<AdminUsers />} />
             </Routes>
           </BrowserRouter>
           <Toaster />
