@@ -68,18 +68,25 @@ const LecteurModal = ({
     e.preventDefault();
     setBusy(true);
     try {
-      const payload: any = { nomSociete, email, role: "lecteur", assignedShops, isVerified: true };
       if (!editUser) {
+        // Création : route dédiée /api/lecteurs (role forcé côté serveur)
         if (!password) { toast.error("Le mot de passe est obligatoire."); setBusy(false); return; }
-        payload.password = password;
-        payload.siret = "00000000000000"; // placeholder obligatoire backend
-      } else {
-        if (password) payload.newPassword = password;
+        const payload = { nomSociete, email, password, assignedShops };
+        const res = await authFetch(`${getBase()}/api/lecteurs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.ok) { toast.success("Lecteur créé !"); onSaved(); onClose(); }
+        else toast.error(data.message || "Erreur.");
+        setBusy(false); return;
       }
-      const url = editUser
-        ? `${getBase()}/api/users/${editUser._id}`
-        : `${getBase()}/api/inscription`;
-      const method = editUser ? "PUT" : "POST";
+      // Modification : route PUT /users/:id avec role + assignedShops
+      const payload: any = { nomSociete, email, role: "lecteur", assignedShops, isVerified: true };
+      if (password) payload.newPassword = password;
+      const url = `${getBase()}/api/users/${editUser._id}`;
+      const method = "PUT";
       const res = await authFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },

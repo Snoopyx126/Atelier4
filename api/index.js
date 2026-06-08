@@ -100,7 +100,7 @@ const userSchema = new mongoose.Schema({
   address: { type: String }, 
   zipCity: { type: String }, 
   isVerified: { type: Boolean, default: false },
-  role: { type: String, default: 'user', enum: ['user', 'admin', 'manager'] },
+  role: { type: String, default: 'user', enum: ['user', 'admin', 'manager', 'lecteur'] },
   assignedShops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   pricingTier: { type: Number, default: 1 }, 
   createdAt: { type: Date, default: Date.now }
@@ -197,42 +197,26 @@ const getOrCreatePennylaneCustomer = async (user) => {
 
     const externalRef = `atelier_${user._id}`;
 
-    // Helper: cherche via GET /customers (endpoint lecture v2), retourne l'id ou null
-    const searchCustomers = async (filterField, filterValue) => {
-        const filter = JSON.stringify([{ field: filterField, operator: "eq", value: filterValue }]);
-        const url = `${PENNYLANE_API}/customers?filter=${encodeURIComponent(filter)}`;
-        const res = await fetch(url, { headers });
-        if (!res.ok) { console.log(`Recherche ${filterField} HTTP ${res.status}`); return null; }
-        const data = await res.json();
-        // L'API v2 retourne { items: [...] }
-        const list = data.items || data.customers || data.company_customers || (Array.isArray(data) ? data : []);
-        console.log(`Recherche ${filterField}="${filterValue}": ${list.length} resultat(s)`);
-        return list.length > 0 ? list[0].id : null;
-    };
+    // 1. Recherche avec filtre ENCODÉ pour l'URL
+    const filter = JSON.stringify([{ field: "external_reference", operator: "eq", value: externalRef }]);
+    const searchRes = await fetch(
+        `${PENNYLANE_API}/company_customers?filter=${encodeURIComponent(filter)}`,
+        { headers }
+    );
+    
+    const searchData = await searchRes.json();
+    console.log("🔍 Résultat recherche Pennylane:", JSON.stringify(searchData));
 
-    // 1. Recherche par external_reference
-    let customerId = await searchCustomers("external_reference", externalRef);
-    if (customerId) {
-        console.log(`Client trouve via external_reference: ${customerId}`);
-        return customerId;
+    // On fouille partout pour trouver le client (customers, company_customers ou tableau direct)
+    const foundCustomers = searchData.customers || searchData.company_customers || (Array.isArray(searchData) ? searchData : []);
+
+    if (foundCustomers && foundCustomers.length > 0) {
+        console.log(`✅ Client trouvé : ${foundCustomers[0].id}`);
+        return foundCustomers[0].id;
     }
 
-    // 2. Fallback par nom
-    customerId = await searchCustomers("name", user.nomSociete);
-    if (customerId) {
-        console.log(`Client trouve via nom: ${customerId}`);
-        // Mettre a jour l'external_reference pour les prochains appels
-        try {
-            await fetch(`${PENNYLANE_API}/company_customers/${customerId}`, {
-                method: 'PUT', headers,
-                body: JSON.stringify({ external_reference: externalRef })
-            });
-        } catch(e) { console.log(`MAJ external_reference impossible: ${e.message}`); }
-        return customerId;
-    }
-
-    // 3. Creation
-    console.log("Client introuvable, creation en cours...");
+    // 2. Création si vraiment introuvable
+    console.log("🆕 Client non trouvé, création en cours...");
     const createRes = await fetch(`${PENNYLANE_API}/company_customers`, {
         method: 'POST',
         headers,
@@ -250,16 +234,18 @@ const getOrCreatePennylaneCustomer = async (user) => {
     });
 
     const createData = await createRes.json();
-    customerId = createData.id || (createData.company_customer && createData.company_customer.id);
+    
+    // On gère l'ID à la racine ou dans company_customer
+    const customerId = createData.id || (createData.company_customer && createData.company_customer.id);
 
     if (!customerId) {
+        // Si on a encore une 422 ici, on renvoie une erreur explicite
         if (createRes.status === 422) {
-            throw new Error(`Conflit Pennylane non resolu pour "${user.nomSociete}". Verifiez manuellement dans Pennylane.`);
+            throw new Error(`Conflit Pennylane : Le client existe déjà mais la recherche n'a pas pu le récupérer.`);
         }
-        throw new Error(`Erreur creation Pennylane HTTP ${createRes.status}: ${JSON.stringify(createData)}`);
+        throw new Error(`Erreur création client Pennylane: ${JSON.stringify(createData)}`);
     }
-
-    console.log(`Client cree: ${customerId}`);
+    
     return customerId;
 };
 
@@ -337,6 +323,30 @@ app.post("/api/login", async (req, res) => {
     if (!user.isVerified) return res.status(403).json({ success: false, message: "Compte non validé." });
     res.json({ success: true, user: { id: user._id, email: user.email, nomSociete: user.nomSociete, siret: user.siret, role: user.role, assignedShops: user.assignedShops, pricingTier: user.pricingTier } });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// Route dédiée admin : créer un lecteur (sans pièce jointe, role forcé)
+app.post("/api/lecteurs", async (req, res) => {
+    if (req.headers['x-user-role'] !== 'admin') return res.status(403).json({ success: false, message: "Accès refusé" });
+    try {
+        const { nomSociete, email, password, assignedShops } = req.body;
+        if (!nomSociete || !email || !password) return res.status(400).json({ message: "Champs obligatoires manquants." });
+        const existing = await User.findOne({ email: email.toLowerCase() });
+        if (existing) return res.status(409).json({ message: "Un compte avec cet email existe déjà." });
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+        const lecteur = await User.create({
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            nomSociete,
+            siret: '00000000000000',
+            role: 'lecteur',
+            isVerified: true,
+            assignedShops: assignedShops || []
+        });
+        res.json({ success: true, user: { id: lecteur._id, nomSociete: lecteur.nomSociete, email: lecteur.email, role: lecteur.role } });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
 });
 
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
