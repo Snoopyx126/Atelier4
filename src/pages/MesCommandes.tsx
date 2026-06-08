@@ -38,7 +38,7 @@ const GC: Record<string,{1:number,2:number}> = {
   'Verre Dégradé 4 saisons':{1:28.8,2:28.8}, 'Verre Dégradé':{1:50,2:43}, 'Verre de stock':{1:0,2:0}
 };
 const DC: Record<string,{1:number,2:number}> = {
-  'Facette Lisse':{1:39.8,2:21.5}, 'Facette Twinkle':{1:79.8,2:60}, 'Diamond Cut ':{1:93.6,2:60}, 'Standard':{1:0,2:0}
+  'Facette Lisse':{1:39.8,2:21.5}, 'Facette Twinkle':{1:79.8,2:60}, 'Diamond Cut':{1:93.6,2:60}, 'Diamond Ice':{1:93.6,2:60}, 'Standard':{1:0,2:0}
 };
 const UR: Record<string,number> = {'Urgent -3H':0.5,'Urgent -24H':0.3,'Urgent -48H':0.2,'Standard':0};
 const SHAPE = {1:10,2:3.5};
@@ -54,7 +54,7 @@ const calcP = (m: Montage, tier=1): number => {
 };
 
 const URGENCY_OPTIONS  = ['Standard','Prioritaire -48H','Express -24H','Urgent -3H'];
-const DIAMONDCUT_OPTIONS = ['Standard','Facette Lisse','Diamond Cut ','Facette Twinkle'];
+const DIAMONDCUT_OPTIONS = ['Standard','Facette Lisse','Diamond Cut','Facette Twinkle'];
 const GLASS_OPTIONS    = ['Verre Dégradé 4 saisons','Verre Dégradé','Verre de stock'];
 const STATUS_ORDER     = ['En attente','Reçu','En cours','Terminé'];
 const normalize = (t?: string) => t ? t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim() : "";
