@@ -100,7 +100,7 @@ const userSchema = new mongoose.Schema({
   address: { type: String }, 
   zipCity: { type: String }, 
   isVerified: { type: Boolean, default: false },
-  role: { type: String, default: 'user', enum: ['user', 'admin', 'manager', 'lecteur'] },
+  role: { type: String, default: 'user', enum: ['user', 'admin', 'manager'] },
   assignedShops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   pricingTier: { type: Number, default: 1 }, 
   createdAt: { type: Date, default: Date.now }
@@ -325,30 +325,6 @@ app.post("/api/login", async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// Route dédiée admin : créer un lecteur (sans pièce jointe, role forcé)
-app.post("/api/lecteurs", async (req, res) => {
-    if (req.headers['x-user-role'] !== 'admin') return res.status(403).json({ success: false, message: "Accès refusé" });
-    try {
-        const { nomSociete, email, password, assignedShops } = req.body;
-        if (!nomSociete || !email || !password) return res.status(400).json({ message: "Champs obligatoires manquants." });
-        const existing = await User.findOne({ email: email.toLowerCase() });
-        if (existing) return res.status(409).json({ message: "Un compte avec cet email existe déjà." });
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-        const lecteur = await User.create({
-            email: email.toLowerCase(),
-            password: hashedPassword,
-            nomSociete,
-            siret: '00000000000000',
-            role: 'lecteur',
-            isVerified: true,
-            assignedShops: assignedShops || []
-        });
-        res.json({ success: true, user: { id: lecteur._id, nomSociete: lecteur.nomSociete, email: lecteur.email, role: lecteur.role } });
-    } catch (e) {
-        res.status(500).json({ message: e.message });
-    }
-});
-
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
   const { nomSociete, email, siret, password, phone, address, zipCity } = req.body;
   try {
@@ -429,11 +405,11 @@ app.get("/api/montages", async (req, res) => {
         const { role, userId, managerId } = req.query;
         let query = {};
         
-        if (role === 'manager' && managerId) {
+        if ((role === 'manager' || role === 'lecteur') && managerId) {
             if (mongoose.Types.ObjectId.isValid(managerId)) {
                 const manager = await User.findById(managerId);
                 const shopIds = (manager?.assignedShops || []).filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => new mongoose.Types.ObjectId(id));
-                query = { userId: { $in: shopIds } };
+                query = shopIds.length > 0 ? { userId: { $in: shopIds } } : { userId: null };
             }
         } else if (role !== 'admin' && userId) {
             if (mongoose.Types.ObjectId.isValid(userId)) {

@@ -126,15 +126,14 @@ export default function DashboardLecteur() {
 
       const assignedIds: string[] = u.assignedShops || [];
 
+      // Utilise role=lecteur&managerId= : le backend filtre par assignedShops du lecteur
+      const lecteurId = u.id;
       Promise.all([
-        authFetch(`${API_URL}/montages`).then(r => r.json()),
+        authFetch(`${API_URL}/montages?role=lecteur&managerId=${lecteurId}`).then(r => r.json()),
         authFetch(`${API_URL}/users`).then(r => r.json()),
       ]).then(([mData, uData]) => {
         if (mData.success) {
-          const filtered = assignedIds.length > 0
-            ? mData.montages.filter((m: Montage) => assignedIds.includes(m.userId || ""))
-            : [];
-          setMontages(filtered);
+          setMontages(mData.montages || []);
         }
         if (uData.success) {
           const assignedShops: Shop[] = uData.users.filter((c: any) =>
