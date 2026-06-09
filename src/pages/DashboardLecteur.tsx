@@ -142,7 +142,11 @@ export default function DashboardLecteur() {
       const u: UserData = JSON.parse(str);
       if (u.role !== "lecteur") { navigate("/dashboardpro"); return; }
       setUser(u);
-      const assignedIds: string[] = u.assignedShops || [];
+      // assignedShops peut etre un tableau d'objets {_id, nomSociete} (populate) ou de strings
+      const rawShops = u.assignedShops || [];
+      const assignedIds: string[] = rawShops.map((s: any) =>
+        typeof s === 'object' ? (s._id || s.id || '') : s
+      ).filter(Boolean);
 
       Promise.all([
         authFetch(`${API_URL}/montages?role=lecteur&managerId=${u.id}`).then(r => r.json()),
@@ -150,10 +154,24 @@ export default function DashboardLecteur() {
       ]).then(([mData, uData]) => {
         if (mData.success) setMontages(mData.montages || []);
         if (uData.success) {
-          const assignedShops: Shop[] = uData.users.filter((c: any) =>
-            assignedIds.includes(c._id)
+          // Utiliser aussi les objets populated si disponibles directement
+          const populatedShops: Shop[] = rawShops
+            .filter((s: any) => typeof s === 'object' && s.nomSociete)
+            .map((s: any) => ({ _id: s._id || s.id, nomSociete: s.nomSociete, zipCity: s.zipCity }));
+
+          const fetchedShops: Shop[] = uData.users.filter((c: any) =>
+            assignedIds.includes(c._id) || assignedIds.includes(c.id)
           );
-          setShops(assignedShops.sort((a: Shop, b: Shop) =>
+
+          // Merger en évitant les doublons
+          const seen = new Set<string>();
+          const allShops: Shop[] = [...populatedShops, ...fetchedShops].filter(s => {
+            const id = s._id;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
+          setShops(allShops.sort((a: Shop, b: Shop) =>
             a.nomSociete.localeCompare(b.nomSociete, 'fr', { sensitivity: 'base' })
           ));
         }
