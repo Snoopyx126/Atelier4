@@ -23,7 +23,7 @@ interface FactureData { id:string;userId:string;clientName:string;invoiceNumber:
 const normalize = (t:string|undefined) => t?t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim():"";
 
 const CC: Record<string,{1:number,2:number}> = {'Sans Montage':{1:0,2:0},'Cerclé':{1:7,2:3.6},'Percé':{1:15.9,2:12},'Nylor':{1:14.9,2:12}};
-const GC: Record<string,{1:number,2:number}> = {'Verre Dégradé 4 saisons':{1:28.8,2:28.8},'Verre Dégradé':{1:50,2:43},'Verre de stock':{1:0,2:0}};
+const GC: Record<string,{1:number,2:number}> = {'Verre Dégradé 4 saisons':{1:24,2:24},'Verre Dégradé':{1:50,2:43},'Verre de stock':{1:0,2:0}};
 const DC: Record<string,{1:number,2:number}> = {'Facette Lisse':{1:39.8,2:21.5},'Facette Twinkle':{1:79.8,2:60},'Diamond Cut':{1:93.6,2:60},'Diamond Ice':{1:93.6,2:60},'Standard':{1:0,2:0}};
 const UR: Record<string,number> = {'Urgent -3H':0.5,'Express -24H':0.3,'Prioritaire -48H':0.2,'Standard':0};
 const calcP = (m:Montage,tier=1):number=>{const t=(tier===1||tier===2)?tier as 1|2:1 as 1|2;let b=(CC[m.category||'Cerclé']?.[t]||0)+(DC[m.diamondCutType||'Standard']?.[t]||0)+(m.engravingCount||0)*((t===1)?12:10);m.glassType?.forEach(g=>{b+=GC[g]?.[t]||0;});if(m.shapeChange)b+=(t===1)?10:3.5;if(tier===3)b*=0.9;else if(tier===4)b*=0.85;return b+b*(UR[m.urgency||'Standard']||0);};

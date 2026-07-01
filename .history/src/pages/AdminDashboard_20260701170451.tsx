@@ -23,14 +23,14 @@ interface FactureData { id:string;userId:string;clientName:string;invoiceNumber:
 const normalize = (t:string|undefined) => t?t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim():"";
 
 const CC: Record<string,{1:number,2:number}> = {'Sans Montage':{1:0,2:0},'Cerclé':{1:7,2:3.6},'Percé':{1:15.9,2:12},'Nylor':{1:14.9,2:12}};
-const GC: Record<string,{1:number,2:number}> = {'Verre Dégradé 4 saisons':{1:28.8,2:28.8},'Verre Dégradé':{1:50,2:43},'Verre de stock':{1:0,2:0}};
-const DC: Record<string,{1:number,2:number}> = {'Facette Lisse':{1:39.8,2:21.5},'Facette Twinkle':{1:79.8,2:60},'Diamond Ice':{1:93.6,2:60},'Standard':{1:0,2:0}};
+const GC: Record<string,{1:number,2:number}> = {'Verre Dégradé 4 saisons':{1:24,2:24},'Verre Dégradé':{1:50,2:43},'Verre de stock':{1:0,2:0}};
+const DC: Record<string,{1:number,2:number}> = {'Facette Lisse':{1:39.8,2:21.5},'Facette Twinkle':{1:79.8,2:60},'Diamond Cut':{1:93.6,2:60},'Diamond Ice':{1:93.6,2:60},'Standard':{1:0,2:0}};
 const UR: Record<string,number> = {'Urgent -3H':0.5,'Express -24H':0.3,'Prioritaire -48H':0.2,'Standard':0};
 const calcP = (m:Montage,tier=1):number=>{const t=(tier===1||tier===2)?tier as 1|2:1 as 1|2;let b=(CC[m.category||'Cerclé']?.[t]||0)+(DC[m.diamondCutType||'Standard']?.[t]||0)+(m.engravingCount||0)*((t===1)?12:10);m.glassType?.forEach(g=>{b+=GC[g]?.[t]||0;});if(m.shapeChange)b+=(t===1)?10:3.5;if(tier===3)b*=0.9;else if(tier===4)b*=0.85;return b+b*(UR[m.urgency||'Standard']||0);};
 
 const FACTURE_INFO = {name:"L'Atelier des Arts",address:"178 Avenue Daumesnil",zipCity:"75012 Paris",siret:"98095501700010",tvaRate:0.20};
 const URGENCY_OPTIONS=['Standard','Prioritaire -48H','Express -24H','Urgent -3H'];
-const DIAMONDCUT_OPTIONS=['Standard','Facette Lisse','Diamond Ice','Facette Twinkle'];
+const DIAMONDCUT_OPTIONS=['Standard','Facette Lisse','Diamond Cut','Facette Twinkle'];
 const GLASS_OPTIONS=['Verre Dégradé 4 saisons','Verre Dégradé','Verre de stock'];
 
 const statusCfg: Record<string,{dot:string;cls:string}> = {
@@ -236,7 +236,7 @@ export default function AdminDashboard(){
         authFetch(`${getBase()}/api/factures`).then(r=>r.json()),
       ]).then(([m,c,f])=>{
         if(m.success)setMontages(m.montages);
-        if(c.success){setClients(c.users);if(c.users.length)setNClient(c.users[0]._id);}
+        if(c.success){const sorted=[...c.users].sort((a,b)=>a.nomSociete.localeCompare(b.nomSociete,'fr',{sensitivity:'base'}));setClients(sorted);if(sorted.length)setNClient(sorted[0]._id);}
         if(f.success)setAllInvoices(f.factures.map((x:any)=>({id:x._id,userId:x.userId,clientName:x.clientName,invoiceNumber:x.invoiceNumber,totalTTC:x.totalTTC,dateEmission:x.dateEmission,pdfUrl:x.pdfUrl,montagesReferences:x.montagesReferences,amountPaid:x.amountPaid,paymentStatus:x.paymentStatus})));
         setLoading(false);
       });
@@ -359,6 +359,7 @@ export default function AdminDashboard(){
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <button onClick={()=>navigate('/stats')} className={S.btnO}><BarChart2 className="w-3.5 h-3.5 text-[#C9A96E]"/> Statistiques</button>
+            <button onClick={()=>navigate('/admin-users')} className={S.btnO}><Users className="w-3.5 h-3.5 text-[#C9A96E]"/> Utilisateurs</button>
             <button onClick={syncPennylane} disabled={syncing} className={S.btnO + " gap-2"}><RefreshCw className={`w-3.5 h-3.5 text-[#C9A96E] ${syncing?'animate-spin':''}`}/> {syncing?'Sync...':'Sync Pennylane'}</button>
             <button onClick={exportCSV} className={S.btnO}><FileText className="w-3.5 h-3.5"/> Export CSV</button>
             <button onClick={openCreate} className={S.btnP}><PlusCircle className="w-3.5 h-3.5"/> Créer un dossier</button>
