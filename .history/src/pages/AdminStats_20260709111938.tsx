@@ -23,7 +23,7 @@ const CATEGORY_COSTS: Record<string, {1:number,2:number}> = {
   'Sans Montage':{1:0,2:0},'Cerclé':{1:7,2:3.6},'Percé':{1:15.9,2:12},'Nylor':{1:14.9,2:12}
 };
 const GLASS_COSTS: Record<string,{1:number,2:number}> = {
-  'Verre Dégradé 4 saisons':{1:28.8,2:28.8},'Verre Dégradé':{1:50,2:43},'Verre de stock':{1:0,2:0}
+  'Verre Dégradé 4 saisons':{1:24,2:24},'Verre Dégradé':{1:50,2:43},'Verre de stock':{1:0,2:0}
 };
 const DIAMONDCUT_COSTS: Record<string,{1:number,2:number}> = {
   'Facette Lisse':{1:39.8,2:21.5},'Facette Twinkle':{1:79.8,2:60},'Diamond Cut ':{1:93.6,2:60},'Standard':{1:0,2:0}
