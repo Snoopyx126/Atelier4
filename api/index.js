@@ -197,10 +197,11 @@ const getOrCreatePennylaneCustomer = async (user) => {
 
     const externalRef = `atelier_${user._id}`;
 
-    // 1. Recherche avec filtre ENCODÉ pour l'URL
+    // 1. Recherche avec filtre ENCODÉ pour l'URL — endpoint /customers (liste générique),
+    //    à ne pas confondre avec /company_customers qui sert uniquement à la création
     const filter = JSON.stringify([{ field: "external_reference", operator: "eq", value: externalRef }]);
     const searchRes = await fetch(
-        `${PENNYLANE_API}/company_customers?filter=${encodeURIComponent(filter)}`,
+        `${PENNYLANE_API}/customers?filter=${encodeURIComponent(filter)}`,
         { headers }
     );
     
@@ -554,7 +555,7 @@ app.post("/api/montages/:id/photo", upload.single('photo'), async (req, res) => 
 app.post("/api/factures", async (req, res) => {
     try {
         const { userId, clientName, invoiceNumber, totalHT, totalTTC,
-                montagesReferences, invoiceData, dateEmission } = req.body;
+                montagesReferences, invoiceData, dateEmission, pdfBase64 } = req.body;
 
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ success: false, message: "Client introuvable." });
@@ -563,6 +564,7 @@ app.post("/api/factures", async (req, res) => {
         let pennylaneUrl = null;
 
         // ── INTÉGRATION PENNYLANE ─────────────────────────────────────────
+        // L'email n'est envoyé QUE si la facture Pennylane est bien créée.
         if (PENNYLANE_TOKEN && invoiceData && invoiceData.length > 0) {
             try {
                 // 1. Retrouver ou créer le client dans Pennylane
@@ -627,7 +629,7 @@ app.post("/api/factures", async (req, res) => {
                 console.log(`✅ Email avec PDF envoyé à ${user.email}`);
 
             } catch (plErr) {
-                console.error("⚠️ Erreur Pennylane:", plErr.message);
+                console.error(`❌ Erreur Pennylane pour ${user.nomSociete} (userId: ${user._id}) — email NON envoyé:`, plErr.message);
             }
         }
 

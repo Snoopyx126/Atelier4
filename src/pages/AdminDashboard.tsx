@@ -52,7 +52,7 @@ const S={
 };
 
 /* ---- MODALE FACTURE ---- */
-const InvoiceModal=({client,montages,isOpen,onClose,onPublished,autoPublish,progress}:{client:Client;montages:Montage[];isOpen:boolean;onClose:()=>void;onPublished:(f:FactureData)=>void;autoPublish?:boolean;progress?:{current:number;total:number}})=>{
+const InvoiceModal=({client,montages,isOpen,onClose,onPublished,onError,autoPublish,progress}:{client:Client;montages:Montage[];isOpen:boolean;onClose:()=>void;onPublished:(f:FactureData)=>void;onError?:(clientName:string,err:any)=>void;autoPublish?:boolean;progress?:{current:number;total:number}})=>{
   const [busy,setBusy]=useState(false);
   const tier=client.pricingTier||1;
   const today=new Date();
@@ -89,7 +89,16 @@ const InvoiceModal=({client,montages,isOpen,onClose,onPublished,autoPublish,prog
       const d=await res.json();
       if(d.success){toast.success("Facture enregistrée !",{id:tid});pdf.save(`${invNum}.pdf`);onPublished(d.facture);}
       else toast.error(d.message||"Erreur",{id:tid});
-    }catch{toast.error("Erreur technique.",{id:tid});}
+    }catch(err:any){
+      console.error("Erreur facturation ("+client.nomSociete+") :",err);
+      const msg=err?.message||err?.name||'voir console';
+      if(autoPublish&&onError){
+        toast.error(`${client.nomSociete} ignoré : ${msg}`,{id:tid,duration:5000});
+        onError(client.nomSociete,err);
+      }else{
+        toast.error(`Erreur technique — ${client.nomSociete} : ${msg}`,{id:tid,duration:8000});
+      }
+    }
     finally{setBusy(false);}
   };
 
@@ -784,6 +793,22 @@ export default function AdminDashboard(){
           autoPublish={batchIndex>=0}
           progress={batchIndex>=0?{current:batchIndex+1,total:batchQueue.length}:undefined}
           onClose={()=>{setInvOpen(false);setBatchQueue([]);setBatchIndex(-1);}}
+          onError={(clientName,err)=>{
+            setBatchIndex(prevIdx=>{
+              if(prevIdx===-1)return -1;
+              const next=prevIdx+1;
+              if(next<batchQueue.length){
+                const nq=batchQueue[next];
+                setInvClient(nq.client);
+                setInvMontages(nq.items);
+                return next;
+              }
+              toast(`Facturation terminée avec au moins un échec (voir console).`,{icon:'⚠️'});
+              setInvOpen(false);
+              setBatchQueue([]);
+              return -1;
+            });
+          }}
           onPublished={f=>{
             setAllInvoices(p=>[f,...p]);
             setBatchIndex(prevIdx=>{
