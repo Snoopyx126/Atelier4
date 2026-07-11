@@ -208,8 +208,8 @@ const getOrCreatePennylaneCustomer = async (user) => {
     const searchData = await searchRes.json();
     console.log("🔍 Résultat recherche Pennylane:", JSON.stringify(searchData));
 
-    // On fouille partout pour trouver le client (customers, company_customers ou tableau direct)
-    const foundCustomers = searchData.customers || searchData.company_customers || (Array.isArray(searchData) ? searchData : []);
+    // On fouille partout pour trouver le client (items = format paginé v2, customers, company_customers ou tableau direct)
+    const foundCustomers = searchData.items || searchData.customers || searchData.company_customers || (Array.isArray(searchData) ? searchData : []);
 
     if (foundCustomers && foundCustomers.length > 0) {
         console.log(`✅ Client trouvé : ${foundCustomers[0].id}`);
