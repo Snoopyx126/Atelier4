@@ -52,7 +52,7 @@ const S={
 };
 
 /* ---- MODALE FACTURE ---- */
-const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;montages:Montage[];isOpen:boolean;onClose:()=>void;onPublished:(f:FactureData)=>void})=>{
+const InvoiceModal=({client,montages,isOpen,onClose,onPublished,onError,autoPublish,progress}:{client:Client;montages:Montage[];isOpen:boolean;onClose:()=>void;onPublished:(f:FactureData)=>void;onError?:(clientName:string,err:any)=>void;autoPublish?:boolean;progress?:{current:number;total:number}})=>{
   const [busy,setBusy]=useState(false);
   const tier=client.pricingTier||1;
   const today=new Date();
@@ -87,11 +87,25 @@ const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;
       const payload={userId:client._id,clientName:client.nomSociete,invoiceNumber:invNum,totalHT:parseFloat(totalHT.toFixed(2)),totalTTC:parseFloat(totalTTC.toFixed(2)),montagesReferences:montages.map(m=>m.reference||m._id),dateEmission:new Date().toISOString(),invoiceData:montages.map(m=>({reference:m.reference,...getDetails(m)})),pdfUrl:'#',sendEmail:true,pdfBase64:montages.length<=20?b64:null};
       const res=await authFetch(`${getBase()}/api/factures`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const d=await res.json();
-      if(d.success){toast.success("Facture enregistrée !",{id:tid});pdf.save(`${invNum}.pdf`);onPublished(d.facture);onClose();}
+      if(d.success){toast.success("Facture enregistrée !",{id:tid});pdf.save(`${invNum}.pdf`);onPublished(d.facture);}
       else toast.error(d.message||"Erreur",{id:tid});
-    }catch{toast.error("Erreur technique.",{id:tid});}
+    }catch(err:any){
+      console.error("Erreur facturation ("+client.nomSociete+") :",err);
+      const msg=err?.message||err?.name||'voir console';
+      if(autoPublish&&onError){
+        toast.error(`${client.nomSociete} ignoré : ${msg}`,{id:tid,duration:5000});
+        onError(client.nomSociete,err);
+      }else{
+        toast.error(`Erreur technique — ${client.nomSociete} : ${msg}`,{id:tid,duration:8000});
+      }
+    }
     finally{setBusy(false);}
   };
+
+  useEffect(()=>{
+    if(autoPublish&&isOpen&&montages.length>0){publish();}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[autoPublish,isOpen,client._id]);
 
   return(
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -109,9 +123,118 @@ const InvoiceModal=({client,montages,isOpen,onClose,onPublished}:{client:Client;
             <div><div className="flex justify-between items-end"><div className="bg-[#F7F4EE] border border-[#EDE8DF] p-4 rounded-xl w-5/12"><p className="text-xs font-bold mb-2 uppercase tracking-wider">Coordonnées bancaires</p><p className="text-xs text-gray-500">IBAN : FR76 1820 6002 0065 1045 3419 297</p><p className="text-xs text-gray-500">BIC : AGRIFRPP882</p></div><div className="text-right space-y-1"><p className="text-sm text-gray-500">Total HT : {totalHT.toFixed(2)} €</p><p className="text-sm text-gray-500">TVA 20% : {tva.toFixed(2)} €</p><p className="text-xl font-bold mt-2">Net à payer : {totalTTC.toFixed(2)} €</p></div></div></div>
           </div>
         </div>
+        <div className="p-4 border-t border-[#EDE8DF] bg-white flex justify-end gap-3 items-center">
+          {autoPublish?(
+            <div className="w-full flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin text-[#C9A96E]"/>
+              <span className="text-xs text-gray-500 flex-1">
+                Génération automatique{progress?` — facture ${progress.current}/${progress.total} (${client.nomSociete})`:''}...
+              </span>
+              <button onClick={onClose} className={S.btnO}>Arrêter</button>
+            </div>
+          ):(
+            <>
+              <button onClick={onClose} disabled={busy} className={S.btnO}>Annuler</button>
+              <button onClick={publish} disabled={busy||montages.length===0} className={S.btnP+" px-6"}>Télécharger PDF</button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/* ---- MODALE SÉLECTION DES MOIS À REGROUPER ---- */
+const MonthSelectModal=({isOpen,onClose,months,onConfirm}:{isOpen:boolean;onClose:()=>void;months:{key:string;label:string;clientCount:number;montageCount:number}[];onConfirm:(keys:string[])=>void})=>{
+  const[checked,setChecked]=useState<Record<string,boolean>>({});
+  useEffect(()=>{if(isOpen)setChecked({});},[isOpen]);
+  if(!isOpen)return null;
+  const toggle=(k:string)=>setChecked(p=>({...p,[k]:!p[k]}));
+  const selectedKeys=months.filter(m=>checked[m.key]).map(m=>m.key);
+
+  return(
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md bg-white p-0 overflow-hidden flex flex-col max-h-[85vh] rounded-2xl">
+        <DialogHeader className="p-5 border-b border-[#EDE8DF]">
+          <DialogTitle className="font-playfair font-normal text-lg">Facturer plusieurs mois</DialogTitle>
+        </DialogHeader>
+        <div className="px-5 pt-4 pb-1">
+          <p className="text-xs text-gray-500">Sélectionne les mois à regrouper. Pour chaque client, une <strong>seule facture</strong> sera générée, reprenant tous les dossiers des mois cochés.</p>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-2 flex-grow">
+          {months.map(m=>(
+            <label key={m.key} className="flex items-center gap-3 p-3 bg-[#F7F4EE] border border-[#EDE8DF] rounded-xl cursor-pointer hover:bg-[#EDE8DF]/50 transition-colors">
+              <Checkbox checked={!!checked[m.key]} onCheckedChange={()=>toggle(m.key)}/>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#0F0E0C] capitalize truncate">{m.label}</p>
+                <p className="text-xs text-gray-500">{m.clientCount} client{m.clientCount>1?'s':''} · {m.montageCount} dossier{m.montageCount>1?'s':''}</p>
+              </div>
+            </label>
+          ))}
+          {months.length===0&&<p className="text-sm text-gray-400 text-center py-6">Aucun mois disponible.</p>}
+        </div>
         <div className="p-4 border-t border-[#EDE8DF] bg-white flex justify-end gap-3">
-          <button onClick={onClose} disabled={busy} className={S.btnO}>Annuler</button>
-          <button onClick={publish} disabled={busy||montages.length===0} className={S.btnP+" px-6"}>Télécharger PDF</button>
+          <button onClick={onClose} className={S.btnO}>Annuler</button>
+          <button
+            onClick={()=>onConfirm(selectedKeys)}
+            disabled={selectedKeys.length===0}
+            className={S.btnP+" px-6 disabled:opacity-40"}
+          >
+            Continuer ({selectedKeys.length} mois)
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/* ---- MODALE SÉLECTION CLIENTS À FACTURER ---- */
+const BatchSelectModal=({isOpen,onClose,monthLabel,entries,onConfirm}:{isOpen:boolean;onClose:()=>void;monthLabel:string;entries:{client:Client;items:Montage[]}[];onConfirm:(sel:{client:Client;items:Montage[]}[])=>void})=>{
+  const[checked,setChecked]=useState<Record<string,boolean>>({});
+  useEffect(()=>{
+    if(isOpen){const init:Record<string,boolean>={};entries.forEach(e=>{init[e.client._id]=true;});setChecked(init);}
+  },[isOpen]);
+  if(!isOpen)return null;
+  const toggle=(id:string)=>setChecked(p=>({...p,[id]:!p[id]}));
+  const allChecked=entries.every(e=>checked[e.client._id]);
+  const toggleAll=()=>{const v=!allChecked;const n:Record<string,boolean>={};entries.forEach(e=>{n[e.client._id]=v;});setChecked(n);};
+  const selectedCount=entries.filter(e=>checked[e.client._id]).length;
+  const totalFor=(e:{client:Client;items:Montage[]})=>e.items.reduce((s,m)=>s+calcP(m,e.client.pricingTier||1),0);
+
+  return(
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg bg-white p-0 overflow-hidden flex flex-col max-h-[85vh] rounded-2xl">
+        <DialogHeader className="p-5 border-b border-[#EDE8DF]">
+          <DialogTitle className="font-playfair font-normal text-lg capitalize">Facturer — {monthLabel}</DialogTitle>
+        </DialogHeader>
+        <div className="px-5 py-3 border-b border-[#EDE8DF] flex items-center justify-between">
+          <span className="text-xs text-gray-500">{selectedCount}/{entries.length} client(s) sélectionné(s)</span>
+          <button onClick={toggleAll} className="text-[10px] uppercase tracking-widest text-[#C9A96E] hover:underline">
+            {allChecked?'Tout désélectionner':'Tout sélectionner'}
+          </button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-2 flex-grow">
+          {entries.map(e=>(
+            <label key={e.client._id} className="flex items-center gap-3 p-3 bg-[#F7F4EE] border border-[#EDE8DF] rounded-xl cursor-pointer hover:bg-[#EDE8DF]/50 transition-colors">
+              <Checkbox checked={!!checked[e.client._id]} onCheckedChange={()=>toggle(e.client._id)}/>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#0F0E0C] truncate">{e.client.nomSociete}</p>
+                <p className="text-xs text-gray-500">{e.items.length} dossier{e.items.length>1?'s':''}</p>
+              </div>
+              <span className="text-sm font-semibold text-[#9A7A45] whitespace-nowrap">{totalFor(e).toFixed(2)} € HT</span>
+            </label>
+          ))}
+          {entries.length===0&&<p className="text-sm text-gray-400 text-center py-6">Aucun client facturable ce mois-ci.</p>}
+        </div>
+        <div className="p-4 border-t border-[#EDE8DF] bg-white flex justify-end gap-3">
+          <button onClick={onClose} className={S.btnO}>Annuler</button>
+          <button
+            onClick={()=>onConfirm(entries.filter(e=>checked[e.client._id]))}
+            disabled={selectedCount===0}
+            className={S.btnP+" px-6 disabled:opacity-40"}
+          >
+            Générer {selectedCount} facture{selectedCount>1?'s':''}
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -212,6 +335,12 @@ export default function AdminDashboard(){
   const[invOpen,setInvOpen]=useState(false);
   const[invClient,setInvClient]=useState<Client|null>(null);
   const[invMontages,setInvMontages]=useState<Montage[]>([]);
+  const[batchQueue,setBatchQueue]=useState<{client:Client;items:Montage[]}[]>([]);
+  const[batchIndex,setBatchIndex]=useState<number>(-1); // -1 = pas de facturation groupée en cours
+  const[batchSelectOpen,setBatchSelectOpen]=useState(false);
+  const[batchMonthKey,setBatchMonthKey]=useState<string|null>(null);
+  const[monthSelectOpen,setMonthSelectOpen]=useState(false);
+  const[batchMonthKeys,setBatchMonthKeys]=useState<string[]|null>(null); // multi-mois quand non-null
   const[cliInvOpen,setCliInvOpen]=useState(false);
   const[cliInvClient,setCliInvClient]=useState<Client|null>(null);
   const[cliInvList,setCliInvList]=useState<FactureData[]>([]);
@@ -259,6 +388,30 @@ export default function AdminDashboard(){
     } catch { toast.error("Erreur réseau"); }
   };
   const deleteMontage=async(id:string)=>{if(confirm("Supprimer ce dossier ?")){await authFetch(`${getBase()}/api/montages/${id}`,{method:'DELETE'});fetchM();toast.success("Supprimé");}};
+  const startMonthBilling=(mk:string)=>{
+    setBatchMonthKeys(null);
+    setBatchMonthKey(mk);
+    setBatchSelectOpen(true);
+  };
+
+  const startMultiMonthBilling=(keys:string[])=>{
+    setMonthSelectOpen(false);
+    if(keys.length===0)return;
+    setBatchMonthKey(null);
+    setBatchMonthKeys(keys);
+    setBatchSelectOpen(true);
+  };
+
+  const confirmBatchBilling=(selected:{client:Client;items:Montage[]}[])=>{
+    setBatchSelectOpen(false);
+    if(selected.length===0)return;
+    setBatchQueue(selected);
+    setBatchIndex(0);
+    setInvClient(selected[0].client);
+    setInvMontages(selected[0].items);
+    setInvOpen(true);
+  };
+
   const exportCSV=()=>{const h=["Date","Client","Référence","Monture","Catégorie","Statut","Prix HT","Créé par"];const rows=montages.map(m=>{const c=clients.find(cl=>cl._id===m.userId);return[new Date(m.dateReception).toLocaleDateString(),`"${c?.nomSociete||''}"`,`"${m.reference||''}"`,`"${m.frame||''}"`,m.category,m.statut,calcP(m,c?.pricingTier||1).toFixed(2).replace('.',','),`"${m.createdBy||''}"`].join(";");});const blob=new Blob([[h.join(";"),...rows].join("\n")],{type:'text/csv;charset=utf-8;'});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`export_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);};
 
   const syncPennylane = async () => {
@@ -362,6 +515,7 @@ export default function AdminDashboard(){
             <button onClick={()=>navigate('/admin-users')} className={S.btnO}><Users className="w-3.5 h-3.5 text-[#C9A96E]"/> Utilisateurs</button>
             <button onClick={syncPennylane} disabled={syncing} className={S.btnO + " gap-2"}><RefreshCw className={`w-3.5 h-3.5 text-[#C9A96E] ${syncing?'animate-spin':''}`}/> {syncing?'Sync...':'Sync Pennylane'}</button>
             <button onClick={exportCSV} className={S.btnO}><FileText className="w-3.5 h-3.5"/> Export CSV</button>
+            <button onClick={()=>setMonthSelectOpen(true)} className={S.btnO}><Calendar className="w-3.5 h-3.5 text-[#C9A96E]"/> Facturer plusieurs mois</button>
             <button onClick={openCreate} className={S.btnP}><PlusCircle className="w-3.5 h-3.5"/> Créer un dossier</button>
             <button onClick={()=>{localStorage.clear();navigate("/");}} className="inline-flex items-center gap-2 border border-red-200 text-red-500 bg-white hover:bg-red-50 rounded-xl text-[10px] font-normal transition-all px-4 h-9 cursor-pointer">Déconnexion</button>
           </div>
@@ -410,7 +564,12 @@ export default function AdminDashboard(){
                         {visibleKeys.map(mk=>{ const shops=grouped[mk]; const mo=getMonthLabel(mk); return (
                           <AccordionItem key={mk} value={mk} className="bg-white border border-[#EDE8DF] rounded-2xl overflow-hidden">
                             <AccordionTrigger className="hover:no-underline px-5 py-4 hover:bg-[#F7F4EE] transition-colors">
-                              <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-xl font-normal text-[#0F0E0C] capitalize">{mo}</span></div>
+                              <div className="flex items-center gap-3 w-full pr-3">
+                                <Calendar className="w-4 h-4 text-[#C9A96E]"/><span className="font-playfair text-xl font-normal text-[#0F0E0C] capitalize">{mo}</span>
+                                <button onClick={e=>{e.stopPropagation();startMonthBilling(mk);}} className={S.btnG+" ml-auto"}>
+                                  <Receipt className="w-3 h-3"/> Facturer le mois
+                                </button>
+                              </div>
                             </AccordionTrigger>
                             <AccordionContent className="px-5 pb-5 pt-2">
                               <Accordion type="multiple" className="space-y-2">
@@ -686,7 +845,80 @@ export default function AdminDashboard(){
           </DialogContent>
         </Dialog>
 
-        {invClient&&<InvoiceModal client={invClient} montages={invMontages} isOpen={invOpen} onClose={()=>setInvOpen(false)} onPublished={f=>{setAllInvoices(p=>[f,...p]);}}/>}
+        {invClient&&<InvoiceModal client={invClient} montages={invMontages} isOpen={invOpen}
+          autoPublish={batchIndex>=0}
+          progress={batchIndex>=0?{current:batchIndex+1,total:batchQueue.length}:undefined}
+          onClose={()=>{setInvOpen(false);setBatchQueue([]);setBatchIndex(-1);}}
+          onError={(clientName,err)=>{
+            setBatchIndex(prevIdx=>{
+              if(prevIdx===-1)return -1;
+              const next=prevIdx+1;
+              if(next<batchQueue.length){
+                const nq=batchQueue[next];
+                setInvClient(nq.client);
+                setInvMontages(nq.items);
+                return next;
+              }
+              toast(`Facturation terminée avec au moins un échec (voir console).`,{icon:'⚠️'});
+              setInvOpen(false);
+              setBatchQueue([]);
+              return -1;
+            });
+          }}
+          onPublished={f=>{
+            setAllInvoices(p=>[f,...p]);
+            setBatchIndex(prevIdx=>{
+              if(prevIdx===-1)return -1; // facturation simple d'un seul client, rien de plus à faire
+              const next=prevIdx+1;
+              if(next<batchQueue.length){
+                const nq=batchQueue[next];
+                setInvClient(nq.client);
+                setInvMontages(nq.items);
+                return next;
+              }
+              toast.success(`✅ ${batchQueue.length} facture(s) générée(s) automatiquement pour le mois.`);
+              setInvOpen(false);
+              setBatchQueue([]);
+              return -1;
+            });
+          }}
+        />}
+        {(()=>{
+          const keys=batchMonthKeys??(batchMonthKey?[batchMonthKey]:[]);
+          const label=batchMonthKeys
+            ?batchMonthKeys.map(k=>getMonthLabel(k)).join(' + ')
+            :(batchMonthKey?getMonthLabel(batchMonthKey):'');
+          const merged:Record<string,{client:Client;items:Montage[]}>={};
+          keys.forEach(mk=>{
+            const shops=grouped[mk]||{};
+            Object.values(shops).forEach((items:any)=>{
+              const first=(items as Montage[])[0];
+              const client=clients.find(c=>c._id===first.userId);
+              if(!client)return;
+              if(!merged[client._id])merged[client._id]={client,items:[]};
+              merged[client._id].items.push(...(items as Montage[]));
+            });
+          });
+          return(
+            <BatchSelectModal
+              isOpen={batchSelectOpen}
+              onClose={()=>setBatchSelectOpen(false)}
+              monthLabel={label}
+              entries={Object.values(merged)}
+              onConfirm={confirmBatchBilling}
+            />
+          );
+        })()}
+        <MonthSelectModal
+          isOpen={monthSelectOpen}
+          onClose={()=>setMonthSelectOpen(false)}
+          months={allMonthKeys.map(k=>{
+            const shops=grouped[k]||{};
+            const montageCount=Object.values(shops).reduce((s:number,items:any)=>s+(items as Montage[]).length,0);
+            return{key:k,label:getMonthLabel(k),clientCount:Object.keys(shops).length,montageCount};
+          })}
+          onConfirm={startMultiMonthBilling}
+        />
         <ClientInvoicesModal client={cliInvClient} invoices={cliInvList} isOpen={cliInvOpen} onClose={()=>setCliInvOpen(false)} onDelete={delInvoice} onPaymentUpdate={updatePay}/>
       </div>
     </div>
