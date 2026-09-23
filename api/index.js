@@ -150,6 +150,12 @@ const SALT_ROUNDS = 10;
 const PENNYLANE_API = 'https://app.pennylane.com/api/external/v2';
 const PENNYLANE_TOKEN = process.env.PENNYLANE_API_TOKEN;
 const EMAIL_SENDER = "ne-pas-repondre@l-atelier-des-arts.com";
+
+// ── Aide pour rechercher un email en base sans tenir compte de la casse ──
+// (des comptes existants ont pu être créés avec des majuscules ; on ne les
+// retouche pas, mais toute recherche par email doit rester insensible à la casse)
+const escapeRegex = (str) => String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const emailCI = (email) => ({ $regex: `^${escapeRegex(String(email || '').trim())}$`, $options: 'i' });
 const EMAIL_ADMIN = "atelierdesarts.12@gmail.com";
 
 // --- 4. EMAILS ---
@@ -319,7 +325,7 @@ app.get("/api", (req, res) => res.json({ status: "En ligne", message: "API OK" }
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email }).populate('assignedShops', 'nomSociete _id zipCity');
+    const user = await User.findOne({ email: emailCI(email) }).populate('assignedShops', 'nomSociete _id zipCity');
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: "Identifiants invalides." });
     if (!user.isVerified) return res.status(403).json({ success: false, message: "Compte non validé." });
     res.json({ success: true, user: { id: user._id, email: user.email, nomSociete: user.nomSociete, siret: user.siret, role: user.role, assignedShops: user.assignedShops, pricingTier: user.pricingTier } });
@@ -329,10 +335,10 @@ app.post("/api/login", async (req, res) => {
 app.post("/api/inscription", upload.single('pieceJointe'), async (req, res) => {
   const { nomSociete, email, siret, password, phone, address, zipCity } = req.body;
   try {
-    if (await User.findOne({ email })) return res.status(409).json({ success: false, message: 'Un compte existe déjà avec cette adresse email. Cliquez sur "Mot de passe oublié" pour vous connecter.' });
+    if (await User.findOne({ email: emailCI(email) })) return res.status(409).json({ success: false, message: 'Un compte existe déjà avec cette adresse email. Cliquez sur "Mot de passe oublié" pour vous connecter.' });
     if (siret && await User.findOne({ siret })) return res.status(409).json({ success: false, message: 'Un compte existe déjà avec ce numéro SIRET.' });
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    await User.create({ email, password: hashedPassword, nomSociete, siret, phone, address, zipCity, role: 'user' });
+    await User.create({ email: String(email || '').trim().toLowerCase(), password: hashedPassword, nomSociete, siret, phone, address, zipCity, role: 'user' });
     try { await resend.emails.send({ from: EMAIL_SENDER, to: EMAIL_ADMIN, subject: `🔔 Inscription : ${nomSociete}`, html: `<p>Nouvelle inscription: ${nomSociete}</p>` }); } catch (e) {}
     res.status(200).json({ success: true });
   } catch (error) { res.status(500).json({ success: false }); }
@@ -793,7 +799,7 @@ app.get("/api/pennylane/sync", async (req, res) => {
             if (extRef && extRef.startsWith('atelier_')) {
                 userId = extRef.replace('atelier_', '');
             } else if (plInv.customer?.email) {
-                const u = await User.findOne({ email: plInv.customer.email });
+                const u = await User.findOne({ email: emailCI(plInv.customer.email) });
                 if (u) userId = u._id.toString();
             }
 
@@ -843,30 +849,53 @@ app.post("/api/contact", upload.none(), async (req, res) => {
 app.post("/api/forgot-password", async (req, res) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ email });
-    if (user) {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        const tempPassword = Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-        user.password = await bcrypt.hash(tempPassword, SALT_ROUNDS);
-        await user.save();
+    if (!email) return res.json({ success: true }); // pas d'email fourni, on ne révèle rien
 
-        const body = `<p>Bonjour <strong>${user.nomSociete || user.email}</strong>,</p>
-            <p>Voici votre mot de passe temporaire pour vous connecter :</p>
-            <div style="margin:24px 0;padding:24px;background:#F7F4EE;border-radius:12px;text-align:center;border:2px dashed #C9A96E">
-                <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:3px">Mot de passe temporaire</p>
-                <p style="margin:0;font-size:32px;font-weight:bold;color:#0F0E0C;letter-spacing:6px;font-family:Courier,monospace">${tempPassword}</p>
-            </div>
-            <p style="color:#888;font-size:13px">Une fois connecté, changez votre mot de passe dans votre profil.</p>
-            <p style="color:#e53e3e;font-size:12px;margin-top:16px">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`;
+    // Recherche insensible à la casse / espaces, pour éviter les faux négatifs
+    const cleanEmail = email.trim();
+    const user = await User.findOne({ email: emailCI(cleanEmail) });
 
-        await resend.emails.send({
+    if (!user) {
+        console.log(`ℹ️ Mot de passe oublié : aucun compte trouvé pour "${cleanEmail}"`);
+        return res.json({ success: true }); // on ne révèle pas si le compte existe
+    }
+
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const tempPassword = Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+
+    const body = `<p>Bonjour <strong>${user.nomSociete || user.email}</strong>,</p>
+        <p>Voici votre mot de passe temporaire pour vous connecter :</p>
+        <div style="margin:24px 0;padding:24px;background:#F7F4EE;border-radius:12px;text-align:center;border:2px dashed #C9A96E">
+            <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:3px">Mot de passe temporaire</p>
+            <p style="margin:0;font-size:32px;font-weight:bold;color:#0F0E0C;letter-spacing:6px;font-family:Courier,monospace">${tempPassword}</p>
+        </div>
+        <p style="color:#888;font-size:13px">Une fois connecté, changez votre mot de passe dans votre profil.</p>
+        <p style="color:#e53e3e;font-size:12px;margin-top:16px">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`;
+
+    // On envoie l'email AVANT de modifier le mot de passe en base :
+    // si l'envoi échoue, l'utilisateur garde son ancien mot de passe au lieu
+    // de se retrouver bloqué avec un mot de passe temporaire qu'il n'a jamais reçu.
+    try {
+        const sendResult = await resend.emails.send({
             from: EMAIL_SENDER,
             to: user.email,
             subject: "Votre mot de passe temporaire — L'Atelier des Arts",
             html: getEmailTemplate("Réinitialisation du mot de passe", body, "https://l-atelier-des-arts.com/espace-pro", "Se connecter")
         });
-        console.log(`✅ Email mot de passe envoyé à ${user.email}`);
+        if (sendResult?.error) {
+            console.error(`❌ Resend a refusé l'email pour ${user.email} :`, sendResult.error);
+            return res.status(500).json({ success: false, message: "Erreur lors de l'envoi de l'email." });
+        }
+        console.log(`✅ Email mot de passe envoyé à ${user.email} (id Resend: ${sendResult?.data?.id || 'n/a'})`);
+    } catch (mailErr) {
+        console.error(`❌ Exception lors de l'envoi de l'email à ${user.email} :`, mailErr);
+        return res.status(500).json({ success: false, message: "Erreur lors de l'envoi de l'email." });
     }
+
+    // L'email est parti avec succès : on peut maintenant appliquer le nouveau mot de passe
+    user.password = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+    await user.save();
+
     res.json({ success: true });
   } catch (error) {
     console.error("Erreur forgot-password:", error);
