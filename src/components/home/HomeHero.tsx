@@ -49,10 +49,11 @@ const HomeHero = () => {
         {/* Texte */}
         <div className="lg:col-span-6 text-center lg:text-left">
           <span className="animate-fade-up delay-100 inline-block font-sans-dm text-[9px] sm:text-[10px] tracking-[0.3em] sm:tracking-[0.35em] uppercase text-[#C9A96E] border border-[#C9A96E]/30 px-4 sm:px-5 py-2 mb-8">
-            Artisan lunettier · Paris 12ème
+            L'Atelier des Arts · Paris 12ème
           </span>
 
           <h1 className="animate-fade-up delay-200 font-playfair text-5xl sm:text-6xl md:text-7xl xl:text-8xl font-normal text-[#F7F4EE] leading-[1.02] tracking-tight mb-8">
+            <span className="sr-only">L'Atelier des Arts, artisan lunetier sur mesure à Paris — </span>
             Signez<br/>
             <span className="italic text-[#E2C99A]">votre regard</span>
           </h1>
@@ -101,7 +102,7 @@ const HomeHero = () => {
                 <img
                   key={photo.id}
                   src={photo.image}
-                  alt={photo.name}
+                  alt={photo.alt}
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{ transition: "opacity 1.4s ease-out, transform 1.4s ease-out", opacity: i === current ? 1 : 0, transform: i === current ? "scale(1)" : "scale(1.04)" }}
                 />

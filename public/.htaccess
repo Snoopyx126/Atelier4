@@ -1,4 +1,9 @@
 RewriteEngine On
+
+# Une seule adresse pour Google : www -> sans www
+RewriteCond %{HTTP_HOST} ^www\.l-atelier-des-arts\.com$ [NC]
+RewriteRule ^(.*)$ https://l-atelier-des-arts.com/$1 [R=301,L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^.*$ /index.html [L]

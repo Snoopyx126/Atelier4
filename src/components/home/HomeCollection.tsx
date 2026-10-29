@@ -58,7 +58,7 @@ const HomeCollection = () => {
                 <div className="aspect-square overflow-hidden">
                   <img
                     src={product.image}
-                    alt={product.name}
+                    alt={product.alt}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105"
                     style={{ transition: "transform 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}

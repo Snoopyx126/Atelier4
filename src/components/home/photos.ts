@@ -7,5 +7,6 @@ export const photos = Object.keys(modules)
   .map((key, index) => ({
     id: index + 1,
     name: `Pièce N°${String(index + 1).padStart(2, "0")}`,
+    alt: `Lunettes sans cercle sur mesure L'Atelier des Arts Paris — Pièce N°${String(index + 1).padStart(2, "0")}`,
     image: modules[key],
   }));

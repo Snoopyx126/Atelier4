@@ -27,10 +27,10 @@ const HomeSavoirFaire = () => {
           {/* Photos */}
           <div className="relative animate-fade-up order-2 lg:order-1">
             <div className="aspect-square overflow-hidden bg-[#F7F4EE] w-[85%]">
-              {main && <img src={main.image} alt={main.name} loading="lazy" className="w-full h-full object-cover"/>}
+              {main && <img src={main.image} alt={main.alt} loading="lazy" className="w-full h-full object-cover"/>}
             </div>
             <div className="absolute -bottom-8 right-0 w-[48%] aspect-square overflow-hidden border-[6px] border-white shadow-[0_30px_60px_-30px_rgba(15,14,12,0.45)]">
-              {detail && <img src={detail.image} alt={detail.name} loading="lazy" className="w-full h-full object-cover"/>}
+              {detail && <img src={detail.image} alt={detail.alt} loading="lazy" className="w-full h-full object-cover"/>}
             </div>
           </div>
 
